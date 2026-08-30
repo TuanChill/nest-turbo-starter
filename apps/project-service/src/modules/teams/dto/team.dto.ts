@@ -35,6 +35,11 @@ export class CreateTeamDto {
   @ApiPropertyOptional({ example: ['ln', 'mason'] })
   @IsOptional()
   memberIds?: string[];
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  workspaceId?: string;
 }
 
 export class UpdateTeamDto {

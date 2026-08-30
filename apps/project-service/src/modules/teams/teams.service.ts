@@ -4,6 +4,20 @@ import { AddTeamMemberDto, CreateTeamDto, UpdateTeamDto } from './dto/team.dto';
 import { Member, Project, Team, TeamMember, WorkspaceMember } from '../../data-access';
 import { WorkspacesService } from '../workspaces/workspaces.service';
 
+export interface PublicMember {
+  id: string;
+  email: string;
+  name: string;
+  avatarUrl: string;
+  status: 'online' | 'offline' | 'away';
+  role: 'Member' | 'Admin' | 'Guest' | 'Application';
+  timezone: string;
+  joinedDate: Date;
+  createdAt: Date;
+  updatedAt: Date;
+  deletedAt?: Date;
+}
+
 @Injectable()
 export class TeamsService {
   constructor(
@@ -20,6 +34,22 @@ export class TeamsService {
     if (!accessibleTeamIds.includes(teamId)) {
       throw new NotFoundException(notFoundMessage);
     }
+  }
+
+  private toPublicMember(member: Member): PublicMember {
+    return {
+      id: member.id,
+      email: member.email,
+      name: member.name,
+      avatarUrl: member.avatarUrl,
+      status: member.status,
+      role: member.role,
+      timezone: member.timezone,
+      joinedDate: member.joinedDate,
+      createdAt: member.createdAt,
+      updatedAt: member.updatedAt,
+      deletedAt: member.deletedAt,
+    };
   }
 
   async findAll(memberId?: string, workspaceId?: string) {
@@ -55,7 +85,10 @@ export class TeamsService {
       const teamUserIds = teamMembers
         .filter((tm) => tm.teamId === team.id)
         .map((tm) => tm.memberId);
-      const teamUsers = teamUserIds.map((id) => membersMap.get(id)).filter(Boolean);
+      const teamUsers = teamUserIds
+        .map((id) => membersMap.get(id))
+        .filter((m): m is Member => Boolean(m))
+        .map((m) => this.toPublicMember(m));
       const teamProjects = projects.filter((p) => p.teamId === team.id);
 
       const isJoined = memberId ? teamUserIds.includes(memberId) : team.joined;
@@ -96,12 +129,22 @@ export class TeamsService {
       joined: isJoined,
       workspaceId: team.workspaceId,
       description: team.description,
-      members,
+      members: members.map((m) => this.toPublicMember(m)),
       projects,
     };
   }
 
   async create(dto: CreateTeamDto, currentMemberId: string) {
+    if (dto.workspaceId) {
+      const membership = await this.em.findOne(WorkspaceMember, {
+        workspaceId: dto.workspaceId,
+        memberId: currentMemberId,
+      });
+      if (!membership) {
+        throw new NotFoundException(`Workspace ${dto.workspaceId} not found`);
+      }
+    }
+
     let id = (dto.id || dto.name.toUpperCase().replace(/[^A-Z0-9]+/g, '')).slice(0, 10);
     if (!id) id = `TEAM${Date.now().toString().slice(-3)}`;
     const existing = await this.em.findOne(Team, { id });
@@ -208,7 +251,8 @@ export class TeamsService {
   async findMembers(teamId: string) {
     const teamMembers = await this.em.find(TeamMember, { teamId });
     const memberIds = teamMembers.map((tm) => tm.memberId);
-    return this.em.find(Member, { id: { $in: memberIds } });
+    const members = await this.em.find(Member, { id: { $in: memberIds } });
+    return members.map((m) => this.toPublicMember(m));
   }
 
   async delete(id: string, actorId: string) {
