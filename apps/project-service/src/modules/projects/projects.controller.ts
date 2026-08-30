@@ -64,19 +64,31 @@ export class ProjectsController {
 
   @ApiOperation({ summary: 'Post a health update for project' })
   @Post(':id/updates')
-  addUpdate(@Param('id') id: string, @Body() dto: CreateProjectUpdateDto) {
-    return this.projectsService.addUpdate(id, dto);
+  addUpdate(
+    @Param('id') id: string,
+    @Body() dto: CreateProjectUpdateDto,
+    @User('id') memberId: string,
+  ) {
+    return this.projectsService.addUpdate(id, dto, memberId);
   }
 
   @ApiOperation({ summary: 'Add milestone to project' })
   @Post(':id/milestones')
-  addMilestone(@Param('id') id: string, @Body() dto: CreateMilestoneDto) {
-    return this.projectsService.addMilestone(id, dto);
+  addMilestone(
+    @Param('id') id: string,
+    @Body() dto: CreateMilestoneDto,
+    @User('id') memberId: string,
+  ) {
+    return this.projectsService.addMilestone(id, dto, memberId);
   }
 
   @ApiOperation({ summary: 'Toggle milestone completion status' })
   @Patch(':id/milestones/:milestoneId/toggle')
-  toggleMilestone(@Param('id') id: string, @Param('milestoneId') milestoneId: string) {
-    return this.projectsService.toggleMilestone(id, milestoneId);
+  toggleMilestone(
+    @Param('id') id: string,
+    @Param('milestoneId') milestoneId: string,
+    @User('id') memberId: string,
+  ) {
+    return this.projectsService.toggleMilestone(id, milestoneId, memberId);
   }
 }

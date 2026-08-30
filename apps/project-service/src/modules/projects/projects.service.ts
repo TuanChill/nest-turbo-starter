@@ -322,13 +322,18 @@ export class ProjectsService {
     return { success: true };
   }
 
-  async addUpdate(projectId: string, dto: CreateProjectUpdateDto) {
+  async addUpdate(projectId: string, dto: CreateProjectUpdateDto, memberId: string) {
     const project = await this.em.findOne(Project, { id: projectId });
     if (!project) throw new NotFoundException(`Project ${projectId} not found`);
+    await this.assertTeamAccess(
+      memberId,
+      project.teamId,
+      `Project ${projectId} not found`,
+    );
 
     const update = new ProjectUpdate({
       projectId,
-      authorId: dto.authorId,
+      authorId: memberId,
       health: dto.health,
       blocks: dto.blocks,
     });
@@ -341,9 +346,14 @@ export class ProjectsService {
     return this.findDetail(projectId);
   }
 
-  async addMilestone(projectId: string, dto: CreateMilestoneDto) {
+  async addMilestone(projectId: string, dto: CreateMilestoneDto, memberId: string) {
     const project = await this.em.findOne(Project, { id: projectId });
     if (!project) throw new NotFoundException(`Project ${projectId} not found`);
+    await this.assertTeamAccess(
+      memberId,
+      project.teamId,
+      `Project ${projectId} not found`,
+    );
 
     const milestone = new ProjectMilestone({
       projectId,
@@ -357,7 +367,15 @@ export class ProjectsService {
     return this.findDetail(projectId);
   }
 
-  async toggleMilestone(projectId: string, milestoneId: string) {
+  async toggleMilestone(projectId: string, milestoneId: string, memberId: string) {
+    const project = await this.em.findOne(Project, { id: projectId });
+    if (!project) throw new NotFoundException(`Project ${projectId} not found`);
+    await this.assertTeamAccess(
+      memberId,
+      project.teamId,
+      `Project ${projectId} not found`,
+    );
+
     const milestone = await this.em.findOne(ProjectMilestone, {
       id: milestoneId,
       projectId,

@@ -282,13 +282,21 @@ export class WorkspacesService {
 
   async regenerateInviteCode(
     workspaceId: string,
-    _currentMemberId: string,
+    currentMemberId: string,
   ): Promise<string> {
     const workspace = await this.em.findOne(Workspace, {
       $or: [{ id: workspaceId }, { slug: workspaceId }],
     });
 
     if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    const membership = await this.em.findOne(WorkspaceMember, {
+      workspaceId: workspace.id,
+      memberId: currentMemberId,
+    });
+    if (!membership && workspace.ownerId !== currentMemberId) {
       throw new NotFoundException('Workspace not found');
     }
 

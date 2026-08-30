@@ -1,5 +1,12 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsArray, IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+import {
+  IsArray,
+  IsEnum,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 
 export class CreateProjectDto {
   @ApiPropertyOptional()
@@ -171,16 +178,14 @@ export class UpdateProjectDto {
 }
 
 export class CreateProjectUpdateDto {
-  @ApiProperty({ example: 'ln' })
-  @IsString()
-  @IsNotEmpty()
-  authorId: string;
-
   @ApiProperty({ enum: ['on-track', 'at-risk', 'off-track'], default: 'on-track' })
   @IsEnum(['on-track', 'at-risk', 'off-track'])
   health: 'on-track' | 'at-risk' | 'off-track';
 
-  @ApiProperty({ type: Array, example: [{ type: 'paragraph', text: 'Sprint on schedule.' }] })
+  @ApiProperty({
+    type: Array,
+    example: [{ type: 'paragraph', text: 'Sprint on schedule.' }],
+  })
   @IsArray()
   blocks: any[];
 }

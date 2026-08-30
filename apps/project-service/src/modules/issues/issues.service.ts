@@ -822,9 +822,17 @@ export class IssuesService {
     return this.findDetail(issue.identifier);
   }
 
-  async addReaction(activityId: string, dto: AddReactionDto) {
+  async addReaction(activityId: string, dto: AddReactionDto, memberId: string) {
     const act = await this.em.findOne(IssueActivity, { id: activityId });
     if (!act) throw new NotFoundException(`Activity ${activityId} not found`);
+
+    const issue = await this.em.findOne(Issue, { identifier: act.issueIdentifier });
+    if (!issue) throw new NotFoundException(`Activity ${activityId} not found`);
+    await this.assertTeamAccess(
+      memberId,
+      issue.teamId,
+      `Activity ${activityId} not found`,
+    );
 
     const reactions = act.reactions || [];
     const found = reactions.find((r: any) => r.emoji === dto.emoji);
@@ -834,7 +842,7 @@ export class IssuesService {
       reactions.push({
         emoji: dto.emoji,
         count: 1,
-        userIds: dto.userId ? [dto.userId] : [],
+        userIds: [memberId],
       });
     }
     act.reactions = [...reactions];

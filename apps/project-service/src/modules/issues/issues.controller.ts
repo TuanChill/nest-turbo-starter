@@ -116,8 +116,12 @@ export class IssuesController {
 
   @ApiOperation({ summary: 'Add reaction to issue activity/comment' })
   @Post('activities/:activityId/reactions')
-  addReaction(@Param('activityId') activityId: string, @Body() dto: AddReactionDto) {
-    return this.issuesService.addReaction(activityId, dto);
+  addReaction(
+    @Param('activityId') activityId: string,
+    @Body() dto: AddReactionDto,
+    @User('id') memberId: string,
+  ) {
+    return this.issuesService.addReaction(activityId, dto, memberId);
   }
 
   @ApiOperation({ summary: 'Add relation between issues (blocks, relates_to, etc.)' })

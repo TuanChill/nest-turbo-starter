@@ -186,11 +186,6 @@ export class AddReactionDto {
   @IsString()
   @IsNotEmpty()
   emoji: string;
-
-  @ApiPropertyOptional({ example: 'ln' })
-  @IsString()
-  @IsOptional()
-  userId?: string;
 }
 
 export class AddRelationDto {
