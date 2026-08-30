@@ -10,7 +10,6 @@ import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigType } from '@nestjs/config';
 import { APP_FILTER } from '@nestjs/core';
 import { WinstonModule } from 'nest-winston';
-import { appConfiguration, dbConfiguration } from '../config';
 import { AgentModule } from './agent/agent.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -22,11 +21,14 @@ import { InitiativesModule } from './initiatives/initiatives.module';
 import { IssuesModule } from './issues/issues.module';
 import { LabelsModule } from './labels/labels.module';
 import { MembersModule } from './members/members.module';
+import { OnboardingModule } from './onboarding/onboarding.module';
 import { ProjectsModule } from './projects/projects.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { SeedModule } from './seed/seed.module';
 import { TeamsModule } from './teams/teams.module';
 import { ViewsModule } from './views/views.module';
+import { WorkspacesModule } from './workspaces/workspaces.module';
+import { appConfiguration, dbConfiguration } from '../config';
 
 @Module({
   imports: [
@@ -54,6 +56,8 @@ import { ViewsModule } from './views/views.module';
       inject: [appConfiguration.KEY, appCommonConfiguration.KEY],
     }),
     AuthModule,
+    OnboardingModule,
+    WorkspacesModule,
     MembersModule,
     TeamsModule,
     LabelsModule,

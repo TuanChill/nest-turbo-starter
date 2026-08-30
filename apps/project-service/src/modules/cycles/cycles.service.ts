@@ -1,7 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
 import { EntityManager } from '@mikro-orm/core';
-import { Cycle, Issue } from '../../data-access';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateCycleDto, UpdateCycleDto } from './dto/cycle.dto';
+import { Cycle, Issue } from '../../data-access';
+import { WorkspacesService } from '../workspaces/workspaces.service';
 
 interface CycleBurnupPoint {
   date: string;
@@ -25,7 +26,9 @@ function generateBurnup(
   for (let i = 0; i <= days; i++) {
     const t = i / days;
     const eased = t * t * (3 - 2 * t);
-    const scope = Math.round(startScope + (endScope - startScope) * Math.min(1, t * 1.35));
+    const scope = Math.round(
+      startScope + (endScope - startScope) * Math.min(1, t * 1.35),
+    );
     const completed = Math.round(completedTarget * eased);
     const started = Math.min(
       scope - completed,
@@ -48,17 +51,22 @@ function generateBurnup(
 
 @Injectable()
 export class CyclesService {
-  constructor(private readonly em: EntityManager) {}
+  constructor(
+    private readonly em: EntityManager,
+    private readonly workspacesService: WorkspacesService,
+  ) {}
 
   private async enrichCycle(cycle: Cycle) {
     const issues = await this.em.find(Issue, { cycleId: cycle.id });
     const totalScope = issues.length > 0 ? issues.length : cycle.scope;
-    const completedCount = issues.length > 0
-      ? issues.filter((i) => i.statusCategory === 'completed').length
-      : cycle.completed;
-    const startedCount = issues.length > 0
-      ? issues.filter((i) => i.statusCategory === 'started').length
-      : cycle.started;
+    const completedCount =
+      issues.length > 0
+        ? issues.filter((i) => i.statusCategory === 'completed').length
+        : cycle.completed;
+    const startedCount =
+      issues.length > 0
+        ? issues.filter((i) => i.statusCategory === 'started').length
+        : cycle.started;
 
     const startDateStr = cycle.startDate.toISOString().split('T')[0];
     const endDateStr = cycle.endDate.toISOString().split('T')[0];
@@ -84,7 +92,8 @@ export class CyclesService {
       }
     }
 
-    const successRate = totalScope > 0 ? Math.round((completedCount / totalScope) * 100) : 0;
+    const successRate =
+      totalScope > 0 ? Math.round((completedCount / totalScope) * 100) : 0;
 
     return {
       id: cycle.id,
@@ -99,14 +108,21 @@ export class CyclesService {
       scopeDelta: cycle.scopeDelta,
       started: startedCount,
       completed: completedCount,
-      successRate: cycle.status === 'completed' ? (cycle.successRate ?? successRate) : undefined,
+      successRate:
+        cycle.status === 'completed' ? (cycle.successRate ?? successRate) : undefined,
       burnup,
     };
   }
 
-  async findAll(teamId?: string) {
-    const where: any = {};
-    if (teamId) where.teamId = teamId;
+  async findAll(memberId: string, teamId?: string) {
+    const accessibleTeamIds = await this.workspacesService.getAccessibleTeamIds(memberId);
+    if (accessibleTeamIds.length === 0) return [];
+
+    const where: any = { teamId: { $in: accessibleTeamIds } };
+    if (teamId) {
+      if (!accessibleTeamIds.includes(teamId)) return [];
+      where.teamId = teamId;
+    }
 
     const cycles = await this.em.find(Cycle, where, {
       orderBy: { number: 'DESC' },
@@ -115,13 +131,25 @@ export class CyclesService {
     return Promise.all(cycles.map((c) => this.enrichCycle(c)));
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, memberId?: string) {
     const cycle = await this.em.findOne(Cycle, { id });
     if (!cycle) throw new NotFoundException(`Cycle ${id} not found`);
+    if (memberId) {
+      const accessibleTeamIds =
+        await this.workspacesService.getAccessibleTeamIds(memberId);
+      if (!accessibleTeamIds.includes(cycle.teamId)) {
+        throw new NotFoundException(`Cycle ${id} not found`);
+      }
+    }
     return this.enrichCycle(cycle);
   }
 
-  async create(dto: CreateCycleDto) {
+  async create(dto: CreateCycleDto, memberId: string) {
+    const accessibleTeamIds = await this.workspacesService.getAccessibleTeamIds(memberId);
+    if (!accessibleTeamIds.includes(dto.teamId)) {
+      throw new NotFoundException(`Team ${dto.teamId} not found`);
+    }
+
     let number = dto.number;
     let id = dto.id || String(number);
     const existing = await this.em.findOne(Cycle, { id });
@@ -152,9 +180,13 @@ export class CyclesService {
     return this.findOne(cycle.id);
   }
 
-  async update(id: string, dto: UpdateCycleDto) {
+  async update(id: string, dto: UpdateCycleDto, memberId: string) {
     const cycle = await this.em.findOne(Cycle, { id });
     if (!cycle) throw new NotFoundException(`Cycle ${id} not found`);
+    const accessibleTeamIds = await this.workspacesService.getAccessibleTeamIds(memberId);
+    if (!accessibleTeamIds.includes(cycle.teamId)) {
+      throw new NotFoundException(`Cycle ${id} not found`);
+    }
 
     if (dto.name !== undefined) cycle.name = dto.name;
     if (dto.status !== undefined) cycle.status = dto.status;

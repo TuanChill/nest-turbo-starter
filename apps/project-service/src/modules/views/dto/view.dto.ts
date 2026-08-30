@@ -12,7 +12,9 @@ export class CreateViewDto {
   @IsNotEmpty()
   name: string;
 
-  @ApiPropertyOptional({ example: 'Issues that are Blocked or Paused for more than 3 days' })
+  @ApiPropertyOptional({
+    example: 'Issues that are Blocked or Paused for more than 3 days',
+  })
   @IsString()
   @IsOptional()
   description?: string;
@@ -22,19 +24,25 @@ export class CreateViewDto {
   @IsOptional()
   icon?: string;
 
-  @ApiProperty({ enum: ['issue', 'project'], default: 'issue' })
+  @ApiPropertyOptional({ enum: ['issue', 'project'], default: 'issue' })
   @IsEnum(['issue', 'project'])
-  type: 'issue' | 'project';
+  @IsOptional()
+  type?: 'issue' | 'project' = 'issue';
 
   @ApiPropertyOptional({ example: 'CORE' })
   @IsString()
   @IsOptional()
   teamId?: string;
 
-  @ApiPropertyOptional({ example: 'ln' })
+  @ApiPropertyOptional({ example: '01a03d7b-ab5f-75aa-bbb8-542338533eae' })
   @IsString()
   @IsOptional()
-  ownerId?: string;
+  projectId?: string;
+
+  @ApiPropertyOptional({ enum: ['list', 'grid'], default: 'list' })
+  @IsEnum(['list', 'grid'])
+  @IsOptional()
+  layout?: 'list' | 'grid';
 
   @ApiPropertyOptional({ type: Object, example: { statusIds: ['blocked', 'paused'] } })
   @IsObject()
@@ -67,6 +75,16 @@ export class UpdateViewDto {
   @IsString()
   @IsOptional()
   teamId?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  projectId?: string;
+
+  @ApiPropertyOptional({ enum: ['list', 'grid'] })
+  @IsEnum(['list', 'grid'])
+  @IsOptional()
+  layout?: 'list' | 'grid';
 
   @ApiPropertyOptional({ type: Object })
   @IsObject()

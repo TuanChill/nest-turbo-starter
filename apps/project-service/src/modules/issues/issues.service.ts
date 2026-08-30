@@ -1,16 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
 import { EntityManager } from '@mikro-orm/core';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { v7 } from 'uuid';
-import {
-  Issue,
-  IssueActivity,
-  IssueLabel,
-  IssueRelation,
-  Label,
-  Member,
-  PrLink,
-  Project,
-} from '../../data-access';
 import {
   AddReactionDto,
   AddRelationDto,
@@ -18,6 +8,19 @@ import {
   CreateIssueDto,
   UpdateIssueDto,
 } from './dto/issue.dto';
+import {
+  Issue,
+  IssueActivity,
+  IssueLabel,
+  IssueRelation,
+  Label,
+  Member,
+  Notification,
+  PrLink,
+  Project,
+  Team,
+} from '../../data-access';
+import { WorkspacesService } from '../workspaces/workspaces.service';
 
 const ALL_STATUSES: Record<
   string,
@@ -27,12 +30,27 @@ const ALL_STATUSES: Record<
   backlog: { id: 'backlog', name: 'Backlog', color: '#bec2c8', category: 'backlog' },
   triage: { id: 'triage', name: 'Triage', color: '#f2994a', category: 'triage' },
   'to-do': { id: 'to-do', name: 'To Do', color: '#e2e2e2', category: 'unstarted' },
-  'in-progress': { id: 'in-progress', name: 'In Progress', color: '#f2c94c', category: 'started' },
+  'in-progress': {
+    id: 'in-progress',
+    name: 'In Progress',
+    color: '#f2c94c',
+    category: 'started',
+  },
   done: { id: 'done', name: 'Done', color: '#5e6ad2', category: 'completed' },
   canceled: { id: 'canceled', name: 'Canceled', color: '#95a2b3', category: 'canceled' },
-  duplicate: { id: 'duplicate', name: 'Duplicate', color: '#6b7280', category: 'canceled' },
+  duplicate: {
+    id: 'duplicate',
+    name: 'Duplicate',
+    color: '#6b7280',
+    category: 'canceled',
+  },
   paused: { id: 'paused', name: 'Paused', color: '#8f9299', category: 'unstarted' },
-  'in-review': { id: 'in-review', name: 'In Review', color: '#26b5ce', category: 'started' },
+  'in-review': {
+    id: 'in-review',
+    name: 'In Review',
+    color: '#26b5ce',
+    category: 'started',
+  },
   'technical-review': {
     id: 'technical-review',
     name: 'Technical Review',
@@ -58,7 +76,64 @@ const ALL_PRIORITIES: Record<string, { id: string; name: string }> = {
 
 @Injectable()
 export class IssuesService {
-  constructor(private readonly em: EntityManager) {}
+  constructor(
+    private readonly em: EntityManager,
+    private readonly workspacesService: WorkspacesService,
+  ) {}
+
+  private async assertTeamAccess(
+    memberId: string,
+    teamId: string,
+    notFoundMessage: string,
+  ) {
+    const accessibleTeamIds = await this.workspacesService.getAccessibleTeamIds(memberId);
+    if (!accessibleTeamIds.includes(teamId)) {
+      throw new NotFoundException(notFoundMessage);
+    }
+  }
+
+  /** assignee + creator + everyone who has commented, minus the actor causing the event. */
+  private async resolveRecipients(
+    issue: Issue,
+    excludeActorId: string,
+  ): Promise<string[]> {
+    const recipients = new Set<string>();
+    if (issue.assigneeId) recipients.add(issue.assigneeId);
+    if (issue.creatorId) recipients.add(issue.creatorId);
+    const comments = await this.em.find(IssueActivity, {
+      issueIdentifier: issue.identifier,
+      kind: 'comment',
+    });
+    for (const c of comments) recipients.add(c.actorId);
+    recipients.delete(excludeActorId);
+    return Array.from(recipients);
+  }
+
+  /** Persists one Notification per recipient (deduped, self-notify excluded). Caller flushes. */
+  private notifyMany(
+    issueIdentifier: string,
+    actorId: string,
+    recipientIds: Iterable<string>,
+    type: Notification['type'],
+    content: string,
+  ) {
+    const seen = new Set<string>();
+    for (const userId of recipientIds) {
+      if (!userId || userId === actorId || seen.has(userId)) continue;
+      seen.add(userId);
+      this.em.persist(
+        new Notification({
+          id: v7(),
+          issueIdentifier,
+          userId,
+          actorId,
+          type,
+          content,
+          read: false,
+        }),
+      );
+    }
+  }
 
   private transformIssue(
     issue: Issue,
@@ -68,14 +143,15 @@ export class IssuesService {
     issueLabels: IssueLabel[],
     subissuesMap: Map<string, string[]>,
   ) {
-    const assignee = issue.assigneeId ? membersMap.get(issue.assigneeId) ?? null : null;
+    const assignee = issue.assigneeId ? (membersMap.get(issue.assigneeId) ?? null) : null;
     const labelIds = issueLabels
       .filter((il) => il.issueId === issue.id || il.issueId === issue.identifier)
       .map((il) => il.labelId);
     const labels = labelIds.map((lid) => labelsMap.get(lid)).filter(Boolean);
 
     const project = issue.projectId ? projectsMap.get(issue.projectId) : undefined;
-    const subissues = subissuesMap.get(issue.id) || subissuesMap.get(issue.identifier) || [];
+    const subissues =
+      subissuesMap.get(issue.id) || subissuesMap.get(issue.identifier) || [];
 
     const status = ALL_STATUSES[issue.statusId] || {
       id: issue.statusId,
@@ -95,7 +171,9 @@ export class IssuesService {
       assignee,
       priority,
       labels,
-      createdAt: issue.createdAt ? issue.createdAt.toISOString().split('T')[0] : '2026-07-01',
+      createdAt: issue.createdAt
+        ? issue.createdAt.toISOString().split('T')[0]
+        : '2026-07-01',
       cycleId: issue.cycleId ?? '',
       project,
       subissues: subissues.length > 0 ? subissues : undefined,
@@ -104,20 +182,35 @@ export class IssuesService {
     };
   }
 
-  async findAll(query?: {
-    teamId?: string;
-    cycleId?: string;
-    projectId?: string;
-    statusCategories?: string | string[];
-    statusIds?: string | string[];
-    priorityIds?: string | string[];
-    assigneeId?: string;
-    labelIds?: string | string[];
-    search?: string;
-  }) {
-    const where: any = {};
+  async findAll(
+    memberId: string,
+    query?: {
+      teamId?: string;
+      cycleId?: string;
+      projectId?: string;
+      statusCategories?: string | string[];
+      statusIds?: string | string[];
+      priorityIds?: string | string[];
+      assigneeId?: string;
+      labelIds?: string | string[];
+      search?: string;
+      limit?: number;
+      offset?: number;
+    },
+  ) {
+    const accessibleTeamIds = await this.workspacesService.getAccessibleTeamIds(memberId);
+    if (accessibleTeamIds.length === 0) {
+      return [];
+    }
 
-    if (query?.teamId) where.teamId = query.teamId;
+    const where: any = { teamId: { $in: accessibleTeamIds } };
+
+    if (query?.teamId) {
+      if (!accessibleTeamIds.includes(query.teamId)) {
+        return [];
+      }
+      where.teamId = query.teamId;
+    }
     if (query?.cycleId !== undefined) where.cycleId = query.cycleId;
     if (query?.projectId) where.projectId = query.projectId;
     if (query?.assigneeId) where.assigneeId = query.assigneeId;
@@ -153,6 +246,8 @@ export class IssuesService {
 
     const issues = await this.em.find(Issue, where, {
       orderBy: { rank: 'ASC', createdAt: 'DESC' },
+      limit: query?.limit ?? 200,
+      offset: query?.offset,
     });
 
     const members = await this.em.find(Member, {});
@@ -202,11 +297,18 @@ export class IssuesService {
     );
   }
 
-  async findOne(identifierOrId: string) {
+  async findOne(identifierOrId: string, memberId?: string) {
     const issue = await this.em.findOne(Issue, {
       $or: [{ identifier: identifierOrId }, { id: identifierOrId }],
     });
     if (!issue) throw new NotFoundException(`Issue ${identifierOrId} not found`);
+    if (memberId) {
+      await this.assertTeamAccess(
+        memberId,
+        issue.teamId,
+        `Issue ${identifierOrId} not found`,
+      );
+    }
 
     const members = await this.em.find(Member, {});
     const labels = await this.em.find(Label, {});
@@ -239,8 +341,8 @@ export class IssuesService {
     );
   }
 
-  async findDetail(identifierOrId: string) {
-    const base = await this.findOne(identifierOrId);
+  async findDetail(identifierOrId: string, memberId?: string) {
+    const base = await this.findOne(identifierOrId, memberId);
     const issue = await this.em.findOne(Issue, {
       $or: [{ identifier: identifierOrId }, { id: identifierOrId }],
     });
@@ -268,13 +370,21 @@ export class IssuesService {
     const relatedIds: string[] = [];
 
     for (const rel of relations) {
-      if (rel.relationType === 'blocked_by' && rel.sourceIdentifier === issue.identifier) {
+      if (
+        rel.relationType === 'blocked_by' &&
+        rel.sourceIdentifier === issue.identifier
+      ) {
         blockedByIds.push(rel.targetIdentifier);
-      } else if (rel.relationType === 'blocks' && rel.targetIdentifier === issue.identifier) {
+      } else if (
+        rel.relationType === 'blocks' &&
+        rel.targetIdentifier === issue.identifier
+      ) {
         blockedByIds.push(rel.sourceIdentifier);
       } else if (rel.relationType === 'relates_to') {
         const other =
-          rel.sourceIdentifier === issue.identifier ? rel.targetIdentifier : rel.sourceIdentifier;
+          rel.sourceIdentifier === issue.identifier
+            ? rel.targetIdentifier
+            : rel.sourceIdentifier;
         relatedIds.push(other);
       }
     }
@@ -339,24 +449,75 @@ export class IssuesService {
     };
   }
 
-  async create(dto: CreateIssueDto) {
-    let identifier = dto.identifier;
-    if (!identifier) {
-      // Find highest LNUI- number
-      const allIssues = await this.em.find(Issue, {});
-      let maxNum = 700;
-      for (const i of allIssues) {
-        const match = i.identifier.match(/\d+/);
+  async create(dto: CreateIssueDto, actorId: string) {
+    let identifier = dto.identifier?.trim();
+    const accessibleTeamIds = await this.workspacesService.getAccessibleTeamIds(actorId);
+
+    // 1. Resolve project and teamId
+    let projectId = dto.projectId;
+    let teamId = dto.teamId;
+
+    if (projectId) {
+      const proj = await this.em.findOne(Project, { id: projectId });
+      if (proj && proj.teamId && accessibleTeamIds.includes(proj.teamId)) {
+        teamId = proj.teamId;
+      } else {
+        // Project doesn't exist, or belongs to a team the actor can't access — don't
+        // trust it as a write target (would leak a foreign project onto this issue).
+        projectId = undefined;
+      }
+    }
+
+    // Fallback to caller's own team if teamId does not exist or is not accessible
+    let team =
+      teamId && accessibleTeamIds.includes(teamId)
+        ? await this.em.findOne(Team, { id: teamId })
+        : null;
+    if (!team) {
+      const fallbackTeam =
+        accessibleTeamIds.length > 0
+          ? await this.em.findOne(Team, { id: { $in: accessibleTeamIds } })
+          : null;
+      if (fallbackTeam) {
+        team = fallbackTeam;
+        teamId = fallbackTeam.id;
+      } else {
+        throw new NotFoundException('No accessible team to create this issue in');
+      }
+    }
+
+    const prefix =
+      team?.id?.toUpperCase() ||
+      (identifier?.includes('-') ? identifier.split('-')[0] : 'ENG');
+
+    // If identifier is not provided, or already taken in DB, generate unique sequential identifier
+    const existing = identifier ? await this.em.findOne(Issue, { identifier }) : null;
+    if (!identifier || existing) {
+      const issuesForPrefix = await this.em.find(Issue, {
+        $or: [{ teamId }, { identifier: { $like: `${prefix}-%` } }],
+      });
+      let maxNum = 0;
+      for (const i of issuesForPrefix) {
+        const match = i.identifier.match(new RegExp(`^${prefix}-(\\d+)`, 'i'));
         if (match) {
-          const num = parseInt(match[0], 10);
+          const num = parseInt(match[1], 10);
           if (num > maxNum) maxNum = num;
         }
       }
-      identifier = `LNUI-${maxNum + 1}`;
+
+      let nextNum = maxNum + 1;
+      identifier = `${prefix}-${nextNum}`;
+      // oxlint-disable-next-line no-await-in-loop -- each candidate identifier depends on the previous one being taken
+      while (await this.em.findOne(Issue, { identifier })) {
+        nextNum++;
+        identifier = `${prefix}-${nextNum}`;
+      }
     }
 
     const statusCategory =
-      dto.statusCategory || ALL_STATUSES[dto.statusId || 'to-do']?.category || 'unstarted';
+      dto.statusCategory ||
+      ALL_STATUSES[dto.statusId || 'to-do']?.category ||
+      'unstarted';
 
     const id = v7();
     const issue = new Issue({
@@ -369,9 +530,9 @@ export class IssuesService {
       statusCategory,
       priorityId: dto.priorityId || 'no-priority',
       assigneeId: dto.assigneeId,
-      creatorId: dto.creatorId || 'ln',
-      teamId: dto.teamId || 'CORE',
-      projectId: dto.projectId,
+      creatorId: actorId,
+      teamId: teamId || 'ENG',
+      projectId: projectId || undefined,
       cycleId: dto.cycleId ?? '',
       parentIssueId: dto.parentIssueId,
       rank: dto.rank || '0|hzzzzz:',
@@ -389,7 +550,7 @@ export class IssuesService {
     // Record creation activity
     const activity = new IssueActivity({
       issueIdentifier: identifier,
-      actorId: dto.creatorId || 'ln',
+      actorId,
       kind: 'event',
       event: 'created',
       text: 'created this issue',
@@ -400,30 +561,84 @@ export class IssuesService {
     return this.findOne(identifier);
   }
 
-  async update(identifierOrId: string, dto: UpdateIssueDto) {
+  async update(identifierOrId: string, dto: UpdateIssueDto, actorId: string) {
     const issue = await this.em.findOne(Issue, {
       $or: [{ identifier: identifierOrId }, { id: identifierOrId }],
     });
     if (!issue) throw new NotFoundException(`Issue ${identifierOrId} not found`);
+    await this.assertTeamAccess(
+      actorId,
+      issue.teamId,
+      `Issue ${identifierOrId} not found`,
+    );
 
-    if (dto.title !== undefined) issue.title = dto.title;
-    if (dto.description !== undefined) issue.description = dto.description;
-    if (dto.descriptionBlocks !== undefined) issue.descriptionBlocks = dto.descriptionBlocks;
+    let actorName: string | undefined;
+    const getActorName = async () => {
+      if (actorName === undefined) {
+        const actor = await this.em.findOne(Member, { id: actorId });
+        actorName = actor?.name || actorId;
+      }
+      return actorName;
+    };
+
+    if (dto.title !== undefined && dto.title !== issue.title) {
+      issue.title = dto.title;
+      this.em.persist(
+        new IssueActivity({
+          issueIdentifier: issue.identifier,
+          actorId,
+          kind: 'event',
+          event: 'title',
+          text: 'changed the title',
+        }),
+      );
+    }
+    if (dto.description !== undefined && dto.description !== issue.description) {
+      issue.description = dto.description;
+      // Editing description invalidates legacy structured blocks; reads fall back to
+      // rendering `description` directly (see findDetail()'s "Default description if blocks empty").
+      if (dto.descriptionBlocks === undefined) {
+        issue.descriptionBlocks = [];
+      }
+      this.em.persist(
+        new IssueActivity({
+          issueIdentifier: issue.identifier,
+          actorId,
+          kind: 'event',
+          event: 'description',
+          text: 'updated the description',
+        }),
+      );
+    }
+    if (dto.descriptionBlocks !== undefined)
+      issue.descriptionBlocks = dto.descriptionBlocks;
     if (dto.statusId !== undefined) {
       const oldStatus = issue.statusId;
       issue.statusId = dto.statusId;
       issue.statusCategory =
-        dto.statusCategory || ALL_STATUSES[dto.statusId]?.category || issue.statusCategory;
+        dto.statusCategory ||
+        ALL_STATUSES[dto.statusId]?.category ||
+        issue.statusCategory;
 
       if (oldStatus !== dto.statusId) {
+        const statusName = ALL_STATUSES[dto.statusId]?.name || dto.statusId;
         const act = new IssueActivity({
           issueIdentifier: issue.identifier,
-          actorId: 'ln',
+          actorId,
           kind: 'event',
           event: 'status',
-          text: `changed status to ${ALL_STATUSES[dto.statusId]?.name || dto.statusId}`,
+          text: `changed status to ${statusName}`,
         });
         this.em.persist(act);
+
+        const name = await getActorName();
+        this.notifyMany(
+          issue.identifier,
+          actorId,
+          [issue.creatorId, issue.assigneeId].filter((id): id is string => Boolean(id)),
+          'status',
+          `${name} changed status to ${statusName}`,
+        );
       }
     }
     if (dto.priorityId !== undefined) {
@@ -432,7 +647,7 @@ export class IssuesService {
       if (oldPriority !== dto.priorityId) {
         const act = new IssueActivity({
           issueIdentifier: issue.identifier,
-          actorId: 'ln',
+          actorId,
           kind: 'event',
           event: 'priority',
           text: `set priority to ${ALL_PRIORITIES[dto.priorityId]?.name || dto.priorityId}`,
@@ -441,22 +656,54 @@ export class IssuesService {
       }
     }
     if (dto.assigneeId !== undefined) {
+      const previousAssigneeId = issue.assigneeId;
       issue.assigneeId = dto.assigneeId;
       const act = new IssueActivity({
         issueIdentifier: issue.identifier,
-        actorId: 'ln',
+        actorId,
         kind: 'event',
         event: 'assignment',
         text: dto.assigneeId ? `assigned to ${dto.assigneeId}` : 'unassigned',
       });
       this.em.persist(act);
+
+      if (dto.assigneeId && dto.assigneeId !== previousAssigneeId) {
+        const name = await getActorName();
+        this.notifyMany(
+          issue.identifier,
+          actorId,
+          [dto.assigneeId],
+          'assignment',
+          `${name} assigned this issue to you`,
+        );
+      }
+    }
+    if (dto.projectId !== undefined && dto.projectId !== issue.projectId) {
+      const targetProject = dto.projectId
+        ? await this.em.findOne(Project, { id: dto.projectId })
+        : null;
+      if (targetProject?.teamId) {
+        await this.assertTeamAccess(
+          actorId,
+          targetProject.teamId,
+          `Issue ${identifierOrId} not found`,
+        );
+      }
+    }
+    if (dto.teamId !== undefined && dto.teamId !== issue.teamId) {
+      await this.assertTeamAccess(
+        actorId,
+        dto.teamId,
+        `Issue ${identifierOrId} not found`,
+      );
     }
     if (dto.teamId !== undefined) issue.teamId = dto.teamId;
     if (dto.projectId !== undefined) issue.projectId = dto.projectId;
     if (dto.cycleId !== undefined) issue.cycleId = dto.cycleId;
     if (dto.parentIssueId !== undefined) issue.parentIssueId = dto.parentIssueId;
     if (dto.rank !== undefined) issue.rank = dto.rank;
-    if (dto.dueDate !== undefined) issue.dueDate = dto.dueDate ? new Date(dto.dueDate) : undefined;
+    if (dto.dueDate !== undefined)
+      issue.dueDate = dto.dueDate ? new Date(dto.dueDate) : undefined;
     if (dto.milestone !== undefined) issue.milestone = dto.milestone;
 
     if (dto.labelIds !== undefined) {
@@ -476,33 +723,48 @@ export class IssuesService {
     return this.findOne(issue.identifier);
   }
 
-  async updateRank(identifierOrId: string, rank: string) {
+  async updateRank(identifierOrId: string, rank: string, memberId: string) {
     const issue = await this.em.findOne(Issue, {
       $or: [{ identifier: identifierOrId }, { id: identifierOrId }],
     });
     if (!issue) throw new NotFoundException(`Issue ${identifierOrId} not found`);
+    await this.assertTeamAccess(
+      memberId,
+      issue.teamId,
+      `Issue ${identifierOrId} not found`,
+    );
 
     issue.rank = rank;
     await this.em.flush();
     return { success: true, identifier: issue.identifier, rank };
   }
 
-  async delete(identifierOrId: string) {
+  async delete(identifierOrId: string, memberId: string) {
     const issue = await this.em.findOne(Issue, {
       $or: [{ identifier: identifierOrId }, { id: identifierOrId }],
     });
     if (issue) {
+      await this.assertTeamAccess(
+        memberId,
+        issue.teamId,
+        `Issue ${identifierOrId} not found`,
+      );
       this.em.remove(issue);
       await this.em.flush();
     }
     return { success: true };
   }
 
-  async addComment(identifierOrId: string, dto: CreateCommentDto) {
+  async addComment(identifierOrId: string, dto: CreateCommentDto, actorId: string) {
     const issue = await this.em.findOne(Issue, {
       $or: [{ identifier: identifierOrId }, { id: identifierOrId }],
     });
     if (!issue) throw new NotFoundException(`Issue ${identifierOrId} not found`);
+    await this.assertTeamAccess(
+      actorId,
+      issue.teamId,
+      `Issue ${identifierOrId} not found`,
+    );
 
     const textContent =
       dto.textContent ||
@@ -517,13 +779,45 @@ export class IssuesService {
 
     const comment = new IssueActivity({
       issueIdentifier: issue.identifier,
-      actorId: dto.actorId,
+      actorId,
       kind: 'comment',
       text: textContent,
       commentBlocks: commentBlocks,
     });
 
     this.em.persist(comment);
+
+    // @mention parsing: `@<memberId>` resolved against real members. A mention takes
+    // priority over the generic 'comment' notification for that same recipient (no dupes).
+    const members = await this.em.find(Member, {});
+    const membersMap = new Map(members.map((m) => [m.id, m]));
+    const mentionedIds = new Set<string>();
+    for (const match of textContent.matchAll(/@([a-z0-9_.-]+)/g)) {
+      const candidateId = match[1];
+      if (membersMap.has(candidateId) && candidateId !== actorId) {
+        mentionedIds.add(candidateId);
+      }
+    }
+
+    const actor = membersMap.get(actorId);
+    const actorName = actor?.name || actorId;
+    const commentRecipients = await this.resolveRecipients(issue, actorId);
+
+    this.notifyMany(
+      issue.identifier,
+      actorId,
+      commentRecipients.filter((id) => !mentionedIds.has(id)),
+      'comment',
+      `${actorName} commented on "${issue.title}"`,
+    );
+    this.notifyMany(
+      issue.identifier,
+      actorId,
+      mentionedIds,
+      'mention',
+      `${actorName} mentioned you in a comment`,
+    );
+
     await this.em.flush();
     return this.findDetail(issue.identifier);
   }
@@ -537,18 +831,27 @@ export class IssuesService {
     if (found) {
       found.count += 1;
     } else {
-      reactions.push({ emoji: dto.emoji, count: 1, userIds: dto.userId ? [dto.userId] : [] });
+      reactions.push({
+        emoji: dto.emoji,
+        count: 1,
+        userIds: dto.userId ? [dto.userId] : [],
+      });
     }
     act.reactions = [...reactions];
     await this.em.flush();
     return act;
   }
 
-  async addRelation(identifierOrId: string, dto: AddRelationDto) {
+  async addRelation(identifierOrId: string, dto: AddRelationDto, memberId: string) {
     const issue = await this.em.findOne(Issue, {
       $or: [{ identifier: identifierOrId }, { id: identifierOrId }],
     });
     if (!issue) throw new NotFoundException(`Issue ${identifierOrId} not found`);
+    await this.assertTeamAccess(
+      memberId,
+      issue.teamId,
+      `Issue ${identifierOrId} not found`,
+    );
 
     const relation = new IssueRelation({
       sourceIdentifier: issue.identifier,

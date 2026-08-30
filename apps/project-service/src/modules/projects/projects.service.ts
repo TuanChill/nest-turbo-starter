@@ -1,6 +1,12 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
 import { EntityManager } from '@mikro-orm/core';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { v7 } from 'uuid';
+import {
+  CreateMilestoneDto,
+  CreateProjectDto,
+  CreateProjectUpdateDto,
+  UpdateProjectDto,
+} from './dto/project.dto';
 import {
   Label,
   Member,
@@ -9,23 +15,29 @@ import {
   ProjectMilestone,
   ProjectUpdate,
 } from '../../data-access';
-import {
-  CreateMilestoneDto,
-  CreateProjectDto,
-  CreateProjectUpdateDto,
-  UpdateProjectDto,
-} from './dto/project.dto';
+import { WorkspacesService } from '../workspaces/workspaces.service';
 
 // Standard status lookup
-const STATUS_DATA: Record<string, { id: string; name: string; color: string; category: string }> = {
+const STATUS_DATA: Record<
+  string,
+  { id: string; name: string; color: string; category: string }
+> = {
   backlog: { id: 'backlog', name: 'Backlog', color: '#bec2c8', category: 'backlog' },
-  'in-progress': { id: 'in-progress', name: 'In Progress', color: '#f2c94c', category: 'started' },
+  'in-progress': {
+    id: 'in-progress',
+    name: 'In Progress',
+    color: '#f2c94c',
+    category: 'started',
+  },
   done: { id: 'done', name: 'Done', color: '#5e6ad2', category: 'completed' },
   canceled: { id: 'canceled', name: 'Canceled', color: '#95a2b3', category: 'canceled' },
   paused: { id: 'paused', name: 'Paused', color: '#8f9299', category: 'unstarted' },
 };
 
-const HEALTH_DATA: Record<string, { id: string; name: string; color: string; description: string }> = {
+const HEALTH_DATA: Record<
+  string,
+  { id: string; name: string; color: string; description: string }
+> = {
   'no-update': {
     id: 'no-update',
     name: 'No Update',
@@ -62,7 +74,21 @@ const PRIORITY_DATA: Record<string, { id: string; name: string }> = {
 
 @Injectable()
 export class ProjectsService {
-  constructor(private readonly em: EntityManager) {}
+  constructor(
+    private readonly em: EntityManager,
+    private readonly workspacesService: WorkspacesService,
+  ) {}
+
+  private async assertTeamAccess(
+    memberId: string,
+    teamId: string,
+    notFoundMessage: string,
+  ) {
+    const accessibleTeamIds = await this.workspacesService.getAccessibleTeamIds(memberId);
+    if (!accessibleTeamIds.includes(teamId)) {
+      throw new NotFoundException(notFoundMessage);
+    }
+  }
 
   private transformProject(
     project: Project,
@@ -98,8 +124,12 @@ export class ProjectsService {
       status,
       icon: project.icon,
       percentComplete: project.percentComplete,
-      startDate: project.startDate ? project.startDate.toISOString().split('T')[0] : '2025-01-01',
-      targetDate: project.targetDate ? project.targetDate.toISOString().split('T')[0] : undefined,
+      startDate: project.startDate
+        ? project.startDate.toISOString().split('T')[0]
+        : '2025-01-01',
+      targetDate: project.targetDate
+        ? project.targetDate.toISOString().split('T')[0]
+        : undefined,
       lead,
       priority,
       health,
@@ -113,9 +143,15 @@ export class ProjectsService {
     };
   }
 
-  async findAll(query?: { teamId?: string; health?: string }) {
-    const where: any = {};
-    if (query?.teamId) where.teamId = query.teamId;
+  async findAll(memberId: string, query?: { teamId?: string; health?: string }) {
+    const accessibleTeamIds = await this.workspacesService.getAccessibleTeamIds(memberId);
+    if (accessibleTeamIds.length === 0) return [];
+
+    const where: any = { teamId: { $in: accessibleTeamIds } };
+    if (query?.teamId) {
+      if (!accessibleTeamIds.includes(query.teamId)) return [];
+      where.teamId = query.teamId;
+    }
     if (query?.health) where.healthId = query.health;
 
     const projects = await this.em.find(Project, where);
@@ -126,12 +162,17 @@ export class ProjectsService {
     const membersMap = new Map(members.map((m) => [m.id, m]));
     const labelsMap = new Map(labels.map((l) => [l.id, l]));
 
-    return projects.map((p) => this.transformProject(p, membersMap, labelsMap, projectLabels));
+    return projects.map((p) =>
+      this.transformProject(p, membersMap, labelsMap, projectLabels),
+    );
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, memberId?: string) {
     const project = await this.em.findOne(Project, { id });
     if (!project) throw new NotFoundException(`Project ${id} not found`);
+    if (memberId) {
+      await this.assertTeamAccess(memberId, project.teamId, `Project ${id} not found`);
+    }
 
     const members = await this.em.find(Member, {});
     const labels = await this.em.find(Label, {});
@@ -143,8 +184,8 @@ export class ProjectsService {
     return this.transformProject(project, membersMap, labelsMap, projectLabels);
   }
 
-  async findDetail(id: string) {
-    const baseProject = await this.findOne(id);
+  async findDetail(id: string, memberId?: string) {
+    const baseProject = await this.findOne(id, memberId);
     const milestones = await this.em.find(
       ProjectMilestone,
       { projectId: id },
@@ -189,7 +230,9 @@ export class ProjectsService {
     };
   }
 
-  async create(dto: CreateProjectDto) {
+  async create(dto: CreateProjectDto, memberId: string) {
+    await this.assertTeamAccess(memberId, dto.teamId, `Team ${dto.teamId} not found`);
+
     let id = dto.id || v7();
     const existing = await this.em.findOne(Project, { id });
     if (existing) {
@@ -226,9 +269,14 @@ export class ProjectsService {
     return this.findOne(id);
   }
 
-  async update(id: string, dto: UpdateProjectDto) {
+  async update(id: string, dto: UpdateProjectDto, memberId: string) {
     const project = await this.em.findOne(Project, { id });
     if (!project) throw new NotFoundException(`Project ${id} not found`);
+    await this.assertTeamAccess(memberId, project.teamId, `Project ${id} not found`);
+
+    if (dto.teamId !== undefined && dto.teamId !== project.teamId) {
+      await this.assertTeamAccess(memberId, dto.teamId, `Project ${id} not found`);
+    }
 
     if (dto.name !== undefined) project.name = dto.name;
     if (dto.teamId !== undefined) project.teamId = dto.teamId;
@@ -264,9 +312,10 @@ export class ProjectsService {
     return this.findOne(id);
   }
 
-  async delete(id: string) {
+  async delete(id: string, memberId: string) {
     const project = await this.em.findOne(Project, { id });
     if (project) {
+      await this.assertTeamAccess(memberId, project.teamId, `Project ${id} not found`);
       this.em.remove(project);
       await this.em.flush();
     }

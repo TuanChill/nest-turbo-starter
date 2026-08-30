@@ -1,7 +1,8 @@
+import { User } from '@app/common';
 import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
-import { CreateCycleDto, UpdateCycleDto } from './dto/cycle.dto';
 import { CyclesService } from './cycles.service';
+import { CreateCycleDto, UpdateCycleDto } from './dto/cycle.dto';
 
 @ApiTags('Cycles')
 @Controller('cycles')
@@ -11,25 +12,29 @@ export class CyclesController {
   @ApiOperation({ summary: 'Get all cycles' })
   @ApiQuery({ name: 'teamId', required: false })
   @Get()
-  findAll(@Query('teamId') teamId?: string) {
-    return this.cyclesService.findAll(teamId);
+  findAll(@User('id') memberId: string, @Query('teamId') teamId?: string) {
+    return this.cyclesService.findAll(memberId, teamId);
   }
 
   @ApiOperation({ summary: 'Get cycle by ID' })
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.cyclesService.findOne(id);
+  findOne(@Param('id') id: string, @User('id') memberId: string) {
+    return this.cyclesService.findOne(id, memberId);
   }
 
   @ApiOperation({ summary: 'Create cycle' })
   @Post()
-  create(@Body() dto: CreateCycleDto) {
-    return this.cyclesService.create(dto);
+  create(@Body() dto: CreateCycleDto, @User('id') memberId: string) {
+    return this.cyclesService.create(dto, memberId);
   }
 
   @ApiOperation({ summary: 'Update cycle' })
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateCycleDto) {
-    return this.cyclesService.update(id, dto);
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateCycleDto,
+    @User('id') memberId: string,
+  ) {
+    return this.cyclesService.update(id, dto, memberId);
   }
 }

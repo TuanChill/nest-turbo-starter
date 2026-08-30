@@ -1,3 +1,4 @@
+import { User } from '@app/common';
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { CreateViewDto, UpdateViewDto } from './dto/view.dto';
@@ -11,35 +12,42 @@ export class ViewsController {
   @ApiOperation({ summary: 'Get all saved views' })
   @ApiQuery({ name: 'teamId', required: false })
   @ApiQuery({ name: 'type', required: false, enum: ['issue', 'project'] })
+  @ApiQuery({ name: 'projectId', required: false })
   @Get()
   findAll(
+    @User('id') memberId: string,
     @Query('teamId') teamId?: string,
     @Query('type') type?: 'issue' | 'project',
+    @Query('projectId') projectId?: string,
   ) {
-    return this.viewsService.findAll(teamId, type);
+    return this.viewsService.findAll(memberId, teamId, type, projectId);
   }
 
   @ApiOperation({ summary: 'Get saved view by ID' })
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.viewsService.findOne(id);
+  findOne(@Param('id') id: string, @User('id') memberId: string) {
+    return this.viewsService.findOne(id, memberId);
   }
 
   @ApiOperation({ summary: 'Create saved view' })
   @Post()
-  create(@Body() dto: CreateViewDto) {
-    return this.viewsService.create(dto);
+  create(@Body() dto: CreateViewDto, @User('id') ownerId: string) {
+    return this.viewsService.create(dto, ownerId);
   }
 
   @ApiOperation({ summary: 'Update saved view' })
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateViewDto) {
-    return this.viewsService.update(id, dto);
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateViewDto,
+    @User('id') memberId: string,
+  ) {
+    return this.viewsService.update(id, dto, memberId);
   }
 
   @ApiOperation({ summary: 'Delete saved view' })
   @Delete(':id')
-  delete(@Param('id') id: string) {
-    return this.viewsService.delete(id);
+  delete(@Param('id') id: string, @User('id') memberId: string) {
+    return this.viewsService.delete(id, memberId);
   }
 }

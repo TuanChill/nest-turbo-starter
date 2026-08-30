@@ -1,8 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
 import { EntityManager } from '@mikro-orm/core';
-import { Issue, Member, Notification } from '../../data-access';
-import { IssuesService } from '../issues/issues.service';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateNotificationDto, MarkReadDto } from './dto/inbox.dto';
+import { Member, Notification } from '../../data-access';
+import { IssuesService } from '../issues/issues.service';
 
 function formatTimestamp(date: Date): string {
   const diffMs = Date.now() - new Date(date).getTime();
@@ -21,7 +21,7 @@ export class InboxService {
     private readonly issuesService: IssuesService,
   ) {}
 
-  async findAll(userId: string = 'ln') {
+  async findAll(userId: string) {
     const notifications = await this.em.find(
       Notification,
       { userId },
@@ -31,12 +31,11 @@ export class InboxService {
     const members = await this.em.find(Member, {});
     const membersMap = new Map(members.map((m) => [m.id, m]));
 
-    const items: any[] = [];
-    for (const notif of notifications) {
-      try {
+    const results = await Promise.allSettled(
+      notifications.map(async (notif) => {
         const issue = await this.issuesService.findOne(notif.issueIdentifier);
         const user = membersMap.get(notif.actorId) || membersMap.get('ln');
-        items.push({
+        return {
           ...issue,
           id: notif.id,
           content: notif.content,
@@ -44,17 +43,18 @@ export class InboxService {
           user,
           timestamp: formatTimestamp(notif.createdAt),
           read: notif.read,
-        });
-      } catch {
-        // Skip orphaned notification if issue was deleted
-      }
-    }
+        };
+      }),
+    );
 
-    return items;
+    // Skip orphaned notifications if their issue was deleted
+    return results
+      .filter((r): r is PromiseFulfilledResult<any> => r.status === 'fulfilled')
+      .map((r) => r.value);
   }
 
-  async markAsRead(id: string, dto: MarkReadDto) {
-    const notif = await this.em.findOne(Notification, { id });
+  async markAsRead(userId: string, id: string, dto: MarkReadDto) {
+    const notif = await this.em.findOne(Notification, { id, userId });
     if (!notif) throw new NotFoundException(`Notification ${id} not found`);
 
     notif.read = dto.read;
@@ -62,7 +62,7 @@ export class InboxService {
     return { success: true, id, read: notif.read };
   }
 
-  async markAllAsRead(userId: string = 'ln') {
+  async markAllAsRead(userId: string) {
     const notifications = await this.em.find(Notification, { userId, read: false });
     for (const notif of notifications) {
       notif.read = true;

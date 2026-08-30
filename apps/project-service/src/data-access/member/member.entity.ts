@@ -1,4 +1,3 @@
-import { BaseEntity } from '@app/core';
 import { EntityRepositoryType } from '@mikro-orm/core';
 import { Entity, Filter, PrimaryKey, Property } from '@mikro-orm/decorators/legacy';
 import { MemberRepository } from './member.repository';
@@ -17,6 +16,9 @@ export class Member {
 
   @Property({ type: 'string', unique: true })
   email: string;
+
+  @Property({ type: 'string', nullable: true })
+  passwordHash?: string;
 
   @Property({ type: 'string' })
   name: string;

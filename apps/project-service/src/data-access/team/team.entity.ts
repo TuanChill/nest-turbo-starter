@@ -29,6 +29,9 @@ export class Team {
   @Property({ type: 'text', nullable: true })
   description?: string;
 
+  @Property({ type: 'string', nullable: true })
+  workspaceId?: string;
+
   @Property({ type: 'timestamp with time zone', onCreate: () => new Date() })
   createdAt: Date = new Date();
 

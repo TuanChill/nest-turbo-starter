@@ -7,7 +7,9 @@ export class CreateIssueDto {
   @IsOptional()
   identifier?: string;
 
-  @ApiProperty({ example: 'Combobox: keyboard selection skips disabled options inconsistently' })
+  @ApiProperty({
+    example: 'Combobox: keyboard selection skips disabled options inconsistently',
+  })
   @IsString()
   @IsNotEmpty()
   title: string;
@@ -41,11 +43,6 @@ export class CreateIssueDto {
   @IsString()
   @IsOptional()
   assigneeId?: string;
-
-  @ApiPropertyOptional({ example: 'ln' })
-  @IsString()
-  @IsOptional()
-  creatorId?: string;
 
   @ApiPropertyOptional({ example: 'CORE' })
   @IsString()
@@ -173,11 +170,6 @@ export class UpdateIssueRankDto {
 }
 
 export class CreateCommentDto {
-  @ApiProperty({ example: 'ln' })
-  @IsString()
-  @IsNotEmpty()
-  actorId: string;
-
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()

@@ -1,3 +1,4 @@
+import { User } from '@app/common';
 import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { CreateReviewDto, UpdateReviewDto } from './dto/review.dto';
@@ -23,8 +24,8 @@ export class ReviewsController {
 
   @ApiOperation({ summary: 'Create PR review' })
   @Post()
-  create(@Body() dto: CreateReviewDto) {
-    return this.reviewsService.create(dto);
+  create(@Body() dto: CreateReviewDto, @User('id') authorId: string) {
+    return this.reviewsService.create(dto, authorId);
   }
 
   @ApiOperation({ summary: 'Update PR review' })

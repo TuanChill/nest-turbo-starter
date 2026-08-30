@@ -24,6 +24,12 @@ export class SavedView {
   @Property({ type: 'string', nullable: true })
   teamId?: string;
 
+  @Property({ type: 'string', nullable: true })
+  projectId?: string;
+
+  @Property({ type: 'string', default: 'list' })
+  layout: 'list' | 'grid' = 'list';
+
   @Property({ type: 'string', default: 'ln' })
   ownerId: string;
 

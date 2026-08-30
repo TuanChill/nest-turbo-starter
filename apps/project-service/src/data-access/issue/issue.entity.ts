@@ -20,11 +20,15 @@ export class Issue {
   @Property({ type: 'string' })
   title: string;
 
+  // Source of truth for description is `description` (plain markdown text, user-editable).
+  // `descriptionBlocks` (ContentBlock[]) is legacy/seed structured content only — when a user
+  // edits `description`, issues.service.ts clears `descriptionBlocks` so reads fall back to
+  // rendering `description` (see findDetail()'s "Default description if blocks empty").
   @Property({ type: 'text', default: '' })
   description: string;
 
   @Property({ type: 'json', default: '[]' })
-  descriptionBlocks: any[] = []; // ContentBlock[]
+  descriptionBlocks: any[] = []; // ContentBlock[] — legacy/seed only, see `description` comment above
 
   @Property({ type: 'string', default: 'to-do' })
   statusId: string;

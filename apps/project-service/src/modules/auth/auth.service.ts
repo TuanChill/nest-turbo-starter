@@ -1,10 +1,24 @@
-import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { hashData, verifyHashed } from '@app/common';
+import { EntityManager } from '@mikro-orm/core';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { EntityManager } from '@mikro-orm/core';
 import { OAuth2Client } from 'google-auth-library';
-import { Member, TeamMember } from '../../data-access';
-import { GoogleAuthDto, GoogleAuthResponseDto } from './auth.dto';
+import {
+  AuthResponseDto,
+  GoogleAuthDto,
+  GoogleAuthResponseDto,
+  LoginDto,
+  SignUpDto,
+  WorkspaceResponseDto,
+} from './auth.dto';
+import { Member, TeamMember, Workspace, WorkspaceMember } from '../../data-access';
 
 @Injectable()
 export class AuthService {
@@ -20,82 +34,222 @@ export class AuthService {
     this.googleClient = new OAuth2Client(googleClientId);
   }
 
+  private signTokenPair(payload: {
+    sub: string;
+    email: string;
+    name: string;
+    role: string;
+  }): {
+    accessToken: string;
+    refreshToken: string;
+  } {
+    const jwtSecret = this.configService.get<string>('JWT_SECRET');
+    if (!jwtSecret) {
+      throw new Error('JWT_SECRET is not configured');
+    }
+
+    return {
+      accessToken: this.jwtService.sign(payload, { secret: jwtSecret, expiresIn: '30d' }),
+      refreshToken: this.jwtService.sign(payload, {
+        secret: jwtSecret,
+        expiresIn: '60d',
+      }),
+    };
+  }
+
+  async signUp(dto: SignUpDto): Promise<AuthResponseDto> {
+    const email = dto.email.trim().toLowerCase();
+    const name = dto.name.trim();
+
+    if (!email || !name || !dto.password) {
+      throw new BadRequestException('Please provide full name, email, and password');
+    }
+
+    const existingMember = await this.em.findOne(Member, { email });
+    if (existingMember) {
+      throw new ConflictException(
+        'An account with this email address already exists. Please log in.',
+      );
+    }
+
+    const baseMemberId =
+      email
+        .split('@')[0]
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '') || 'user';
+    let memberId = baseMemberId;
+    let counter = 1;
+    // oxlint-disable-next-line no-await-in-loop -- each candidate id depends on the previous one being taken
+    while (await this.em.findOne(Member, { id: memberId })) {
+      memberId = `${baseMemberId}${counter}`;
+      counter++;
+    }
+
+    const passwordHash = await hashData(dto.password);
+    const avatarUrl = `https://api.dicebear.com/9.x/glass/svg?seed=${encodeURIComponent(email)}`;
+    const member = new Member({
+      id: memberId,
+      name,
+      email,
+      avatarUrl,
+      passwordHash,
+      role: 'Admin',
+      status: 'online',
+      timezone: 'UTC',
+      joinedDate: new Date(),
+    });
+    this.em.persist(member);
+    await this.em.flush();
+
+    this.logger.log(
+      `Created new member account [${member.email}] without auto-provisioning workspace`,
+    );
+
+    const { accessToken, refreshToken } = this.signTokenPair({
+      sub: member.id,
+      email: member.email,
+      name: member.name,
+      role: member.role,
+    });
+
+    return {
+      accessToken,
+      refreshToken,
+      user: {
+        id: member.id,
+        name: member.name,
+        email: member.email,
+        avatarUrl: member.avatarUrl,
+        role: member.role,
+        status: member.status,
+        timezone: member.timezone,
+        teamIds: [],
+      },
+      workspace: undefined,
+      isNewUser: true,
+    };
+  }
+
+  async login(dto: LoginDto): Promise<AuthResponseDto> {
+    const email = dto.email.trim().toLowerCase();
+    const member = await this.em.findOne(Member, { email });
+
+    if (
+      !member ||
+      !member.passwordHash ||
+      !(await verifyHashed(dto.password, member.passwordHash))
+    ) {
+      throw new UnauthorizedException('Invalid email or password');
+    }
+
+    member.status = 'online';
+    await this.em.flush();
+
+    let userWorkspace: WorkspaceResponseDto | undefined;
+    const membership = await this.em.findOne(WorkspaceMember, { memberId: member.id });
+    if (membership) {
+      const ws = await this.em.findOne(Workspace, { id: membership.workspaceId });
+      if (ws) {
+        userWorkspace = {
+          id: ws.id,
+          name: ws.name,
+          slug: ws.slug,
+          icon: ws.icon,
+          description: ws.description,
+          role: membership.role,
+          inviteCode: ws.inviteCode,
+        };
+      }
+    }
+
+    const teamMembers = await this.em.find(TeamMember, { memberId: member.id });
+
+    const { accessToken, refreshToken } = this.signTokenPair({
+      sub: member.id,
+      email: member.email,
+      name: member.name,
+      role: member.role,
+    });
+
+    return {
+      accessToken,
+      refreshToken,
+      user: {
+        id: member.id,
+        name: member.name,
+        email: member.email,
+        avatarUrl: member.avatarUrl,
+        role: member.role,
+        status: member.status,
+        timezone: member.timezone,
+        teamIds: teamMembers.map((t) => t.teamId),
+      },
+      workspace: userWorkspace,
+      isNewUser: !userWorkspace,
+    };
+  }
+
   async loginWithGoogle(dto: GoogleAuthDto): Promise<GoogleAuthResponseDto> {
+    const googleClientId = this.configService.get<string>('GOOGLE_CLIENT_ID');
+    if (!googleClientId) {
+      throw new UnauthorizedException('Google login is not configured');
+    }
+
     let email = '';
     let name = '';
     let picture = '';
 
-    const googleClientId = this.configService.get<string>('GOOGLE_CLIENT_ID');
-
     // 1. Verify Google ID Token
     try {
-      if (dto.idToken.startsWith('mock_') || !googleClientId) {
-        this.logger.warn('Using dev mock verification for Google ID token');
-        email = dto.profile?.email || 'google.user@gmail.com';
-        name = dto.profile?.name || 'Google User';
-        picture =
-          dto.profile?.picture ||
-          `https://api.dicebear.com/9.x/glass/svg?seed=${email}`;
-      } else {
-        const ticket = await this.googleClient.verifyIdToken({
-          idToken: dto.idToken,
-          audience: googleClientId,
-        });
-        const payload = ticket.getPayload();
-        if (!payload || !payload.email) {
-          throw new UnauthorizedException('Invalid Google ID token payload');
-        }
-        email = payload.email;
-        name = payload.name || payload.email.split('@')[0];
-        picture =
-          payload.picture ||
-          `https://api.dicebear.com/9.x/glass/svg?seed=${email}`;
+      const ticket = await this.googleClient.verifyIdToken({
+        idToken: dto.idToken,
+        audience: googleClientId,
+      });
+      const payload = ticket.getPayload();
+      if (!payload || !payload.email) {
+        throw new UnauthorizedException('Invalid Google ID token payload');
       }
+      email = payload.email.toLowerCase();
+      name = payload.name || payload.email.split('@')[0];
+      picture = payload.picture || `https://api.dicebear.com/9.x/glass/svg?seed=${email}`;
     } catch (err: unknown) {
-      if (dto.profile?.email) {
-        email = dto.profile.email;
-        name = dto.profile.name || email.split('@')[0];
-        picture =
-          dto.profile.picture ||
-          `https://api.dicebear.com/9.x/glass/svg?seed=${email}`;
-      } else {
-        const msg = err instanceof Error ? err.message : 'Google token verification failed';
-        this.logger.error(`Google token verification failed: ${msg}`);
-        throw new UnauthorizedException('Invalid or expired Google Token');
-      }
+      const msg = err instanceof Error ? err.message : 'Google token verification failed';
+      this.logger.error(`Google token verification failed: ${msg}`);
+      throw new UnauthorizedException('Invalid or expired Google Token');
     }
 
-    const memberId = email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '') || 'googleuser';
-    let teamIds = ['CORE'];
+    const memberId =
+      email
+        .split('@')[0]
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '') || 'googleuser';
+    let teamIds: string[] = [];
     let role = 'Member';
     let status = 'online';
     const timezone = 'UTC';
+    let userWorkspace: WorkspaceResponseDto | undefined;
+    let isNewUser = false;
 
-    // 2. Safely sync with Database (with error tolerance)
+    // 2. Safely sync with Database
     try {
       let member = await this.em.findOne(Member, { email });
 
       if (!member) {
-        this.logger.log(`Creating new member in DB for Google user: ${email}`);
+        isNewUser = true;
+        this.logger.log(
+          `Creating new member in DB for Google user: ${email} without auto-provisioning`,
+        );
         member = new Member({
           id: memberId,
           name,
           email,
           avatarUrl: picture,
-          role: 'Member',
+          role: 'Admin',
           status: 'online',
           timezone: 'UTC',
           joinedDate: new Date(),
         });
         this.em.persist(member);
-
-        // Join default team CORE
-        const tm = new TeamMember({
-          teamId: 'CORE',
-          memberId: member.id,
-          role: 'member',
-        });
-        this.em.persist(tm);
         await this.em.flush();
       } else {
         if (picture && !member.avatarUrl) {
@@ -107,35 +261,45 @@ export class AuthService {
         role = member.role;
         name = member.name;
         picture = member.avatarUrl || picture;
-      }
 
-      const teamMembers = await this.em.find(TeamMember, { memberId });
-      if (teamMembers.length > 0) {
-        teamIds = teamMembers.map((t) => t.teamId);
+        // Check user's primary workspace
+        const membership = await this.em.findOne(WorkspaceMember, {
+          memberId: member.id,
+        });
+        if (membership) {
+          const ws = await this.em.findOne(Workspace, { id: membership.workspaceId });
+          if (ws) {
+            userWorkspace = {
+              id: ws.id,
+              name: ws.name,
+              slug: ws.slug,
+              icon: ws.icon,
+              description: ws.description,
+              role: membership.role,
+              inviteCode: ws.inviteCode,
+            };
+            isNewUser = false;
+          }
+        } else {
+          // Existing member without any workspace -> needs onboarding
+          isNewUser = true;
+        }
+
+        const teamMembers = await this.em.find(TeamMember, { memberId });
+        if (teamMembers.length > 0) {
+          teamIds = teamMembers.map((t) => t.teamId);
+        }
       }
     } catch (dbErr) {
-      this.logger.warn(`Database sync skipped (DB disconnected or initializing): ${(dbErr as Error).message}`);
+      this.logger.warn(`Database sync skipped (DB error): ${(dbErr as Error).message}`);
     }
 
     // 3. Generate JWT Tokens
-    const jwtSecret =
-      this.configService.get<string>('JWT_SECRET') ||
-      'S7M7O3nEa5Zks1L0NChcSiz0Xy9RCHgC1rxPjXG1hY8';
-    const payload = {
+    const { accessToken, refreshToken } = this.signTokenPair({
       sub: memberId,
       email,
       name,
       role,
-    };
-
-    const accessToken = this.jwtService.sign(payload, {
-      secret: jwtSecret,
-      expiresIn: '30d',
-    });
-
-    const refreshToken = this.jwtService.sign(payload, {
-      secret: jwtSecret,
-      expiresIn: '60d',
     });
 
     return {
@@ -151,6 +315,8 @@ export class AuthService {
         timezone,
         teamIds,
       },
+      workspace: userWorkspace,
+      isNewUser,
     };
   }
 }

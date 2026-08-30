@@ -1,5 +1,5 @@
+import { SendEmailCommand, SESClient } from '@aws-sdk/client-ses';
 import { Injectable, Logger } from '@nestjs/common';
-import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
 
 export interface SendInviteEmailOptions {
   to: string;
@@ -17,11 +17,15 @@ export class SesMailerService {
   private readonly region: string;
 
   constructor() {
-    this.region = process.env.SES_REGION || process.env.AWS_SES_REGION || 'ap-southeast-1';
-    this.senderEmail = process.env.SES_FROM_EMAIL || process.env.AWS_SES_SENDER || 'no-reply@capylabs.io';
+    this.region =
+      process.env.SES_REGION || process.env.AWS_SES_REGION || 'ap-southeast-1';
+    this.senderEmail =
+      process.env.SES_FROM_EMAIL || process.env.AWS_SES_SENDER || 'no-reply@capylabs.io';
 
-    const accessKeyId = process.env.SES_ACCESS_KEY_ID || process.env.AWS_SES_ACCESS_KEY_ID;
-    const secretAccessKey = process.env.SES_SECRET_ACCESS_KEY || process.env.AWS_SES_ACCESS_SECRET_ACCESS_KEY;
+    const accessKeyId =
+      process.env.SES_ACCESS_KEY_ID || process.env.AWS_SES_ACCESS_KEY_ID;
+    const secretAccessKey =
+      process.env.SES_SECRET_ACCESS_KEY || process.env.AWS_SES_ACCESS_SECRET_ACCESS_KEY;
 
     if (accessKeyId && secretAccessKey) {
       try {
@@ -32,19 +36,24 @@ export class SesMailerService {
             secretAccessKey,
           },
         });
-        this.logger.log(`SES Client initialized successfully for sender: ${this.senderEmail} in region: ${this.region}`);
+        this.logger.log(
+          `SES Client initialized successfully for sender: ${this.senderEmail} in region: ${this.region}`,
+        );
       } catch (err) {
         this.logger.error('Failed to initialize SES client:', err);
       }
     } else {
-      this.logger.warn('SES credentials not found in env, email dispatch will be simulated in logs.');
+      this.logger.warn(
+        'SES credentials not found in env, email dispatch will be simulated in logs.',
+      );
     }
   }
 
   async sendMemberInviteEmail(options: SendInviteEmailOptions): Promise<boolean> {
     const org = options.orgName || 'Circle Workspace';
     const inviter = options.inviterName || 'Workspace Admin';
-    const joinUrl = `http://localhost:3000/signup?org=${encodeURIComponent(org.toLowerCase().replace(/\s+/g, '-'))}&email=${encodeURIComponent(options.to)}`;
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
+    const joinUrl = `${frontendUrl}/signup?org=${encodeURIComponent(org.toLowerCase().replace(/\s+/g, '-'))}&email=${encodeURIComponent(options.to)}`;
 
     const htmlContent = `
 <!DOCTYPE html>
@@ -82,7 +91,9 @@ export class SesMailerService {
     `;
 
     if (!this.sesClient) {
-      this.logger.log(`[SIMULATED SES EMAIL] To: ${options.to} | Subject: You've been invited to ${org} on Circle | URL: ${joinUrl}`);
+      this.logger.log(
+        `[SIMULATED SES EMAIL] To: ${options.to} | Subject: You've been invited to ${org} on Circle | URL: ${joinUrl}`,
+      );
       return true;
     }
 
@@ -107,10 +118,15 @@ export class SesMailerService {
       });
 
       const response = await this.sesClient.send(command);
-      this.logger.log(`Invitation email successfully sent to ${options.to}. MessageId: ${response.MessageId}`);
+      this.logger.log(
+        `Invitation email successfully sent to ${options.to}. MessageId: ${response.MessageId}`,
+      );
       return true;
     } catch (error: any) {
-      this.logger.error(`Failed to send SES email to ${options.to}: ${error.message}`, error.stack);
+      this.logger.error(
+        `Failed to send SES email to ${options.to}: ${error.message}`,
+        error.stack,
+      );
       return false;
     }
   }

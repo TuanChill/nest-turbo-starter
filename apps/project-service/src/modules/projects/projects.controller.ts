@@ -1,3 +1,4 @@
+import { User } from '@app/common';
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import {
@@ -17,38 +18,48 @@ export class ProjectsController {
   @ApiQuery({ name: 'teamId', required: false })
   @ApiQuery({ name: 'health', required: false })
   @Get()
-  findAll(@Query('teamId') teamId?: string, @Query('health') health?: string) {
-    return this.projectsService.findAll({ teamId, health });
+  findAll(
+    @User('id') memberId: string,
+    @Query('teamId') teamId?: string,
+    @Query('health') health?: string,
+  ) {
+    return this.projectsService.findAll(memberId, { teamId, health });
   }
 
   @ApiOperation({ summary: 'Get project by ID' })
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.projectsService.findOne(id);
+  findOne(@Param('id') id: string, @User('id') memberId: string) {
+    return this.projectsService.findOne(id, memberId);
   }
 
-  @ApiOperation({ summary: 'Get project detail (summary, milestones, updates, activity)' })
+  @ApiOperation({
+    summary: 'Get project detail (summary, milestones, updates, activity)',
+  })
   @Get(':id/detail')
-  findDetail(@Param('id') id: string) {
-    return this.projectsService.findDetail(id);
+  findDetail(@Param('id') id: string, @User('id') memberId: string) {
+    return this.projectsService.findDetail(id, memberId);
   }
 
   @ApiOperation({ summary: 'Create project' })
   @Post()
-  create(@Body() dto: CreateProjectDto) {
-    return this.projectsService.create(dto);
+  create(@Body() dto: CreateProjectDto, @User('id') memberId: string) {
+    return this.projectsService.create(dto, memberId);
   }
 
   @ApiOperation({ summary: 'Update project' })
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateProjectDto) {
-    return this.projectsService.update(id, dto);
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateProjectDto,
+    @User('id') memberId: string,
+  ) {
+    return this.projectsService.update(id, dto, memberId);
   }
 
   @ApiOperation({ summary: 'Delete project' })
   @Delete(':id')
-  delete(@Param('id') id: string) {
-    return this.projectsService.delete(id);
+  delete(@Param('id') id: string, @User('id') memberId: string) {
+    return this.projectsService.delete(id, memberId);
   }
 
   @ApiOperation({ summary: 'Post a health update for project' })
@@ -65,10 +76,7 @@ export class ProjectsController {
 
   @ApiOperation({ summary: 'Toggle milestone completion status' })
   @Patch(':id/milestones/:milestoneId/toggle')
-  toggleMilestone(
-    @Param('id') id: string,
-    @Param('milestoneId') milestoneId: string,
-  ) {
+  toggleMilestone(@Param('id') id: string, @Param('milestoneId') milestoneId: string) {
     return this.projectsService.toggleMilestone(id, milestoneId);
   }
 }

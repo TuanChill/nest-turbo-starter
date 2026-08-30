@@ -44,11 +44,6 @@ export class CreateDocumentDto {
   @IsOptional()
   icon?: string;
 
-  @ApiPropertyOptional({ example: 'ln' })
-  @IsString()
-  @IsOptional()
-  creatorId?: string;
-
   @ApiPropertyOptional({ default: false })
   @IsBoolean()
   @IsOptional()

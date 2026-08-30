@@ -1,7 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
 import { EntityManager } from '@mikro-orm/core';
-import { Member, Review } from '../../data-access';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateReviewDto, UpdateReviewDto } from './dto/review.dto';
+import { Member, Review } from '../../data-access';
 
 @Injectable()
 export class ReviewsService {
@@ -50,12 +50,12 @@ export class ReviewsService {
     return this.transformReview(review, membersMap);
   }
 
-  async create(dto: CreateReviewDto) {
+  async create(dto: CreateReviewDto, authorId: string) {
     const id = dto.id || `rev-${Date.now()}`;
     const review = new Review({
       id,
       title: dto.title,
-      authorId: dto.authorId || 'ln',
+      authorId,
       status: dto.status || 'open',
       resolves: dto.resolves,
       branch: dto.branch,

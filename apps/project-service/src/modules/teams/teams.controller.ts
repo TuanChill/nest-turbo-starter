@@ -1,5 +1,17 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { User } from '@app/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Req,
+} from '@nestjs/common';
+import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { Request } from 'express';
 import { AddTeamMemberDto, CreateTeamDto, UpdateTeamDto } from './dto/team.dto';
 import { TeamsService } from './teams.service';
 
@@ -8,16 +20,22 @@ import { TeamsService } from './teams.service';
 export class TeamsController {
   constructor(private readonly teamsService: TeamsService) {}
 
-  @ApiOperation({ summary: 'Get all teams' })
+  @ApiOperation({ summary: 'Get all teams for user or workspace' })
+  @ApiQuery({ name: 'workspaceId', required: false })
   @Get()
-  findAll() {
-    return this.teamsService.findAll();
+  findAll(
+    @User('id') memberId: string,
+    @Req() req: Request,
+    @Query('workspaceId') workspaceId?: string,
+  ) {
+    const headerWsId = req.headers['x-workspace-id'] as string;
+    return this.teamsService.findAll(memberId, workspaceId || headerWsId);
   }
 
   @ApiOperation({ summary: 'Get team by ID' })
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.teamsService.findOne(id);
+  findOne(@Param('id') id: string, @User('id') memberId: string) {
+    return this.teamsService.findOne(id, memberId);
   }
 
   @ApiOperation({ summary: 'Get team members' })
@@ -28,37 +46,49 @@ export class TeamsController {
 
   @ApiOperation({ summary: 'Create new team' })
   @Post()
-  create(@Body() dto: CreateTeamDto) {
-    return this.teamsService.create(dto);
+  create(@Body() dto: CreateTeamDto, @User('id') memberId: string) {
+    return this.teamsService.create(dto, memberId);
   }
 
   @ApiOperation({ summary: 'Update team' })
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateTeamDto) {
-    return this.teamsService.update(id, dto);
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateTeamDto,
+    @User('id') memberId: string,
+  ) {
+    return this.teamsService.update(id, dto, memberId);
   }
 
   @ApiOperation({ summary: 'Toggle join status for a team' })
   @Post(':id/join')
-  toggleJoin(@Param('id') id: string) {
-    return this.teamsService.toggleJoin(id);
+  toggleJoin(@Param('id') id: string, @User('id') memberId: string) {
+    return this.teamsService.toggleJoin(id, memberId);
   }
 
   @ApiOperation({ summary: 'Add member to team' })
   @Post(':id/members')
-  addMember(@Param('id') id: string, @Body() dto: AddTeamMemberDto) {
-    return this.teamsService.addMember(id, dto);
+  addMember(
+    @Param('id') id: string,
+    @Body() dto: AddTeamMemberDto,
+    @User('id') actorId: string,
+  ) {
+    return this.teamsService.addMember(id, dto, actorId);
   }
 
   @ApiOperation({ summary: 'Remove member from team' })
   @Delete(':id/members/:memberId')
-  removeMember(@Param('id') id: string, @Param('memberId') memberId: string) {
-    return this.teamsService.removeMember(id, memberId);
+  removeMember(
+    @Param('id') id: string,
+    @Param('memberId') memberId: string,
+    @User('id') actorId: string,
+  ) {
+    return this.teamsService.removeMember(id, memberId, actorId);
   }
 
   @ApiOperation({ summary: 'Delete team' })
   @Delete(':id')
-  delete(@Param('id') id: string) {
-    return this.teamsService.delete(id);
+  delete(@Param('id') id: string, @User('id') actorId: string) {
+    return this.teamsService.delete(id, actorId);
   }
 }

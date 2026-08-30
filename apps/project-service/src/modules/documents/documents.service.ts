@@ -1,15 +1,29 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
 import { EntityManager } from '@mikro-orm/core';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  CreateDocumentDto,
+  CreateFolderDto,
+  UpdateDocumentDto,
+} from './dto/document.dto';
 import { DocumentFolder, Member, TeamDocument } from '../../data-access';
-import { CreateDocumentDto, CreateFolderDto, UpdateDocumentDto } from './dto/document.dto';
+import { WorkspacesService } from '../workspaces/workspaces.service';
 
 @Injectable()
 export class DocumentsService {
-  constructor(private readonly em: EntityManager) {}
+  constructor(
+    private readonly em: EntityManager,
+    private readonly workspacesService: WorkspacesService,
+  ) {}
 
-  async findAllFolders(teamId?: string) {
-    const where: any = {};
-    if (teamId) where.teamId = teamId;
+  async findAllFolders(memberId: string, teamId?: string) {
+    const accessibleTeamIds = await this.workspacesService.getAccessibleTeamIds(memberId);
+    if (accessibleTeamIds.length === 0) return [];
+
+    const where: any = { teamId: { $in: accessibleTeamIds } };
+    if (teamId) {
+      if (!accessibleTeamIds.includes(teamId)) return [];
+      where.teamId = teamId;
+    }
 
     const folders = await this.em.find(DocumentFolder, where);
     const documents = await this.em.find(TeamDocument, {});
@@ -39,9 +53,25 @@ export class DocumentsService {
     });
   }
 
-  async findOne(id: string) {
+  private async assertDocumentAccess(
+    memberId: string,
+    folderId: string,
+    notFoundMessage: string,
+  ) {
+    const folder = await this.em.findOne(DocumentFolder, { id: folderId });
+    if (!folder) throw new NotFoundException(notFoundMessage);
+    const accessibleTeamIds = await this.workspacesService.getAccessibleTeamIds(memberId);
+    if (!accessibleTeamIds.includes(folder.teamId)) {
+      throw new NotFoundException(notFoundMessage);
+    }
+  }
+
+  async findOne(id: string, memberId?: string) {
     const doc = await this.em.findOne(TeamDocument, { id });
     if (!doc) throw new NotFoundException(`Document ${id} not found`);
+    if (memberId) {
+      await this.assertDocumentAccess(memberId, doc.folderId, `Document ${id} not found`);
+    }
 
     const creator = await this.em.findOne(Member, { id: doc.creatorId });
 
@@ -58,13 +88,19 @@ export class DocumentsService {
     };
   }
 
-  async createFolder(dto: CreateFolderDto) {
+  async createFolder(dto: CreateFolderDto, memberId: string) {
+    const teamId = dto.teamId || 'CORE';
+    const accessibleTeamIds = await this.workspacesService.getAccessibleTeamIds(memberId);
+    if (!accessibleTeamIds.includes(teamId)) {
+      throw new NotFoundException(`Team ${teamId} not found`);
+    }
+
     const id = dto.id || dto.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
     const folder = new DocumentFolder({
       id,
       name: dto.name,
       icon: dto.icon || '📁',
-      teamId: dto.teamId || 'CORE',
+      teamId,
     });
 
     this.em.persist(folder);
@@ -72,14 +108,20 @@ export class DocumentsService {
     return folder;
   }
 
-  async createDocument(dto: CreateDocumentDto) {
+  async createDocument(dto: CreateDocumentDto, creatorId: string) {
+    await this.assertDocumentAccess(
+      creatorId,
+      dto.folderId,
+      `Folder ${dto.folderId} not found`,
+    );
+
     const id = dto.id || `doc-${Date.now()}`;
     const doc = new TeamDocument({
       id,
       folderId: dto.folderId,
       name: dto.name,
       icon: dto.icon || '📄',
-      creatorId: dto.creatorId || 'ln',
+      creatorId,
       pinned: dto.pinned || false,
       content: dto.content,
     });
@@ -89,9 +131,17 @@ export class DocumentsService {
     return this.findOne(id);
   }
 
-  async updateDocument(id: string, dto: UpdateDocumentDto) {
+  async updateDocument(id: string, dto: UpdateDocumentDto, memberId: string) {
     const doc = await this.em.findOne(TeamDocument, { id });
     if (!doc) throw new NotFoundException(`Document ${id} not found`);
+    await this.assertDocumentAccess(memberId, doc.folderId, `Document ${id} not found`);
+    if (dto.folderId !== undefined && dto.folderId !== doc.folderId) {
+      await this.assertDocumentAccess(
+        memberId,
+        dto.folderId,
+        `Folder ${dto.folderId} not found`,
+      );
+    }
 
     if (dto.name !== undefined) doc.name = dto.name;
     if (dto.icon !== undefined) doc.icon = dto.icon;
@@ -103,9 +153,10 @@ export class DocumentsService {
     return this.findOne(id);
   }
 
-  async deleteDocument(id: string) {
+  async deleteDocument(id: string, memberId: string) {
     const doc = await this.em.findOne(TeamDocument, { id });
     if (doc) {
+      await this.assertDocumentAccess(memberId, doc.folderId, `Document ${id} not found`);
       this.em.remove(doc);
       await this.em.flush();
     }

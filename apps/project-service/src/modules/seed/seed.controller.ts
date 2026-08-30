@@ -1,3 +1,4 @@
+import { Public } from '@app/common';
 import { Controller, Post } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { SeedService } from './seed.service';
@@ -8,6 +9,7 @@ export class SeedController {
   constructor(private readonly seedService: SeedService) {}
 
   @ApiOperation({ summary: 'Seed database with full initial Circle dataset' })
+  @Public()
   @Post()
   seed() {
     return this.seedService.seedAll();

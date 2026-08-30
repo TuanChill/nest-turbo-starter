@@ -12,11 +12,6 @@ export class CreateReviewDto {
   @IsNotEmpty()
   title: string;
 
-  @ApiPropertyOptional({ example: 'sophia' })
-  @IsString()
-  @IsOptional()
-  authorId?: string;
-
   @ApiProperty({ enum: ['open', 'merged', 'closed'], default: 'open' })
   @IsEnum(['open', 'merged', 'closed'])
   status: 'open' | 'merged' | 'closed';
