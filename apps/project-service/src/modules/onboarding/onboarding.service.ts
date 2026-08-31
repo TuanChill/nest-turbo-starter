@@ -147,8 +147,7 @@ export class OnboardingService {
         {
           id: uuidv4(),
           type: 'paragraph',
-          content:
-            'This is your first issue created in your new team. You can organize cycles, invite teammates, or press C to create new issues.',
+          text: 'This is your first issue created in your new team. You can organize cycles, invite teammates, or press C to create new issues.',
         },
       ],
       statusId: 'to-do',
