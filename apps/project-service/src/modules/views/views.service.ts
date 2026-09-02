@@ -1,7 +1,7 @@
 import { EntityManager } from '@mikro-orm/core';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateViewDto, UpdateViewDto } from './dto/view.dto';
-import { Member, SavedView } from '../../data-access';
+import { Member, SavedView, toSafeMember } from '../../data-access';
 import { WorkspacesService } from '../workspaces/workspaces.service';
 
 @Injectable()
@@ -68,7 +68,7 @@ export class ViewsService {
 
     const views = await this.em.find(SavedView, where);
     const members = await this.em.find(Member, {});
-    const membersMap = new Map(members.map((m) => [m.id, m]));
+    const membersMap = new Map(members.map((m) => [m.id, toSafeMember(m)]));
 
     return views.map((v) => this.transformView(v, membersMap));
   }
@@ -81,7 +81,7 @@ export class ViewsService {
     }
 
     const members = await this.em.find(Member, {});
-    const membersMap = new Map(members.map((m) => [m.id, m]));
+    const membersMap = new Map(members.map((m) => [m.id, toSafeMember(m)]));
 
     return this.transformView(view, membersMap);
   }

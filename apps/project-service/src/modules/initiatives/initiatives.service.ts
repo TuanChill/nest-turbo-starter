@@ -1,9 +1,12 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
 import { EntityManager } from '@mikro-orm/core';
-import { Initiative, Member, Project } from '../../data-access';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateInitiativeDto, UpdateInitiativeDto } from './dto/initiative.dto';
+import { Initiative, Member, toSafeMember } from '../../data-access';
 
-const HEALTH_DATA: Record<string, { id: string; name: string; color: string; description: string }> = {
+const HEALTH_DATA: Record<
+  string,
+  { id: string; name: string; color: string; description: string }
+> = {
   'no-update': {
     id: 'no-update',
     name: 'No Update',
@@ -58,14 +61,16 @@ export class InitiativesService {
       target: initiative.target,
       health,
       projectIds: initiative.projectIds || [],
-      createdAt: initiative.createdAt ? initiative.createdAt.toISOString().split('T')[0] : '2026-04-01',
+      createdAt: initiative.createdAt
+        ? initiative.createdAt.toISOString().split('T')[0]
+        : '2026-04-01',
     };
   }
 
   async findAll() {
     const initiatives = await this.em.find(Initiative, {});
     const members = await this.em.find(Member, {});
-    const membersMap = new Map(members.map((m) => [m.id, m]));
+    const membersMap = new Map(members.map((m) => [m.id, toSafeMember(m)]));
 
     return initiatives.map((ini) => this.transformInitiative(ini, membersMap));
   }
@@ -75,7 +80,7 @@ export class InitiativesService {
     if (!initiative) throw new NotFoundException(`Initiative ${id} not found`);
 
     const members = await this.em.find(Member, {});
-    const membersMap = new Map(members.map((m) => [m.id, m]));
+    const membersMap = new Map(members.map((m) => [m.id, toSafeMember(m)]));
 
     return this.transformInitiative(initiative, membersMap);
   }

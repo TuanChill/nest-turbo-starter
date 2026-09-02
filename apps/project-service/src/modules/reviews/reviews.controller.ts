@@ -12,8 +12,11 @@ export class ReviewsController {
   @ApiOperation({ summary: 'Get all PR reviews' })
   @ApiQuery({ name: 'status', required: false, enum: ['open', 'merged', 'closed'] })
   @Get()
-  findAll(@Query('status') status?: 'open' | 'merged' | 'closed') {
-    return this.reviewsService.findAll(status);
+  findAll(
+    @Query('status') status?: 'open' | 'merged' | 'closed',
+    @User('id') userId?: string,
+  ) {
+    return this.reviewsService.findAll(status, userId);
   }
 
   @ApiOperation({ summary: 'Get PR review by ID' })

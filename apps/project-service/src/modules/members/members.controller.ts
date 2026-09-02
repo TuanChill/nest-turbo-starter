@@ -1,5 +1,7 @@
-import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { User } from '@app/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, Req } from '@nestjs/common';
+import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { Request } from 'express';
 import { CreateMemberDto, UpdateMemberDto } from './dto/member.dto';
 import { MembersService } from './members.service';
 
@@ -9,9 +11,15 @@ export class MembersController {
   constructor(private readonly membersService: MembersService) {}
 
   @ApiOperation({ summary: 'Get all workspace members' })
+  @ApiQuery({ name: 'workspaceId', required: false })
   @Get()
-  findAll(): Promise<any[]> {
-    return this.membersService.findAll();
+  findAll(
+    @User('id') memberId: string,
+    @Req() req: Request,
+    @Query('workspaceId') workspaceId?: string,
+  ): Promise<any[]> {
+    const headerWsId = req.headers['x-workspace-id'] as string;
+    return this.membersService.findAll(memberId, workspaceId || headerWsId);
   }
 
   @ApiOperation({ summary: 'Get workspace member by ID' })

@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import { IsArray, IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class CreateIssueDto {
@@ -22,6 +23,7 @@ export class CreateIssueDto {
   @ApiPropertyOptional({ type: Array })
   @IsArray()
   @IsOptional()
+  @Type(() => Object)
   descriptionBlocks?: any[];
 
   @ApiPropertyOptional({ default: 'to-do' })
@@ -99,6 +101,7 @@ export class UpdateIssueDto {
   @ApiPropertyOptional({ type: Array })
   @IsArray()
   @IsOptional()
+  @Type(() => Object)
   descriptionBlocks?: any[];
 
   @ApiPropertyOptional()
@@ -178,6 +181,7 @@ export class CreateCommentDto {
   @ApiPropertyOptional({ type: Array })
   @IsArray()
   @IsOptional()
+  @Type(() => Object)
   commentBlocks?: any[];
 }
 

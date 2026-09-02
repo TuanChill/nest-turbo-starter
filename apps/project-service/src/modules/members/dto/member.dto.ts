@@ -26,7 +26,10 @@ export class CreateMemberDto {
   @IsOptional()
   status?: 'online' | 'offline' | 'away';
 
-  @ApiPropertyOptional({ enum: ['Member', 'Admin', 'Guest', 'Application'], default: 'Member' })
+  @ApiPropertyOptional({
+    enum: ['Member', 'Admin', 'Guest', 'Application'],
+    default: 'Member',
+  })
   @IsEnum(['Member', 'Admin', 'Guest', 'Application'])
   @IsOptional()
   role?: 'Member' | 'Admin' | 'Guest' | 'Application';
@@ -39,6 +42,11 @@ export class CreateMemberDto {
   @ApiPropertyOptional({ example: ['CORE'] })
   @IsOptional()
   teamIds?: string[];
+
+  @ApiPropertyOptional({ example: 'my-workspace-1' })
+  @IsString()
+  @IsOptional()
+  workspaceId?: string;
 }
 
 export class UpdateMemberDto {

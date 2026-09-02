@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import { IsArray, IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class CreateReviewDto {
@@ -29,11 +30,13 @@ export class CreateReviewDto {
   @ApiPropertyOptional({ type: Array })
   @IsArray()
   @IsOptional()
+  @Type(() => Object)
   fileStats?: any[];
 
   @ApiPropertyOptional({ type: Array })
   @IsArray()
   @IsOptional()
+  @Type(() => Object)
   commits?: any[];
 
   @ApiPropertyOptional({ type: [String] })
@@ -44,16 +47,19 @@ export class CreateReviewDto {
   @ApiPropertyOptional({ type: Array })
   @IsArray()
   @IsOptional()
+  @Type(() => Object)
   verdicts?: any[];
 
   @ApiPropertyOptional({ type: Array })
   @IsArray()
   @IsOptional()
+  @Type(() => Object)
   guideSections?: any[];
 
   @ApiPropertyOptional({ type: Array })
   @IsArray()
   @IsOptional()
+  @Type(() => Object)
   fileDiffs?: any[];
 }
 

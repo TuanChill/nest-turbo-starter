@@ -19,6 +19,7 @@ import {
   PrLink,
   Project,
   Team,
+  toSafeMember,
 } from '../../data-access';
 import { WorkspacesService } from '../workspaces/workspaces.service';
 
@@ -167,8 +168,10 @@ export class IssuesService {
       identifier: issue.identifier,
       title: issue.title,
       description: issue.description || '',
+      teamId: issue.teamId,
       status,
       assignee,
+      creatorId: issue.creatorId,
       priority,
       labels,
       createdAt: issue.createdAt
@@ -255,7 +258,7 @@ export class IssuesService {
     const projects = await this.em.find(Project, {});
     const issueLabels = await this.em.find(IssueLabel, {});
 
-    const membersMap = new Map(members.map((m) => [m.id, m]));
+    const membersMap = new Map(members.map((m) => [m.id, toSafeMember(m)]));
     const labelsMap = new Map(labels.map((l) => [l.id, l]));
     const projectsMap = new Map(projects.map((p) => [p.id, p]));
 
@@ -317,7 +320,7 @@ export class IssuesService {
       $or: [{ issueId: issue.id }, { issueId: issue.identifier }],
     });
 
-    const membersMap = new Map(members.map((m) => [m.id, m]));
+    const membersMap = new Map(members.map((m) => [m.id, toSafeMember(m)]));
     const labelsMap = new Map(labels.map((l) => [l.id, l]));
     const projectsMap = new Map(projects.map((p) => [p.id, p]));
 
@@ -349,7 +352,7 @@ export class IssuesService {
     if (!issue) throw new NotFoundException(`Issue ${identifierOrId} not found`);
 
     const members = await this.em.find(Member, {});
-    const membersMap = new Map(members.map((m) => [m.id, m]));
+    const membersMap = new Map(members.map((m) => [m.id, toSafeMember(m)]));
 
     const activities = await this.em.find(
       IssueActivity,
@@ -790,7 +793,7 @@ export class IssuesService {
     // @mention parsing: `@<memberId>` resolved against real members. A mention takes
     // priority over the generic 'comment' notification for that same recipient (no dupes).
     const members = await this.em.find(Member, {});
-    const membersMap = new Map(members.map((m) => [m.id, m]));
+    const membersMap = new Map(members.map((m) => [m.id, toSafeMember(m)]));
     const mentionedIds = new Set<string>();
     for (const match of textContent.matchAll(/@([a-z0-9_.-]+)/g)) {
       const candidateId = match[1];

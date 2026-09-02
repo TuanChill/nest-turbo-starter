@@ -1,7 +1,7 @@
 import { EntityManager } from '@mikro-orm/core';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateNotificationDto, MarkReadDto } from './dto/inbox.dto';
-import { Member, Notification } from '../../data-access';
+import { Member, Notification, toSafeMember } from '../../data-access';
 import { IssuesService } from '../issues/issues.service';
 
 function formatTimestamp(date: Date): string {
@@ -29,7 +29,7 @@ export class InboxService {
     );
 
     const members = await this.em.find(Member, {});
-    const membersMap = new Map(members.map((m) => [m.id, m]));
+    const membersMap = new Map(members.map((m) => [m.id, toSafeMember(m)]));
 
     const results = await Promise.allSettled(
       notifications.map(async (notif) => {

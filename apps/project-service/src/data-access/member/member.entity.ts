@@ -53,3 +53,9 @@ export class Member {
     }
   }
 }
+
+/** Strips passwordHash before a Member is embedded in an API response (e.g. as assignee/owner/actor). */
+export function toSafeMember<T extends Member>(member: T): Omit<T, 'passwordHash'> {
+  const { passwordHash: _passwordHash, ...safe } = member;
+  return safe;
+}

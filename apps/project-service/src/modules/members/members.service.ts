@@ -1,7 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
 import { EntityManager } from '@mikro-orm/core';
-import { Member, TeamMember } from '../../data-access';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { v4 as uuidv4 } from 'uuid';
 import { CreateMemberDto, UpdateMemberDto } from './dto/member.dto';
+import { Member, TeamMember, WorkspaceMember } from '../../data-access';
 import { SesMailerService } from '../email/ses-mailer.service';
 
 @Injectable()
@@ -11,8 +12,24 @@ export class MembersService {
     private readonly sesMailerService: SesMailerService,
   ) {}
 
-  async findAll(): Promise<any[]> {
-    const members = await this.em.find(Member, {});
+  async findAll(memberId?: string, workspaceId?: string): Promise<any[]> {
+    let members: Member[];
+    if (workspaceId) {
+      const workspaceMembers = await this.em.find(WorkspaceMember, { workspaceId });
+      const memberIds = workspaceMembers.map((wm) => wm.memberId);
+      members = await this.em.find(Member, { id: { $in: memberIds } });
+    } else if (memberId) {
+      // No explicit workspace given: scope to every workspace the requester belongs to.
+      const userWorkspaces = await this.em.find(WorkspaceMember, { memberId });
+      const wsIds = userWorkspaces.map((wm) => wm.workspaceId);
+      const workspaceMembers = await this.em.find(WorkspaceMember, {
+        workspaceId: { $in: wsIds },
+      });
+      const memberIds = [...new Set(workspaceMembers.map((wm) => wm.memberId))];
+      members = await this.em.find(Member, { id: { $in: memberIds } });
+    } else {
+      members = await this.em.find(Member, {});
+    }
     const teamMembers = await this.em.find(TeamMember, {});
 
     return members.map((member) => {
@@ -28,7 +45,9 @@ export class MembersService {
         role: member.role,
         timezone: member.timezone,
         teamIds,
-        joinedDate: member.joinedDate ? member.joinedDate.toISOString().split('T')[0] : null,
+        joinedDate: member.joinedDate
+          ? member.joinedDate.toISOString().split('T')[0]
+          : null,
       };
     });
   }
@@ -47,7 +66,9 @@ export class MembersService {
       role: member.role,
       timezone: member.timezone,
       teamIds: teamMembers.map((tm) => tm.teamId),
-      joinedDate: member.joinedDate ? member.joinedDate.toISOString().split('T')[0] : null,
+      joinedDate: member.joinedDate
+        ? member.joinedDate.toISOString().split('T')[0]
+        : null,
     };
   }
 
@@ -57,13 +78,24 @@ export class MembersService {
     if (existing) {
       id = `${id}-${Date.now().toString().slice(-4)}`;
     }
-    const { teamIds, ...memberData } = dto;
+    const { teamIds, workspaceId, ...memberData } = dto;
     const member = new Member({
       ...memberData,
       id,
       joinedDate: new Date(),
     });
     this.em.persist(member);
+
+    if (workspaceId) {
+      const workspaceMember = new WorkspaceMember({
+        id: uuidv4(),
+        workspaceId,
+        memberId: member.id,
+        role: dto.role === 'Admin' ? 'Admin' : dto.role === 'Guest' ? 'Guest' : 'Member',
+        joinedAt: new Date(),
+      });
+      this.em.persist(workspaceMember);
+    }
 
     if (teamIds && Array.isArray(teamIds)) {
       for (const teamId of teamIds) {

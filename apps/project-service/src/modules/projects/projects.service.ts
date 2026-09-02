@@ -8,12 +8,14 @@ import {
   UpdateProjectDto,
 } from './dto/project.dto';
 import {
+  Issue,
   Label,
   Member,
   Project,
   ProjectLabel,
   ProjectMilestone,
   ProjectUpdate,
+  toSafeMember,
 } from '../../data-access';
 import { WorkspacesService } from '../workspaces/workspaces.service';
 
@@ -95,6 +97,7 @@ export class ProjectsService {
     membersMap: Map<string, any>,
     labelsMap: Map<string, any>,
     projectLabels: ProjectLabel[],
+    issues: Issue[],
   ) {
     const lead = project.leadId ? membersMap.get(project.leadId) : membersMap.get('ln');
     const labelIds = projectLabels
@@ -118,12 +121,24 @@ export class ProjectsService {
       healthUpdatedAgoDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
     }
 
+    // Mirrors cycles' enrichCycle(): derive live progress from actual issues,
+    // falling back to the stored field only when the project has no issues yet.
+    const percentComplete =
+      issues.length > 0
+        ? Math.round(
+            (issues.filter((i) => i.statusCategory === 'completed').length /
+              issues.length) *
+              100,
+          )
+        : project.percentComplete;
+
     return {
       id: project.id,
       name: project.name,
       status,
       icon: project.icon,
-      percentComplete: project.percentComplete,
+      percentComplete,
+      issueCount: issues.length,
       startDate: project.startDate
         ? project.startDate.toISOString().split('T')[0]
         : '2025-01-01',
@@ -158,12 +173,28 @@ export class ProjectsService {
     const members = await this.em.find(Member, {});
     const labels = await this.em.find(Label, {});
     const projectLabels = await this.em.find(ProjectLabel, {});
+    const issues = await this.em.find(Issue, {
+      projectId: { $in: projects.map((p) => p.id) },
+    });
 
-    const membersMap = new Map(members.map((m) => [m.id, m]));
+    const membersMap = new Map(members.map((m) => [m.id, toSafeMember(m)]));
     const labelsMap = new Map(labels.map((l) => [l.id, l]));
+    const issuesByProject = new Map<string, Issue[]>();
+    for (const issue of issues) {
+      if (!issue.projectId) continue;
+      const bucket = issuesByProject.get(issue.projectId) ?? [];
+      bucket.push(issue);
+      issuesByProject.set(issue.projectId, bucket);
+    }
 
     return projects.map((p) =>
-      this.transformProject(p, membersMap, labelsMap, projectLabels),
+      this.transformProject(
+        p,
+        membersMap,
+        labelsMap,
+        projectLabels,
+        issuesByProject.get(p.id) ?? [],
+      ),
     );
   }
 
@@ -177,11 +208,12 @@ export class ProjectsService {
     const members = await this.em.find(Member, {});
     const labels = await this.em.find(Label, {});
     const projectLabels = await this.em.find(ProjectLabel, { projectId: id });
+    const issues = await this.em.find(Issue, { projectId: id });
 
-    const membersMap = new Map(members.map((m) => [m.id, m]));
+    const membersMap = new Map(members.map((m) => [m.id, toSafeMember(m)]));
     const labelsMap = new Map(labels.map((l) => [l.id, l]));
 
-    return this.transformProject(project, membersMap, labelsMap, projectLabels);
+    return this.transformProject(project, membersMap, labelsMap, projectLabels, issues);
   }
 
   async findDetail(id: string, memberId?: string) {
@@ -197,7 +229,7 @@ export class ProjectsService {
       { orderBy: { createdAt: 'DESC' } },
     );
     const members = await this.em.find(Member, {});
-    const membersMap = new Map(members.map((m) => [m.id, m]));
+    const membersMap = new Map(members.map((m) => [m.id, toSafeMember(m)]));
 
     const enrichedUpdates = updates.map((u) => ({
       id: u.id,

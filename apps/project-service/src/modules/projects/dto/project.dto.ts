@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import {
   IsArray,
   IsEnum,
@@ -87,11 +88,13 @@ export class CreateProjectDto {
   @ApiPropertyOptional()
   @IsArray()
   @IsOptional()
+  @Type(() => Object)
   description?: any[];
 
   @ApiPropertyOptional()
   @IsArray()
   @IsOptional()
+  @Type(() => Object)
   resources?: any[];
 }
 
@@ -169,11 +172,13 @@ export class UpdateProjectDto {
   @ApiPropertyOptional()
   @IsArray()
   @IsOptional()
+  @Type(() => Object)
   description?: any[];
 
   @ApiPropertyOptional()
   @IsArray()
   @IsOptional()
+  @Type(() => Object)
   resources?: any[];
 }
 
@@ -187,6 +192,7 @@ export class CreateProjectUpdateDto {
     example: [{ type: 'paragraph', text: 'Sprint on schedule.' }],
   })
   @IsArray()
+  @Type(() => Object)
   blocks: any[];
 }
 

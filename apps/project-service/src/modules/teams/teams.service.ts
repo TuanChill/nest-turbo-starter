@@ -1,7 +1,14 @@
 import { EntityManager } from '@mikro-orm/core';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { AddTeamMemberDto, CreateTeamDto, UpdateTeamDto } from './dto/team.dto';
-import { Member, Project, Team, TeamMember, WorkspaceMember } from '../../data-access';
+import {
+  Member,
+  Project,
+  Team,
+  TeamMember,
+  toSafeMember,
+  WorkspaceMember,
+} from '../../data-access';
 import { WorkspacesService } from '../workspaces/workspaces.service';
 
 export interface PublicMember {
@@ -79,7 +86,7 @@ export class TeamsService {
     const members = await this.em.find(Member, {});
     const projects = await this.em.find(Project, {});
 
-    const membersMap = new Map(members.map((m) => [m.id, m]));
+    const membersMap = new Map(members.map((m) => [m.id, toSafeMember(m)]));
 
     return teams.map((team) => {
       const teamUserIds = teamMembers

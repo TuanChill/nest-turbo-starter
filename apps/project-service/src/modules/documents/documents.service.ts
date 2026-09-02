@@ -5,7 +5,7 @@ import {
   CreateFolderDto,
   UpdateDocumentDto,
 } from './dto/document.dto';
-import { DocumentFolder, Member, TeamDocument } from '../../data-access';
+import { DocumentFolder, Member, TeamDocument, toSafeMember } from '../../data-access';
 import { WorkspacesService } from '../workspaces/workspaces.service';
 
 @Injectable()
@@ -28,7 +28,7 @@ export class DocumentsService {
     const folders = await this.em.find(DocumentFolder, where);
     const documents = await this.em.find(TeamDocument, {});
     const members = await this.em.find(Member, {});
-    const membersMap = new Map(members.map((m) => [m.id, m]));
+    const membersMap = new Map(members.map((m) => [m.id, toSafeMember(m)]));
 
     return folders.map((folder) => {
       const folderDocs = documents
@@ -80,7 +80,7 @@ export class DocumentsService {
       name: doc.name,
       icon: doc.icon,
       folderId: doc.folderId,
-      creator,
+      creator: creator ? toSafeMember(creator) : null,
       createdAt: doc.createdAt.toISOString().split('T')[0],
       updatedAt: doc.updatedAt.toISOString().split('T')[0],
       pinned: doc.pinned,
