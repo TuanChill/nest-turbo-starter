@@ -1,0 +1,22 @@
+import { Button } from '@/components/ui/button';
+import { ChevronLeft } from 'lucide-react';
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
+import { ThemeToggle } from '@/components/layout/theme-toggle';
+import { ROUTES } from '@/constants/routes';
+
+export function BackToApp() {
+   const { orgId } = useParams<{ orgId: string }>();
+
+   return (
+      <div className="w-full flex items-center justify-between gap-2">
+         <Button className="w-fit" size="xs" variant="outline" asChild>
+            <Link href={ROUTES.WORKSPACE.MY_ISSUES(orgId)}>
+               <ChevronLeft className="size-4" />
+               Back to app
+            </Link>
+         </Button>
+         <ThemeToggle />
+      </div>
+   );
+}

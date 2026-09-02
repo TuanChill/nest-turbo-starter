@@ -1,0 +1,135 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { projectsService, Project, ProjectUpdatePayload } from '@/services/projects.service';
+import { projectKeys } from './keys';
+import { toast } from 'sonner';
+
+export function useProjects(teamId?: string) {
+   return useQuery({
+      queryKey: projectKeys.list(teamId),
+      queryFn: () => projectsService.getProjects(teamId),
+   });
+}
+
+export function useProject(id: string, enabled = true) {
+   return useQuery({
+      queryKey: projectKeys.detail(id),
+      queryFn: () => projectsService.getProjectById(id),
+      enabled: Boolean(id) && enabled,
+   });
+}
+
+export function useProjectOverview(id: string, enabled = true) {
+   return useQuery({
+      queryKey: projectKeys.overview(id),
+      queryFn: () => projectsService.getProjectOverview(id),
+      enabled: Boolean(id) && enabled,
+   });
+}
+
+export function useProjectDetail(id: string, enabled = true) {
+   return useQuery({
+      queryKey: projectKeys.activity(id),
+      queryFn: () => projectsService.getProjectDetail(id),
+      enabled: Boolean(id) && enabled,
+   });
+}
+
+export function useCreateProject() {
+   const queryClient = useQueryClient();
+
+   return useMutation({
+      mutationFn: (payload: Partial<Project>) => projectsService.createProject(payload),
+      onSuccess: (newProject) => {
+         queryClient.invalidateQueries({ queryKey: projectKeys.lists() });
+         toast.success(`Project "${newProject.name}" created`);
+      },
+      onError: (error: Error) => {
+         toast.error(error.message || 'Failed to create project');
+      },
+   });
+}
+
+export function useUpdateProject() {
+   const queryClient = useQueryClient();
+
+   return useMutation({
+      mutationFn: ({ id, payload }: { id: string; payload: Partial<Project> }) =>
+         projectsService.updateProject(id, payload),
+      onSuccess: (updated) => {
+         queryClient.invalidateQueries({ queryKey: projectKeys.lists() });
+         queryClient.invalidateQueries({ queryKey: projectKeys.detail(updated.id) });
+         toast.success('Project updated');
+      },
+      onError: (error: Error) => {
+         toast.error(error.message || 'Failed to update project');
+      },
+   });
+}
+
+export function useDeleteProject() {
+   const queryClient = useQueryClient();
+
+   return useMutation({
+      mutationFn: (id: string) => projectsService.deleteProject(id),
+      onSuccess: (_, id) => {
+         queryClient.invalidateQueries({ queryKey: projectKeys.lists() });
+         queryClient.removeQueries({ queryKey: projectKeys.detail(id) });
+         toast.success('Project deleted');
+      },
+      onError: (error: Error) => {
+         toast.error(error.message || 'Failed to delete project');
+      },
+   });
+}
+
+export function usePostProjectUpdate() {
+   const queryClient = useQueryClient();
+
+   return useMutation({
+      mutationFn: ({ projectId, payload }: { projectId: string; payload: ProjectUpdatePayload }) =>
+         projectsService.postProjectUpdate(projectId, payload),
+      onSuccess: (_, { projectId }) => {
+         queryClient.invalidateQueries({ queryKey: projectKeys.activity(projectId) });
+         toast.success('Project update posted');
+      },
+      onError: (error: Error) => {
+         toast.error(error.message || 'Failed to post update');
+      },
+   });
+}
+
+export function useAddMilestone() {
+   const queryClient = useQueryClient();
+
+   return useMutation({
+      mutationFn: ({
+         projectId,
+         payload,
+      }: {
+         projectId: string;
+         payload: { name: string; targetDate?: string };
+      }) => projectsService.addMilestone(projectId, payload),
+      onSuccess: (_, { projectId }) => {
+         queryClient.invalidateQueries({ queryKey: projectKeys.activity(projectId) });
+         toast.success('Milestone added');
+      },
+      onError: (error: Error) => {
+         toast.error(error.message || 'Failed to add milestone');
+      },
+   });
+}
+
+export function useToggleMilestone() {
+   const queryClient = useQueryClient();
+
+   return useMutation({
+      mutationFn: ({ projectId, milestoneId }: { projectId: string; milestoneId: string }) =>
+         projectsService.toggleMilestone(projectId, milestoneId),
+      onSuccess: (_, { projectId }) => {
+         queryClient.invalidateQueries({ queryKey: projectKeys.activity(projectId) });
+      },
+      onError: (error: Error) => {
+         toast.error(error.message || 'Failed to update milestone');
+      },
+   });
+}

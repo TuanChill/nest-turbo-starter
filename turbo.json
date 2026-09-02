@@ -15,6 +15,11 @@
       "dependsOn": [],
       "inputs": ["$TURBO_DEFAULT$", ".env*"]
     },
+    "dev": {
+      "cache": false,
+      "persistent": true,
+      "dependsOn": []
+    },
     "build:clean": {
       "cache": false,
       "dependsOn": ["^build:clean"]

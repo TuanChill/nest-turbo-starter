@@ -61,8 +61,15 @@
     "tsx": "4.21.0"
   },
   "lint-staged": {
-    "**/*.{ts,tsx,js,jsx}": [
+    "apps/!(web)/**/*.{ts,tsx,js,jsx}": [
       "oxlint --fix",
+      "prettier --write"
+    ],
+    "libs/**/*.{ts,tsx,js,jsx}": [
+      "oxlint --fix",
+      "prettier --write"
+    ],
+    "apps/web/**/*.{ts,tsx,js,jsx}": [
       "prettier --write"
     ],
     "**/*.json": [
