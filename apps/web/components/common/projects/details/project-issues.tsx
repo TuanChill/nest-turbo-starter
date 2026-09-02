@@ -75,7 +75,7 @@ export default function ProjectIssues({ projectId }: ProjectIssuesProps) {
             setViewType(activeCustomView.layout);
          }
          if (activeCustomView.filter) {
-            setDisplaySettings(activeCustomView.filter as any);
+            setDisplaySettings(activeCustomView.filter as Parameters<typeof setDisplaySettings>[0]);
          }
       }
    }, [activeCustomView, setFilters, setViewType, setDisplaySettings]);

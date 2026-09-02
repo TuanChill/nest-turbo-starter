@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { ArrowLeft, Check, Copy, Link as LinkIcon, Sparkles, UserPlus, Users } from 'lucide-react';
+import { ArrowLeft, Check, Copy, Link as LinkIcon, Sparkles, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';

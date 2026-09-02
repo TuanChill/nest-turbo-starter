@@ -11,7 +11,7 @@ export default function WorkspaceOrgLayout({ children }: { children: React.React
    const router = useRouter();
    const params = useParams<{ orgId?: string }>();
    const currentOrgId = params?.orgId;
-   const { isAuthenticated, accessToken } = useAuthStore();
+   const { isAuthenticated } = useAuthStore();
    const { data: workspaces, isLoading, isFetched } = useWorkspaces();
    const { initNotifications, isInitialized: notificationsInitialized } = useNotificationsStore();
 

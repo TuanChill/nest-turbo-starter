@@ -31,7 +31,6 @@ export default function Profile() {
 
    useEffect(() => {
       setName(me.name || '');
-      // eslint-disable-next-line react-hooks/exhaustive-deps
    }, [me.name]);
 
    const handleSaveName = () => {

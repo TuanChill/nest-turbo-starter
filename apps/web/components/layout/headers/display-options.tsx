@@ -24,7 +24,6 @@ import { useViewStore } from '@/store/view-store';
 import {
    ArrowDownNarrowWide,
    ArrowUpNarrowWide,
-   ArrowUpDown,
    Columns3,
    LayoutGrid,
    LayoutList,

@@ -81,7 +81,7 @@ export function StepWorkspace({
                Create your workspace
             </h2>
             <p className="text-xs text-muted-foreground">
-               A workspace is your team's home for projects, issues, and cycles.
+               A workspace is your team&apos;s home for projects, issues, and cycles.
             </p>
          </div>
 

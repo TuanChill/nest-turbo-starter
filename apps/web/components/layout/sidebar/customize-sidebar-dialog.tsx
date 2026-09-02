@@ -17,14 +17,12 @@ import {
    useSidebarPrefsStore,
 } from '@/store/sidebar-prefs-store';
 import {
-   Bot,
    Box,
    Check,
    ChevronDown,
    Compass,
    ContactRound,
    FolderKanban,
-   GitPullRequestArrow,
    GripVertical,
    Inbox,
    Layers,

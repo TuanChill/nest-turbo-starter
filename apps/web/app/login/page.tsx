@@ -26,7 +26,6 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 function LoginForm() {
    const router = useRouter();
    const searchParams = useSearchParams();
-   const redirectUrl = searchParams.get('redirect') || ROUTES.DEFAULT_WORKSPACE_DASHBOARD();
 
    const { login, isLoading } = useAuthStore();
    const [showPassword, setShowPassword] = React.useState(false);

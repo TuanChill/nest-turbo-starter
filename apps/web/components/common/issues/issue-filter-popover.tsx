@@ -25,9 +25,7 @@ import {
    CircleDashed,
    CircleUserRound,
    Flag,
-   Layers,
    ListFilter,
-   Sparkles,
    Tag,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';

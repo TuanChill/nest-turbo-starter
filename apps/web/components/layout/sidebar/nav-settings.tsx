@@ -10,8 +10,6 @@ import {
 import {
    Bell,
    Blocks,
-   Bot,
-   Code,
    Compass,
    FileText,
    Flame,
@@ -22,7 +20,6 @@ import {
    Rocket,
    Settings,
    Smile,
-   Sparkles,
    Tag,
    Target,
    UserRound,
