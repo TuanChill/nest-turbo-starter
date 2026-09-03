@@ -19,8 +19,7 @@
           "scale": null,
           "default": null,
           "comment": null,
-          "enumItems": [],
-          "mappedType": "uuid"
+          "enumItems": []
         },
         "created_at": {
           "name": "created_at",
@@ -35,8 +34,7 @@
           "scale": null,
           "default": null,
           "comment": null,
-          "enumItems": [],
-          "mappedType": "datetime"
+          "enumItems": []
         },
         "updated_at": {
           "name": "updated_at",
@@ -51,8 +49,7 @@
           "scale": null,
           "default": null,
           "comment": null,
-          "enumItems": [],
-          "mappedType": "datetime"
+          "enumItems": []
         },
         "deleted_at": {
           "name": "deleted_at",
@@ -67,8 +64,7 @@
           "scale": null,
           "default": null,
           "comment": null,
-          "enumItems": [],
-          "mappedType": "datetime"
+          "enumItems": []
         },
         "email": {
           "name": "email",
@@ -83,8 +79,7 @@
           "scale": null,
           "default": null,
           "comment": null,
-          "enumItems": [],
-          "mappedType": "string"
+          "enumItems": []
         },
         "first_name": {
           "name": "first_name",
@@ -99,8 +94,7 @@
           "scale": null,
           "default": null,
           "comment": null,
-          "enumItems": [],
-          "mappedType": "string"
+          "enumItems": []
         },
         "last_name": {
           "name": "last_name",
@@ -115,8 +109,7 @@
           "scale": null,
           "default": null,
           "comment": null,
-          "enumItems": [],
-          "mappedType": "string"
+          "enumItems": []
         },
         "full_name": {
           "name": "full_name",
@@ -131,8 +124,7 @@
           "scale": null,
           "default": null,
           "comment": null,
-          "enumItems": [],
-          "mappedType": "string"
+          "enumItems": []
         },
         "date_of_birth": {
           "name": "date_of_birth",
@@ -147,8 +139,7 @@
           "scale": null,
           "default": null,
           "comment": null,
-          "enumItems": [],
-          "mappedType": "date"
+          "enumItems": []
         },
         "gender": {
           "name": "gender",
@@ -163,8 +154,7 @@
           "scale": null,
           "default": null,
           "comment": null,
-          "enumItems": [],
-          "mappedType": "string"
+          "enumItems": []
         },
         "phone_number": {
           "name": "phone_number",
@@ -179,8 +169,7 @@
           "scale": null,
           "default": null,
           "comment": null,
-          "enumItems": [],
-          "mappedType": "string"
+          "enumItems": []
         },
         "avatar": {
           "name": "avatar",
@@ -195,8 +184,7 @@
           "scale": null,
           "default": null,
           "comment": null,
-          "enumItems": [],
-          "mappedType": "string"
+          "enumItems": []
         },
         "is_active": {
           "name": "is_active",
@@ -211,8 +199,7 @@
           "scale": null,
           "default": "true",
           "comment": null,
-          "enumItems": [],
-          "mappedType": "boolean"
+          "enumItems": []
         },
         "password": {
           "name": "password",
@@ -227,8 +214,7 @@
           "scale": null,
           "default": null,
           "comment": null,
-          "enumItems": [],
-          "mappedType": "string"
+          "enumItems": []
         },
         "email_verified": {
           "name": "email_verified",
@@ -243,8 +229,7 @@
           "scale": null,
           "default": "false",
           "comment": null,
-          "enumItems": [],
-          "mappedType": "boolean"
+          "enumItems": []
         },
         "role": {
           "name": "role",
@@ -259,8 +244,7 @@
           "scale": null,
           "default": null,
           "comment": null,
-          "enumItems": [],
-          "mappedType": "string"
+          "enumItems": []
         },
         "password_changed_at": {
           "name": "password_changed_at",
@@ -275,8 +259,7 @@
           "scale": null,
           "default": null,
           "comment": null,
-          "enumItems": [],
-          "mappedType": "date"
+          "enumItems": []
         },
         "google_id": {
           "name": "google_id",
@@ -291,8 +274,7 @@
           "scale": null,
           "default": null,
           "comment": null,
-          "enumItems": [],
-          "mappedType": "string"
+          "enumItems": []
         },
         "google_name": {
           "name": "google_name",
@@ -307,8 +289,7 @@
           "scale": null,
           "default": null,
           "comment": null,
-          "enumItems": [],
-          "mappedType": "string"
+          "enumItems": []
         },
         "google_avatar": {
           "name": "google_avatar",
@@ -323,8 +304,7 @@
           "scale": null,
           "default": null,
           "comment": null,
-          "enumItems": [],
-          "mappedType": "string"
+          "enumItems": []
         },
         "is_2fa_enabled": {
           "name": "is_2fa_enabled",
@@ -339,8 +319,7 @@
           "scale": null,
           "default": "false",
           "comment": null,
-          "enumItems": [],
-          "mappedType": "boolean"
+          "enumItems": []
         }
       },
       "indexes": [

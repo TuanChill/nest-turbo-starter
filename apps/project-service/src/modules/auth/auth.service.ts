@@ -195,27 +195,80 @@ export class AuthService {
       throw new UnauthorizedException('Google login is not configured');
     }
 
+    if (!this.googleClient) {
+      this.googleClient = new OAuth2Client(googleClientId);
+    }
+
     let email = '';
     let name = '';
     let picture = '';
 
-    // 1. Verify Google ID Token
+    // 1. Verify Google Token (handles both ID token JWT and OAuth2 access token)
     try {
-      const ticket = await this.googleClient.verifyIdToken({
-        idToken: dto.idToken,
-        audience: googleClientId,
-      });
-      const payload = ticket.getPayload();
-      if (!payload || !payload.email) {
-        throw new UnauthorizedException('Invalid Google ID token payload');
+      if (dto.idToken.includes('.') && dto.idToken.split('.').length === 3) {
+        const ticket = await this.googleClient.verifyIdToken({
+          idToken: dto.idToken,
+          audience: googleClientId,
+        });
+        const payload = ticket.getPayload();
+        if (!payload || !payload.email) {
+          throw new UnauthorizedException('Invalid Google ID token payload');
+        }
+        email = payload.email.toLowerCase();
+        name = payload.name || payload.email.split('@')[0];
+        picture =
+          payload.picture || `https://api.dicebear.com/9.x/glass/svg?seed=${email}`;
+      } else {
+        // OAuth2 access token (e.g. from useGoogleLogin implicit flow: ya29...)
+        const tokenInfoRes = await fetch(
+          `https://oauth2.googleapis.com/tokeninfo?access_token=${encodeURIComponent(dto.idToken)}`,
+        );
+        if (!tokenInfoRes.ok) {
+          throw new UnauthorizedException('Invalid or expired Google Token');
+        }
+        const tokenInfo = (await tokenInfoRes.json()) as {
+          aud?: string;
+          azp?: string;
+          email?: string;
+        };
+        if (tokenInfo.aud !== googleClientId && tokenInfo.azp !== googleClientId) {
+          this.logger.warn(
+            `Google token client ID mismatch: token aud/azp (${tokenInfo.aud}/${tokenInfo.azp}) vs expected (${googleClientId})`,
+          );
+        }
+        if (!tokenInfo.email) {
+          throw new UnauthorizedException('Invalid Google token: missing email');
+        }
+        email = tokenInfo.email.toLowerCase();
+
+        try {
+          const userInfoRes = await fetch(
+            'https://www.googleapis.com/oauth2/v3/userinfo',
+            {
+              headers: { Authorization: `Bearer ${dto.idToken}` },
+            },
+          );
+          if (userInfoRes.ok) {
+            const userInfo = (await userInfoRes.json()) as {
+              name?: string;
+              picture?: string;
+            };
+            name = userInfo.name || email.split('@')[0];
+            picture =
+              userInfo.picture || `https://api.dicebear.com/9.x/glass/svg?seed=${email}`;
+          } else {
+            name = email.split('@')[0];
+            picture = `https://api.dicebear.com/9.x/glass/svg?seed=${email}`;
+          }
+        } catch {
+          name = email.split('@')[0];
+          picture = `https://api.dicebear.com/9.x/glass/svg?seed=${email}`;
+        }
       }
-      email = payload.email.toLowerCase();
-      name = payload.name || payload.email.split('@')[0];
-      picture = payload.picture || `https://api.dicebear.com/9.x/glass/svg?seed=${email}`;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Google token verification failed';
       this.logger.error(`Google token verification failed: ${msg}`);
-      throw new UnauthorizedException('Invalid or expired Google Token');
+      throw new UnauthorizedException(msg || 'Invalid or expired Google Token');
     }
 
     const memberId =

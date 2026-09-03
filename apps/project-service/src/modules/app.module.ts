@@ -35,6 +35,7 @@ import { appConfiguration, dbConfiguration } from '../config';
     ConfigModule.forRoot({
       isGlobal: true,
       cache: true,
+      envFilePath: ['.env', '../../.env'],
       load: [appCommonConfiguration, appConfiguration, dbConfiguration],
     }),
     MikroOrmModule.forRootAsync({

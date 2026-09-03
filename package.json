@@ -15,7 +15,7 @@
     "test": "turbo run test",
     "dev": "dotenv -e .env -- turbo run start:dev",
     "check-types": "turbo run check-types",
-    "prod": "turbo run start:prod",
+    "prod": "dotenv -e .env -- turbo run start:prod",
     "migration:up": "turbo run migration:up",
     "lint": "turbo run lint",
     "format": "prettier --write \"apps/**/src/**/*.ts\" \"libs/**/src/**/*.ts\""
@@ -59,6 +59,18 @@
     "turbo": "latest",
     "typescript": "^6.0.2",
     "tsx": "4.21.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@firebase/util",
+      "@nestjs/core",
+      "@scarf/scarf",
+      "@swc/core",
+      "esbuild",
+      "msgpackr-extract",
+      "protobufjs",
+      "sharp"
+    ]
   },
   "lint-staged": {
     "apps/!(web)/**/*.{ts,tsx,js,jsx}": [
