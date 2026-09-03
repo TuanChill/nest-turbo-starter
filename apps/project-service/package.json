@@ -60,6 +60,7 @@
     "chalk": "^5.4.1",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
+    "express": "^5.1.0",
     "express-request-id": "^3.0.0",
     "google-auth-library": "^9.15.1",
     "helmet": "^8.1.0",

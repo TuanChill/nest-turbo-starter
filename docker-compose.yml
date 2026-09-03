@@ -106,6 +106,92 @@ services:
 #    networks:
 #      - nest-turbo-network
 
+  auth-service:
+    container_name: nest_turbo_auth_service
+    build:
+      context: .
+      dockerfile: .docker/compose/nodejs/Dockerfile
+      args:
+        SERVICE: auth-service
+    ports:
+      - '${AUTH_SERVICE_APP_PORT:-3301}:${AUTH_SERVICE_APP_PORT:-3301}'
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - redis
+    networks:
+      - nest-turbo-network
+
+  user-service:
+    container_name: nest_turbo_user_service
+    build:
+      context: .
+      dockerfile: .docker/compose/nodejs/Dockerfile
+      args:
+        SERVICE: user-service
+    ports:
+      - '${USER_SERVICE_APP_PORT:-3302}:${USER_SERVICE_APP_PORT:-3302}'
+      - '${GRPC_USER_SERVICE_PORT:-3311}:${GRPC_USER_SERVICE_PORT:-3311}'
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - redis
+    networks:
+      - nest-turbo-network
+
+  notification-service:
+    container_name: nest_turbo_notification_service
+    build:
+      context: .
+      dockerfile: .docker/compose/nodejs/Dockerfile
+      args:
+        SERVICE: notification-service
+    ports:
+      - '${NOTIFICATION_SERVICE_APP_PORT:-3303}:${NOTIFICATION_SERVICE_APP_PORT:-3303}'
+      - '${GRPC_NOTIFICATION_SERVICE_PORT:-3313}:${GRPC_NOTIFICATION_SERVICE_PORT:-3313}'
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - redis
+    networks:
+      - nest-turbo-network
+
+  project-service:
+    container_name: nest_turbo_project_service
+    build:
+      context: .
+      dockerfile: .docker/compose/nodejs/Dockerfile
+      args:
+        SERVICE: project-service
+    ports:
+      - '${PROJECT_SERVICE_APP_PORT:-3304}:${PROJECT_SERVICE_APP_PORT:-3304}'
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - redis
+    networks:
+      - nest-turbo-network
+
+  web:
+    container_name: nest_turbo_web
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:${APISIX_NODE_LISTEN}
+        NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+        NEXT_PUBLIC_SITE_URL: http://localhost:3001
+    ports:
+      - '3001:3001'
+    depends_on:
+      - apisix
+    networks:
+      - nest-turbo-network
+
   etcd:
     extends:
       file: .docker/compose/apisix/apisix.yml
