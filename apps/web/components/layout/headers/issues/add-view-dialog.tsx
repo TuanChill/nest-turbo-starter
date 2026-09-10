@@ -12,12 +12,14 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { LayoutGrid, LayoutList } from 'lucide-react';
+import { CircleUserRound, LayoutGrid, LayoutList } from 'lucide-react';
 import { useCreateView } from '@/hooks/queries/use-views-query';
+import { CreateViewPayload } from '@/services/views.service';
 import { useFilterStore } from '@/store/filter-store';
 import { useDisplaySettingsStore } from '@/store/display-settings-store';
 import { useViewStore } from '@/store/view-store';
 import { useIssuesStore } from '@/store/issues-store';
+import { useAuthStore } from '@/store/auth-store';
 import { useMembers } from '@/hooks/queries/use-members-query';
 import { useProjects } from '@/hooks/queries/use-projects-query';
 import { useCycles } from '@/hooks/queries/use-cycles-query';
@@ -42,10 +44,14 @@ export function AddViewDialog({ open, onOpenChange, teamId }: AddViewDialogProps
    const { viewType } = useViewStore();
    const [layout, setLayout] = useState<'list' | 'grid'>(viewType);
    const [includeSettings, setIncludeSettings] = useState(true);
+   const [pendingPreset, setPendingPreset] = useState<'assigned-to-me' | 'kanban-board' | null>(
+      null
+   );
 
    const createViewMutation = useCreateView();
    const { filters, setFilters } = useFilterStore();
    const displaySettings = useDisplaySettingsStore();
+   const user = useAuthStore((state) => state.user);
    const router = useRouter();
    const pathname = usePathname();
 
@@ -68,6 +74,24 @@ export function AddViewDialog({ open, onOpenChange, teamId }: AddViewDialogProps
       onFiltersChange: setFilters,
    });
 
+   // Shared tail for both the manual form and the quick-create presets below.
+   const submitView = async (payload: CreateViewPayload) => {
+      try {
+         const newView = await createViewMutation.mutateAsync(payload);
+
+         onOpenChange(false);
+         setName('');
+         setDescription('');
+
+         // Navigate to newly created view
+         if (newView?.id) {
+            router.push(`${pathname}?view=${newView.id}`);
+         }
+      } catch (err) {
+         console.error('Failed to create view:', err);
+      }
+   };
+
    const handleSave = async (e: React.FormEvent) => {
       e.preventDefault();
       if (!name.trim()) return;
@@ -87,27 +111,50 @@ export function AddViewDialog({ open, onOpenChange, teamId }: AddViewDialogProps
            }
          : {};
 
+      await submitView({
+         name: name.trim(),
+         description: description.trim(),
+         icon,
+         teamId,
+         layout,
+         type: 'issue',
+         filter: filterPayload,
+      });
+   };
+
+   // Quick-create presets: build their own payload directly (not derived from
+   // useFilterStore/useDisplaySettingsStore's live filters) so picking one
+   // never mutates the page's own filter bar / `?filters=` URL state.
+   const handleQuickCreate = async (preset: 'assigned-to-me' | 'kanban-board') => {
+      const isAssignedToMe = preset === 'assigned-to-me';
+      if (isAssignedToMe && !user?.id) return;
+
+      setPendingPreset(preset);
       try {
-         const newView = await createViewMutation.mutateAsync({
-            name: name.trim(),
-            description: description.trim(),
-            icon,
+         await submitView({
+            name: isAssignedToMe ? 'Assigned to me' : 'Kanban Board',
+            description: '',
+            icon: isAssignedToMe ? '🙋' : '🗂️',
             teamId,
-            layout,
+            layout: 'grid',
             type: 'issue',
-            filter: filterPayload,
+            filter: {
+               filters: isAssignedToMe
+                  ? [{ columnId: 'assignee', type: 'option', operator: 'is', values: [user!.id] }]
+                  : [],
+               grouping: 'status',
+               ordering: displaySettings.ordering,
+               orderCompletedByRecency: displaySettings.orderCompletedByRecency,
+               completedIssues: displaySettings.completedIssues,
+               showSubIssues: displaySettings.showSubIssues,
+               nestedSubIssues: displaySettings.nestedSubIssues,
+               showEmptyGroups: displaySettings.showEmptyGroups,
+               showEmptyColumns: displaySettings.showEmptyColumns,
+               displayProperties: displaySettings.displayProperties,
+            },
          });
-
-         onOpenChange(false);
-         setName('');
-         setDescription('');
-
-         // Navigate to newly created view
-         if (newView?.id) {
-            router.push(`${pathname}?view=${newView.id}`);
-         }
-      } catch (err) {
-         console.error('Failed to create view:', err);
+      } finally {
+         setPendingPreset(null);
       }
    };
 
@@ -122,7 +169,38 @@ export function AddViewDialog({ open, onOpenChange, teamId }: AddViewDialogProps
                   </DialogDescription>
                </DialogHeader>
 
-               <div className="p-5 space-y-4">
+               <div className="px-5 pt-4 space-y-2">
+                  {/* Quick-create presets */}
+                  <div className="grid grid-cols-2 gap-2">
+                     <button
+                        type="button"
+                        onClick={() => handleQuickCreate('assigned-to-me')}
+                        disabled={!user?.id || createViewMutation.isPending}
+                        className="flex items-center justify-center gap-1.5 h-8 rounded-md text-xs font-medium border border-border/60 text-muted-foreground hover:bg-accent/40 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                     >
+                        <CircleUserRound className="size-3.5" />
+                        {pendingPreset === 'assigned-to-me' ? 'Creating...' : 'Assigned to me'}
+                     </button>
+                     <button
+                        type="button"
+                        onClick={() => handleQuickCreate('kanban-board')}
+                        disabled={createViewMutation.isPending}
+                        className="flex items-center justify-center gap-1.5 h-8 rounded-md text-xs font-medium border border-border/60 text-muted-foreground hover:bg-accent/40 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                     >
+                        <LayoutGrid className="size-3.5" />
+                        {pendingPreset === 'kanban-board' ? 'Creating...' : 'Kanban board'}
+                     </button>
+                  </div>
+                  <div className="relative flex items-center py-1">
+                     <div className="flex-1 border-t border-border/60" />
+                     <span className="px-2 text-[10px] uppercase tracking-wide text-muted-foreground">
+                        or configure manually
+                     </span>
+                     <div className="flex-1 border-t border-border/60" />
+                  </div>
+               </div>
+
+               <div className="p-5 pt-1 space-y-4">
                   {/* Name and Icon */}
                   <div className="space-y-1.5">
                      <Label htmlFor="view-name" className="text-xs font-medium">
