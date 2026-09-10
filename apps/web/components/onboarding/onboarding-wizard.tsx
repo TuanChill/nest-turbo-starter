@@ -7,6 +7,7 @@ import { StepWorkspace, GRADIENT_PRESETS } from './step-workspace';
 import { StepTeam } from './step-team';
 import { StepInvite } from './step-invite';
 import { onboardingService } from '@/services/onboarding.service';
+import { Workspace } from '@/services/workspaces.service';
 import { workspaceKeys, teamKeys } from '@/hooks/queries/keys';
 import { useAuthStore } from '@/store/auth-store';
 import { toast } from 'sonner';
@@ -15,7 +16,7 @@ import { ROUTES } from '@/constants/routes';
 export function OnboardingWizard() {
    const router = useRouter();
    const queryClient = useQueryClient();
-   const { user } = useAuthStore();
+   const { user, setUser } = useAuthStore();
 
    const [step, setStep] = React.useState<1 | 2 | 3>(1);
    const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -56,9 +57,27 @@ export function OnboardingWizard() {
             inviteEmails: inviteEmails.length > 0 ? inviteEmails : undefined,
          });
 
-         // Invalidate queries so that sidebar and team lists update immediately
-         await queryClient.invalidateQueries({ queryKey: workspaceKeys.all });
-         await queryClient.invalidateQueries({ queryKey: teamKeys.all });
+         // Immediately update query cache with new workspace so downstream components never see empty list
+         queryClient.setQueryData<Workspace[]>(workspaceKeys.lists(), (old) => {
+            const list = Array.isArray(old) ? old.filter((w) => w.id !== res.workspace.id) : [];
+            return [res.workspace as unknown as Workspace, ...list];
+         });
+         queryClient.setQueryData(workspaceKeys.detail(res.workspace.slug), res.workspace);
+         queryClient.setQueryData(workspaceKeys.detail(res.workspace.id), res.workspace);
+
+         // Update auth store user with new team ID
+         if (user) {
+            setUser({
+               ...user,
+               teamIds: Array.from(new Set([...(user.teamIds || []), res.team.id])),
+            });
+         }
+
+         // Invalidate queries so that sidebar and team lists update across all active & inactive queries
+         await Promise.all([
+            queryClient.invalidateQueries({ queryKey: workspaceKeys.all, refetchType: 'all' }),
+            queryClient.invalidateQueries({ queryKey: teamKeys.all, refetchType: 'all' }),
+         ]);
 
          toast.success(`Welcome to ${res.workspace.name}! Your workspace is ready.`);
 

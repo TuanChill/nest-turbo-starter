@@ -18,9 +18,11 @@ export interface OnboardingResponse {
       slug: string;
       icon?: string;
       description?: string;
+      ownerId?: string;
       role: string;
       inviteCode: string;
       memberCount: number;
+      createdAt?: string;
    };
    team: {
       id: string;

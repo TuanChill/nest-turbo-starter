@@ -12,7 +12,7 @@ export default function WorkspaceOrgLayout({ children }: { children: React.React
    const params = useParams<{ orgId?: string }>();
    const currentOrgId = params?.orgId;
    const { isAuthenticated } = useAuthStore();
-   const { data: workspaces, isLoading, isFetched } = useWorkspaces();
+   const { data: workspaces, isLoading, isFetching, isFetched } = useWorkspaces();
    const { initNotifications, isInitialized: notificationsInitialized } = useNotificationsStore();
 
    React.useEffect(() => {
@@ -22,10 +22,11 @@ export default function WorkspaceOrgLayout({ children }: { children: React.React
    }, [isAuthenticated, notificationsInitialized, initNotifications]);
 
    React.useEffect(() => {
-      if (isLoading || !isFetched) return;
+      // Do not make routing decisions while initial fetch or background refetch is in progress
+      if (isLoading || isFetching || !isFetched) return;
 
-      // If user is authenticated but has 0 workspaces -> Force them to onboarding
-      if (workspaces && workspaces.length === 0) {
+      // If user is authenticated but confirmed to have 0 workspaces -> Force them to onboarding
+      if (isAuthenticated && workspaces && workspaces.length === 0) {
          router.replace(ROUTES.ONBOARDING);
          return;
       }
@@ -42,7 +43,7 @@ export default function WorkspaceOrgLayout({ children }: { children: React.React
             router.replace(ROUTES.WORKSPACE.MY_ISSUES(fallbackSlug));
          }
       }
-   }, [workspaces, isLoading, isFetched, currentOrgId, router]);
+   }, [workspaces, isLoading, isFetching, isFetched, isAuthenticated, currentOrgId, router]);
 
    return <>{children}</>;
 }
