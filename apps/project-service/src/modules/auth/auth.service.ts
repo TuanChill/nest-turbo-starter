@@ -282,10 +282,11 @@ export class AuthService {
     const timezone = 'UTC';
     let userWorkspace: WorkspaceResponseDto | undefined;
     let isNewUser = false;
+    let member: Member | null = null;
 
     // 2. Safely sync with Database
     try {
-      let member = await this.em.findOne(Member, { email });
+      member = await this.em.findOne(Member, { email });
 
       if (!member) {
         isNewUser = true;
@@ -338,7 +339,7 @@ export class AuthService {
           isNewUser = true;
         }
 
-        const teamMembers = await this.em.find(TeamMember, { memberId });
+        const teamMembers = await this.em.find(TeamMember, { memberId: member.id });
         if (teamMembers.length > 0) {
           teamIds = teamMembers.map((t) => t.teamId);
         }
@@ -347,9 +348,11 @@ export class AuthService {
       this.logger.warn(`Database sync skipped (DB error): ${(dbErr as Error).message}`);
     }
 
+    const effectiveMemberId = member ? member.id : memberId;
+
     // 3. Generate JWT Tokens
     const { accessToken, refreshToken } = this.signTokenPair({
-      sub: memberId,
+      sub: effectiveMemberId,
       email,
       name,
       role,
@@ -359,7 +362,7 @@ export class AuthService {
       accessToken,
       refreshToken,
       user: {
-        id: memberId,
+        id: effectiveMemberId,
         name,
         email,
         avatarUrl: picture,

@@ -18,8 +18,8 @@ export class OnboardingController {
   @Post('complete')
   complete(
     @Body() dto: OnboardingCompleteDto,
-    @User('id') memberId: string,
+    @User() user: { id: string; email?: string },
   ): Promise<any> {
-    return this.onboardingService.complete(dto, memberId);
+    return this.onboardingService.complete(dto, user.id, user.email);
   }
 }

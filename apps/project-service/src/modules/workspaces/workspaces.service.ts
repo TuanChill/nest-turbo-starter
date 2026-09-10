@@ -8,7 +8,7 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
 import { JoinWorkspaceDto } from './dto/join-workspace.dto';
-import { Team, TeamMember, Workspace, WorkspaceMember } from '../../data-access';
+import { Member, Team, TeamMember, Workspace, WorkspaceMember } from '../../data-access';
 
 @Injectable()
 export class WorkspacesService {
@@ -89,20 +89,38 @@ export class WorkspacesService {
     return null;
   }
 
-  async findAll(memberId?: string): Promise<any[]> {
+  async findAll(memberId?: string, memberEmail?: string): Promise<any[]> {
     await this.ensureDefaultWorkspace(memberId);
+
+    let member: Member | null = null;
+    if (memberId || memberEmail) {
+      member = await this.em.findOne(Member, {
+        $or: [
+          ...(memberId ? [{ id: memberId }, { email: memberId }] : []),
+          ...(memberEmail ? [{ email: memberEmail }, { id: memberEmail }] : []),
+        ],
+      });
+    }
+    const resolvedMemberId = member ? member.id : memberId;
 
     const workspaces = await this.em.find(Workspace, {});
 
     const rows = await Promise.all(
       workspaces.map(async (ws) => {
         const members = await this.em.find(WorkspaceMember, { workspaceId: ws.id });
-        const currentMemberMembership = memberId
-          ? members.find((m) => m.memberId === memberId)
+        const currentMemberMembership = resolvedMemberId
+          ? members.find(
+              (m) =>
+                m.memberId === resolvedMemberId || (member && m.memberId === member.id),
+            )
           : null;
 
+        const isOwner = resolvedMemberId
+          ? ws.ownerId === resolvedMemberId || (member && ws.ownerId === member.id)
+          : false;
+
         // Include workspace ONLY if memberId is a member/owner, or if listing all without memberId filter
-        if (!memberId || currentMemberMembership || ws.ownerId === memberId) {
+        if (!resolvedMemberId || currentMemberMembership || isOwner) {
           return {
             id: ws.id,
             name: ws.name,
@@ -114,7 +132,7 @@ export class WorkspacesService {
             memberCount: Math.max(members.length, 1),
             role: currentMemberMembership
               ? currentMemberMembership.role
-              : ws.ownerId === memberId
+              : isOwner
                 ? 'Owner'
                 : 'Member',
             joinedAt: currentMemberMembership
@@ -131,7 +149,7 @@ export class WorkspacesService {
     return rows.filter((row): row is NonNullable<typeof row> => row !== null);
   }
 
-  async findOne(idOrSlug: string, memberId?: string): Promise<any> {
+  async findOne(idOrSlug: string, memberId?: string, memberEmail?: string): Promise<any> {
     const ws = await this.em.findOne(Workspace, {
       $or: [{ id: idOrSlug }, { slug: idOrSlug }],
     });
@@ -140,17 +158,33 @@ export class WorkspacesService {
       throw new NotFoundException(`Workspace "${idOrSlug}" not found`);
     }
 
+    let member: Member | null = null;
+    if (memberId || memberEmail) {
+      member = await this.em.findOne(Member, {
+        $or: [
+          ...(memberId ? [{ id: memberId }, { email: memberId }] : []),
+          ...(memberEmail ? [{ email: memberEmail }, { id: memberEmail }] : []),
+        ],
+      });
+    }
+    const resolvedMemberId = member ? member.id : memberId;
+
     const members = await this.em.find(WorkspaceMember, { workspaceId: ws.id });
-    const currentMemberMembership = memberId
-      ? members.find((m) => m.memberId === memberId)
+    const currentMemberMembership = resolvedMemberId
+      ? members.find(
+          (m) => m.memberId === resolvedMemberId || (member && m.memberId === member.id),
+        )
       : null;
+    const isOwner = resolvedMemberId
+      ? ws.ownerId === resolvedMemberId || (member && ws.ownerId === member.id)
+      : false;
 
     return {
       ...ws,
       memberCount: members.length,
       role: currentMemberMembership
         ? currentMemberMembership.role
-        : ws.ownerId === memberId
+        : isOwner
           ? 'Owner'
           : 'Member',
     };

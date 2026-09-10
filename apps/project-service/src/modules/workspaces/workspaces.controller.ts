@@ -13,17 +13,17 @@ export class WorkspacesController {
 
   @ApiOperation({ summary: 'Get all workspaces for authenticated user' })
   @Get()
-  findAll(@User('id') memberId: string): Promise<any[]> {
-    return this.workspacesService.findAll(memberId);
+  findAll(@User() user: { id: string; email?: string }): Promise<any[]> {
+    return this.workspacesService.findAll(user?.id, user?.email);
   }
 
   @ApiOperation({ summary: 'Get workspace details by ID or Slug' })
   @Get(':idOrSlug')
   findOne(
     @Param('idOrSlug') idOrSlug: string,
-    @User('id') memberId: string,
+    @User() user: { id: string; email?: string },
   ): Promise<any> {
-    return this.workspacesService.findOne(idOrSlug, memberId);
+    return this.workspacesService.findOne(idOrSlug, user?.id, user?.email);
   }
 
   @ApiOperation({ summary: 'Create a new workspace' })

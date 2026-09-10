@@ -4,10 +4,11 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 
 interface ProjectServiceJwtPayload {
-  sub: string;
+  sub?: string;
+  id?: string;
   email: string;
-  name: string;
-  role: string;
+  name?: string;
+  role?: string;
 }
 
 export interface AuthenticatedMember {
@@ -33,15 +34,16 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   }
 
   validate(payload: ProjectServiceJwtPayload): AuthenticatedMember {
-    if (!payload?.sub || !payload?.email) {
+    const memberId = payload?.sub || payload?.id;
+    if (!memberId || !payload?.email) {
       throw new UnauthorizedException('Invalid token payload');
     }
 
     return {
-      id: payload.sub,
+      id: memberId,
       email: payload.email,
-      name: payload.name,
-      role: payload.role,
+      name: payload.name || payload.email.split('@')[0],
+      role: payload.role || 'Member',
     };
   }
 }

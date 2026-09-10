@@ -38,20 +38,31 @@ export class OnboardingService {
     return code;
   }
 
-  async complete(dto: OnboardingCompleteDto, currentMemberId: string): Promise<any> {
+  async complete(
+    dto: OnboardingCompleteDto,
+    currentMemberId: string,
+    currentMemberEmail?: string,
+  ): Promise<any> {
+    const queryConditions: any[] = [{ id: currentMemberId }, { email: currentMemberId }];
+    if (currentMemberEmail) {
+      queryConditions.push({ email: currentMemberEmail }, { id: currentMemberEmail });
+    }
     let member = await this.em.findOne(Member, {
-      $or: [{ id: currentMemberId }, { email: currentMemberId }],
+      $or: queryConditions,
     });
 
     if (!member) {
+      const email =
+        currentMemberEmail ||
+        (currentMemberId.includes('@')
+          ? currentMemberId
+          : `${currentMemberId}@circle.internal`);
       member = new Member({
         id: currentMemberId.includes('@')
           ? currentMemberId.split('@')[0]
           : currentMemberId,
         name: dto.workspaceName || 'Circle Member',
-        email: currentMemberId.includes('@')
-          ? currentMemberId
-          : `${currentMemberId}@circle.internal`,
+        email,
         role: 'Admin',
         status: 'online',
         timezone: 'UTC',
@@ -214,6 +225,7 @@ export class OnboardingService {
         slug: workspace.slug,
         icon: workspace.icon,
         description: workspace.description,
+        ownerId: workspace.ownerId,
         role: 'Owner',
         inviteCode: workspace.inviteCode,
         memberCount: 1 + (dto.inviteEmails?.length || 0),
