@@ -11,6 +11,7 @@ import {
    GoogleAuthPayload,
 } from '@/lib/api/auth';
 import { getCookie, removeCookie, setCookie } from '@/lib/utils/cookies';
+import { clearActiveWorkspace } from '@/lib/utils/workspace-persistence';
 
 interface AuthState {
    user: AuthUser | null;
@@ -160,6 +161,7 @@ export const useAuthStore = create<AuthState>((set) => ({
          removeCookie('accessToken');
          removeCookie('refreshToken');
          removeCookie('currentUser');
+         clearActiveWorkspace();
          set({
             user: null,
             accessToken: null,

@@ -28,6 +28,7 @@ import { useAuthStore } from '@/store/auth-store';
 import { useWorkspaces } from '@/hooks/queries';
 import { CreateOrJoinWorkspaceDialog } from '@/components/common/workspaces/create-or-join-workspace-dialog';
 import { ROUTES } from '@/constants/routes';
+import { saveActiveWorkspace } from '@/lib/utils/workspace-persistence';
 
 export function OrgSwitcher() {
    const router = useRouter();
@@ -50,6 +51,7 @@ export function OrgSwitcher() {
    const initials = workspaceName.slice(0, 2).toUpperCase();
 
    const handleSelectWorkspace = (slug: string) => {
+      saveActiveWorkspace(slug);
       if (slug !== currentOrgId) {
          router.push(ROUTES.WORKSPACE.MY_ISSUES(slug));
       }

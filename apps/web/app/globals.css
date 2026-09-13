@@ -219,3 +219,170 @@ input[type='search'] {
    --sidebar-accent: #26282e;
    --sidebar-accent-foreground: #eef0f3;
 }
+
+/* ------------------------------------------------------------------ */
+/* TipTap ProseMirror Editor Styles (Linear-style Issue Description)   */
+/* ------------------------------------------------------------------ */
+
+.linear-tiptap-editor .ProseMirror {
+   outline: none;
+   font-size: 15px;
+   line-height: 1.75;
+   color: var(--foreground);
+   min-height: 40px;
+   word-break: break-word;
+}
+
+.linear-tiptap-editor .ProseMirror p {
+   margin: 0.35rem 0;
+}
+
+.linear-tiptap-editor .ProseMirror h1 {
+   font-size: 1.5rem;
+   font-weight: 600;
+   line-height: 1.3;
+   margin-top: 1.5rem;
+   margin-bottom: 0.5rem;
+}
+
+.linear-tiptap-editor .ProseMirror h2 {
+   font-size: 1.25rem;
+   font-weight: 600;
+   line-height: 1.35;
+   margin-top: 1.25rem;
+   margin-bottom: 0.5rem;
+}
+
+.linear-tiptap-editor .ProseMirror h3 {
+   font-size: 1.1rem;
+   font-weight: 600;
+   line-height: 1.4;
+   margin-top: 1rem;
+   margin-bottom: 0.35rem;
+}
+
+.linear-tiptap-editor .ProseMirror blockquote {
+   border-left: 3px solid var(--border);
+   padding-left: 0.875rem;
+   margin: 0.75rem 0;
+   color: var(--muted-foreground);
+   font-style: italic;
+}
+
+.linear-tiptap-editor .ProseMirror pre {
+   background-color: var(--accent);
+   border: 1px solid var(--border);
+   border-radius: 0.5rem;
+   padding: 0.75rem 1rem;
+   margin: 0.75rem 0;
+   overflow-x: auto;
+   font-family: var(--font-mono), monospace;
+   font-size: 13px;
+   line-height: 1.6;
+}
+
+.linear-tiptap-editor .ProseMirror code:not(pre code) {
+   background-color: var(--accent);
+   border-radius: 0.25rem;
+   padding: 0.15rem 0.35rem;
+   font-size: 0.875em;
+   font-family: var(--font-mono), monospace;
+}
+
+.linear-tiptap-editor .ProseMirror ul:not([data-type='taskList']) {
+   list-style-type: disc;
+   padding-left: 1.35rem;
+   margin: 0.4rem 0;
+}
+
+.linear-tiptap-editor .ProseMirror ol {
+   list-style-type: decimal;
+   padding-left: 1.35rem;
+   margin: 0.4rem 0;
+}
+
+.linear-tiptap-editor .ProseMirror li {
+   margin: 0.2rem 0;
+}
+
+.linear-tiptap-editor .ProseMirror hr {
+   border: none;
+   border-top: 1px solid var(--border);
+   margin: 1.25rem 0;
+}
+
+/* Linear-style Task List (Checklist) */
+.linear-tiptap-editor .ProseMirror ul[data-type='taskList'] {
+   list-style: none;
+   padding: 0;
+   margin: 0.5rem 0;
+}
+
+.linear-tiptap-editor .ProseMirror li[data-type='taskItem'] {
+   display: flex;
+   align-items: flex-start;
+   gap: 0.5rem;
+   margin: 0.25rem 0;
+}
+
+.linear-tiptap-editor .ProseMirror li[data-type='taskItem'] > label {
+   display: inline-flex;
+   align-items: center;
+   justify-content: center;
+   user-select: none;
+   margin-top: 0.25rem;
+   flex-shrink: 0;
+}
+
+.linear-tiptap-editor .ProseMirror li[data-type='taskItem'] > label input[type='checkbox'] {
+   appearance: none;
+   -webkit-appearance: none;
+   width: 15px;
+   height: 15px;
+   border: 1.5px solid var(--border);
+   border-radius: 3.5px;
+   background-color: transparent;
+   cursor: pointer;
+   display: inline-grid;
+   place-content: center;
+   transition: all 120ms ease-in-out;
+}
+
+.linear-tiptap-editor .ProseMirror li[data-type='taskItem'] > label input[type='checkbox']:hover {
+   border-color: var(--muted-foreground);
+}
+
+.linear-tiptap-editor .ProseMirror li[data-type='taskItem'] > label input[type='checkbox']:checked {
+   background-color: #6366f1;
+   border-color: #6366f1;
+}
+
+.linear-tiptap-editor .ProseMirror li[data-type='taskItem'] > label input[type='checkbox']:checked::before {
+   content: '';
+   width: 8px;
+   height: 5px;
+   border-left: 1.8px solid #ffffff;
+   border-bottom: 1.8px solid #ffffff;
+   transform: rotate(-45deg) translate(1px, -1px);
+}
+
+.linear-tiptap-editor .ProseMirror li[data-type='taskItem'] > div {
+   flex: 1 1 auto;
+   min-width: 0;
+}
+
+.linear-tiptap-editor .ProseMirror li[data-type='taskItem'][data-checked='true'] > div {
+   text-decoration: line-through;
+   color: var(--muted-foreground);
+}
+
+/* Linear-style Placeholder */
+.linear-tiptap-editor .ProseMirror p.is-editor-empty:first-child::before {
+   content: attr(data-placeholder);
+   float: left;
+   color: var(--muted-foreground);
+   opacity: 0.55;
+   pointer-events: none;
+   height: 0;
+}
+

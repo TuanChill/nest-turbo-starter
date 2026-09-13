@@ -3,17 +3,59 @@
 import { CustomizeSidebarDialog } from '@/components/layout/sidebar/customize-sidebar-dialog';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { SelectMenu, SettingsCard, SettingsRow, SettingsSection, SettingsShell } from './shared';
 import { ThemePreferences } from './theme-preferences';
+import { useWorkspaces } from '@/hooks/queries';
+import { getActiveWorkspace, saveActiveWorkspace } from '@/lib/utils/workspace-persistence';
+import { toast } from 'sonner';
 
 /** Personal "Preferences" settings (general, theme, automations). */
 export default function Preferences() {
    const [customizeOpen, setCustomizeOpen] = useState(false);
+   const { data: workspaces, isLoading: workspacesLoading } = useWorkspaces();
+   const [defaultWorkspaceSlug, setDefaultWorkspaceSlug] = useState<string>('');
+
+   useEffect(() => {
+      const saved = getActiveWorkspace();
+      if (saved) {
+         setDefaultWorkspaceSlug(saved);
+      } else if (workspaces && workspaces.length > 0) {
+         setDefaultWorkspaceSlug(workspaces[0].slug);
+      }
+   }, [workspaces]);
+
+   const handleDefaultWorkspaceChange = (slug: string) => {
+      setDefaultWorkspaceSlug(slug);
+      saveActiveWorkspace(slug);
+      const wsName = workspaces?.find((w) => w.slug === slug)?.name || slug;
+      toast.success(`Default workspace set to "${wsName}"`);
+   };
+
    return (
       <SettingsShell title="Preferences">
          <SettingsSection title="General">
             <SettingsCard>
+               <SettingsRow
+                  title="Default workspace"
+                  description="Select which workspace to open by default when launching the app"
+                  trailing={
+                     workspacesLoading ? (
+                        <span className="text-xs text-muted-foreground">Loading...</span>
+                     ) : workspaces && workspaces.length > 0 ? (
+                        <SelectMenu
+                           value={defaultWorkspaceSlug || workspaces[0]?.slug}
+                           options={workspaces.map((ws) => ({
+                              label: ws.name,
+                              value: ws.slug,
+                           }))}
+                           onChange={handleDefaultWorkspaceChange}
+                        />
+                     ) : (
+                        <span className="text-xs text-muted-foreground">No workspaces</span>
+                     )
+                  }
+               />
                <SettingsRow
                   title="Default home view"
                   description="Select which view to display when launching the app"

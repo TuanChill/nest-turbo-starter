@@ -30,11 +30,11 @@ import { useParams } from 'next/navigation';
 import { ROUTES } from '@/constants/routes';
 import { AssigneeUser } from '../assignee-user';
 import { ActivityFeed } from './activity-feed';
-import { ContentBlocks, type ContentBlock } from './content-blocks';
 import { IssuePropertiesPanel } from './issue-properties-panel';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+import { LinearEditor } from '@/components/common/editor/linear-editor';
+import { contentBlocksToMarkdown } from '@/lib/content-blocks-to-markdown';
 
 function IssueDetailsSkeleton() {
    return (
@@ -129,9 +129,7 @@ export default function IssueDetails() {
    const [titleDraft, setTitleDraft] = React.useState('');
    const [titleOverride, setTitleOverride] = React.useState<string | null>(null);
 
-   // Description inline edit state
-   const [isEditingDescription, setIsEditingDescription] = React.useState(false);
-   const [descriptionDraft, setDescriptionDraft] = React.useState('');
+   // Description override state for optimistic updates
    const [descriptionOverride, setDescriptionOverride] = React.useState<string | null>(null);
 
    // Sub-issue inline composer state
@@ -159,6 +157,41 @@ export default function IssueDetails() {
    const detail = React.useMemo(
       () => detailData || (issue ? getIssueDetail(issue) : null),
       [detailData, issue]
+   );
+
+   const initialDescriptionMarkdown = React.useMemo(() => {
+      if (descriptionOverride !== null) return descriptionOverride;
+      if (issue?.description && issue.description.trim()) {
+         return issue.description;
+      }
+      if (detail?.description && detail.description.length > 0) {
+         return contentBlocksToMarkdown(detail.description);
+      }
+      return '';
+   }, [descriptionOverride, issue?.description, detail?.description]);
+
+   const handleSaveDescription = React.useCallback(
+      (newMarkdown: string) => {
+         if (!issue) return;
+         const trimmed = newMarkdown.trim();
+         const current = (issue.description || '').trim();
+         if (trimmed === current) return;
+
+         setDescriptionOverride(trimmed);
+         updateIssueMutation.mutate(
+            { identifier: issue.identifier, data: { description: trimmed } },
+            {
+               onSuccess: () => {
+                  setDescriptionOverride(null);
+               },
+               onError: () => {
+                  setDescriptionOverride(null);
+                  toast.error('Failed to update description');
+               },
+            }
+         );
+      },
+      [issue, updateIssueMutation]
    );
 
    const isLoading = isIssueLoading || (Boolean(issue) && isDetailLoading);
@@ -238,10 +271,6 @@ export default function IssueDetails() {
    };
 
    const displayTitle = titleOverride ?? issue.title;
-   const displayDescriptionBlocks: ContentBlock[] =
-      descriptionOverride !== null
-         ? [{ type: 'paragraph', text: descriptionOverride }]
-         : detail.description;
 
    const startEditingTitle = () => {
       setTitleDraft(displayTitle);
@@ -261,29 +290,6 @@ export default function IssueDetails() {
             onError: () => {
                setTitleOverride(null);
                toast.error('Failed to update title');
-            },
-         }
-      );
-   };
-
-   const startEditingDescription = () => {
-      setDescriptionDraft(issue.description || '');
-      setIsEditingDescription(true);
-   };
-
-   const commitDescription = () => {
-      const trimmed = descriptionDraft.trim();
-      setIsEditingDescription(false);
-      if (trimmed === (issue.description || '')) return;
-
-      setDescriptionOverride(trimmed);
-      updateIssueMutation.mutate(
-         { identifier: issue.identifier, data: { description: trimmed } },
-         {
-            onSuccess: () => setDescriptionOverride(null),
-            onError: () => {
-               setDescriptionOverride(null);
-               toast.error('Failed to update description');
             },
          }
       );
@@ -323,37 +329,12 @@ export default function IssueDetails() {
                )}
 
                <div className="mt-6">
-                  {isEditingDescription ? (
-                     <Textarea
-                        autoFocus
-                        value={descriptionDraft}
-                        disabled={updateIssueMutation.isPending}
-                        onChange={(e) => setDescriptionDraft(e.target.value)}
-                        onBlur={commitDescription}
-                        onKeyDown={(e) => {
-                           if (e.key === 'Escape') {
-                              e.preventDefault();
-                              setIsEditingDescription(false);
-                           }
-                        }}
-                        placeholder="Add description..."
-                        rows={6}
-                        className="text-[15px] leading-7 resize-none px-2 py-1.5 -mx-2"
-                     />
-                  ) : (
-                     <div
-                        className="cursor-text rounded px-2 py-1.5 -mx-2 hover:bg-accent/40 transition-colors min-h-9"
-                        onClick={startEditingDescription}
-                     >
-                        {displayDescriptionBlocks && displayDescriptionBlocks.length > 0 ? (
-                           <ContentBlocks blocks={displayDescriptionBlocks} />
-                        ) : (
-                           <p className="text-[15px] leading-7 text-muted-foreground">
-                              Add description...
-                           </p>
-                        )}
-                     </div>
-                  )}
+                  <LinearEditor
+                     value={initialDescriptionMarkdown}
+                     onSave={handleSaveDescription}
+                     placeholder="Add description or type '/' for commands..."
+                     className="px-2 py-1 -mx-2 rounded hover:bg-accent/20 transition-colors"
+                  />
                </div>
 
                {/* Quick actions */}

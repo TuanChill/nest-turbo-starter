@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { ROUTES } from '@/constants/routes';
+import { getSavedWorkspaceFromRequest } from '@/lib/utils/workspace-persistence';
 
 export function middleware(request: NextRequest) {
    const { pathname } = request.nextUrl;
@@ -23,10 +24,11 @@ export function middleware(request: NextRequest) {
       pathname === ROUTES.AUTH.FORGOT_PASSWORD ||
       pathname === ROUTES.AUTH.RESET_PASSWORD;
 
-   // If accessing auth page while already logged in -> redirect to default workspace
+   // If accessing auth page while already logged in -> redirect to default/previously opened workspace
    if (isAuthPage && accessToken) {
+      const lastWorkspace = getSavedWorkspaceFromRequest(request);
       const url = request.nextUrl.clone();
-      url.pathname = ROUTES.DEFAULT_WORKSPACE_DASHBOARD();
+      url.pathname = ROUTES.DEFAULT_WORKSPACE_DASHBOARD(lastWorkspace || 'circle-workspace');
       return NextResponse.redirect(url);
    }
 

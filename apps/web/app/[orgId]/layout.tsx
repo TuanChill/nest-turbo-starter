@@ -6,6 +6,7 @@ import { useWorkspaces } from '@/hooks/queries';
 import { useAuthStore } from '@/store/auth-store';
 import { useNotificationsStore } from '@/store/notifications-store';
 import { ROUTES } from '@/constants/routes';
+import { getActiveWorkspace, saveActiveWorkspace } from '@/lib/utils/workspace-persistence';
 
 export default function WorkspaceOrgLayout({ children }: { children: React.ReactNode }) {
    const router = useRouter();
@@ -39,9 +40,18 @@ export default function WorkspaceOrgLayout({ children }: { children: React.React
 
          // If the user navigated to an invalid orgId (e.g. legacy lndev-ui or foreign slug)
          if (!matchingWorkspace) {
-            const fallbackSlug = workspaces[0].slug || workspaces[0].id;
+            const savedWorkspaceSlug = getActiveWorkspace();
+            const validSaved = workspaces.find(
+               (ws) => ws.slug === savedWorkspaceSlug || ws.id === savedWorkspaceSlug
+            );
+            const fallbackSlug = validSaved?.slug || workspaces[0].slug || workspaces[0].id;
+            saveActiveWorkspace(fallbackSlug);
             router.replace(ROUTES.WORKSPACE.MY_ISSUES(fallbackSlug));
+            return;
          }
+
+         // Automatically persist the currently opened workspace so it is remembered upon return
+         saveActiveWorkspace(matchingWorkspace.slug);
       }
    }, [workspaces, isLoading, isFetching, isFetched, isAuthenticated, currentOrgId, router]);
 

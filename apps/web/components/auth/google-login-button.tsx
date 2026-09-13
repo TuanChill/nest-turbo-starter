@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { useAuthStore } from '@/store/auth-store';
 import { Button } from '@/components/ui/button';
 import { ROUTES } from '@/constants/routes';
+import { getActiveWorkspace, saveActiveWorkspace } from '@/lib/utils/workspace-persistence';
 
 export function GoogleIcon() {
    return (
@@ -72,12 +73,17 @@ export function GoogleLoginButton({ text = 'Continue with Google' }: GoogleLogin
             });
 
             toast.success(`Welcome, ${profile.name}!`);
+            const savedWorkspace = getActiveWorkspace();
+            const destinationSlug = savedWorkspace || res?.workspace?.slug;
+            if (destinationSlug) {
+               saveActiveWorkspace(destinationSlug);
+            }
             const targetUrl =
                searchParams.get('redirect') ||
                (res?.isNewUser
                   ? ROUTES.ONBOARDING
-                  : res?.workspace?.slug
-                    ? ROUTES.WORKSPACE.MY_ISSUES(res.workspace.slug)
+                  : destinationSlug
+                    ? ROUTES.WORKSPACE.MY_ISSUES(destinationSlug)
                     : ROUTES.DEFAULT_WORKSPACE_DASHBOARD());
             router.push(targetUrl);
          } catch (err: unknown) {

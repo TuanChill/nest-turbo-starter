@@ -1,6 +1,7 @@
 'use client';
 
-import { ContentBlocks } from '@/components/common/issues/details/content-blocks';
+import { LinearEditor } from '@/components/common/editor/linear-editor';
+import { contentBlocksToMarkdown } from '@/lib/content-blocks-to-markdown';
 import { IssuePropertiesPanel } from '@/components/common/issues/details/issue-properties-panel';
 import { LabelBadge } from '@/components/common/issues/label-badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -144,7 +145,15 @@ export default function IssuePreview({ notification, onMarkAsRead }: IssuePrevie
 
                   {/* Real description */}
                   <div className="mt-6">
-                     <ContentBlocks blocks={detail.description} />
+                     <LinearEditor
+                        value={
+                           displayIssue.description && displayIssue.description.trim()
+                              ? displayIssue.description
+                              : contentBlocksToMarkdown(detail.description)
+                        }
+                        editable={false}
+                        className="px-0 py-0"
+                     />
                   </div>
 
                   {/* Comment composer */}

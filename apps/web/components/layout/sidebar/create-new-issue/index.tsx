@@ -3,7 +3,7 @@
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+import { LinearEditor } from '@/components/common/editor/linear-editor';
 import { Heart } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { useTeams } from '@/hooks/queries/use-teams-query';
@@ -190,12 +190,13 @@ export function CreateNewIssue() {
                   onChange={(e) => setAddIssueForm({ ...addIssueForm, title: e.target.value })}
                />
 
-               <Textarea
-                  className="border-none w-full shadow-none outline-none resize-none px-0 min-h-16 focus-visible:ring-0 break-words whitespace-normal overflow-wrap"
-                  placeholder="Add description..."
+               <LinearEditor
+                  className="px-0 py-0"
+                  minHeight="min-h-16"
+                  placeholder="Add description or type '/' for commands..."
                   value={addIssueForm.description}
-                  onChange={(e) =>
-                     setAddIssueForm({ ...addIssueForm, description: e.target.value })
+                  onChange={(newDesc) =>
+                     setAddIssueForm((prev) => ({ ...prev, description: newDesc }))
                   }
                />
 

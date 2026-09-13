@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { GoogleLoginButton } from '@/components/auth/google-login-button';
 import { ROUTES } from '@/constants/routes';
+import { getActiveWorkspace, saveActiveWorkspace } from '@/lib/utils/workspace-persistence';
 
 const loginSchema = z.object({
    email: z.string().email('Please enter a valid email address'),
@@ -46,11 +47,14 @@ function LoginForm() {
       try {
          const res = await login(data);
          toast.success('Welcome back!');
+         const savedWorkspace = getActiveWorkspace();
+         const destinationSlug = savedWorkspace || res?.workspace?.slug;
+         if (destinationSlug) {
+            saveActiveWorkspace(destinationSlug);
+         }
          const targetUrl =
             searchParams.get('redirect') ||
-            (res?.workspace?.slug
-               ? ROUTES.WORKSPACE.MY_ISSUES(res.workspace.slug)
-               : ROUTES.ONBOARDING);
+            (destinationSlug ? ROUTES.WORKSPACE.MY_ISSUES(destinationSlug) : ROUTES.ONBOARDING);
          router.push(targetUrl);
       } catch (err: unknown) {
          const message = err instanceof Error ? err.message : 'Invalid email or password';

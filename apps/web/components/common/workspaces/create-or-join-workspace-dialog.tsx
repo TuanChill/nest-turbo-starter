@@ -17,6 +17,7 @@ import { useCreateWorkspace, useJoinWorkspace } from '@/hooks/queries';
 import { PlusCircle, LogIn, Sparkles, Check, Globe } from 'lucide-react';
 import { toast } from 'sonner';
 import { ROUTES } from '@/constants/routes';
+import { saveActiveWorkspace } from '@/lib/utils/workspace-persistence';
 
 interface CreateOrJoinWorkspaceDialogProps {
    open: boolean;
@@ -106,6 +107,7 @@ export function CreateOrJoinWorkspaceDialog({
          {
             onSuccess: (newWorkspace) => {
                onOpenChange(false);
+               saveActiveWorkspace(newWorkspace.slug);
                router.push(ROUTES.WORKSPACE.MY_ISSUES(newWorkspace.slug));
             },
          }
@@ -143,6 +145,7 @@ export function CreateOrJoinWorkspaceDialog({
          {
             onSuccess: (joinedWorkspace) => {
                onOpenChange(false);
+               saveActiveWorkspace(joinedWorkspace.slug);
                router.push(ROUTES.WORKSPACE.MY_ISSUES(joinedWorkspace.slug));
             },
          }

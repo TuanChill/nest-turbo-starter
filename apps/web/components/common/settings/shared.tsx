@@ -123,6 +123,8 @@ export function SettingsRow({
    );
 }
 
+export type SelectOption = string | { label: string; value: string };
+
 /** Small functional select (local state) used across the settings pages. */
 export function SelectMenu({
    options,
@@ -130,32 +132,38 @@ export function SelectMenu({
    value: controlledValue,
    onChange,
 }: {
-   options: string[];
+   options: SelectOption[];
    defaultValue?: string;
    /** Optional controlled value (e.g. wired to next-themes). */
    value?: string;
    onChange?: (value: string) => void;
 }) {
-   const [internal, setInternal] = useState(defaultValue ?? options[0]);
+   const normalizedOptions = options.map((opt) =>
+      typeof opt === 'string' ? { label: opt, value: opt } : opt
+   );
+   const [internal, setInternal] = useState(defaultValue ?? normalizedOptions[0]?.value ?? '');
    const value = controlledValue ?? internal;
+   const selectedOption =
+      normalizedOptions.find((opt) => opt.value === value) ?? normalizedOptions[0];
+
    return (
       <DropdownMenu>
          <DropdownMenuTrigger className="h-8 px-3 rounded-md border bg-container text-sm inline-flex items-center gap-1.5 hover:bg-accent transition-colors outline-none">
-            {value}
+            {selectedOption?.label || value}
             <ChevronDown className="size-3.5 text-muted-foreground" />
          </DropdownMenuTrigger>
          <DropdownMenuContent align="end" className="min-w-40">
-            {options.map((option) => (
+            {normalizedOptions.map((option) => (
                <DropdownMenuItem
-                  key={option}
+                  key={option.value}
                   onClick={() => {
-                     setInternal(option);
-                     onChange?.(option);
+                     setInternal(option.value);
+                     onChange?.(option.value);
                   }}
                   className="flex items-center gap-2 text-sm"
                >
-                  <span className="flex-1">{option}</span>
-                  {value === option && <Check className="size-3.5" />}
+                  <span className="flex-1">{option.label}</span>
+                  {value === option.value && <Check className="size-3.5" />}
                </DropdownMenuItem>
             ))}
          </DropdownMenuContent>
