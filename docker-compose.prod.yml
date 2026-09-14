@@ -1,28 +1,28 @@
 services:
   db:
-    ports: []
+    ports: !reset []
 
   redis:
-    ports: []
+    ports: !reset []
 
   auth-service:
-    ports: []
+    ports: !reset []
 
   user-service:
-    ports: []
+    ports: !reset []
 
   notification-service:
-    ports: []
+    ports: !reset []
 
   project-service:
-    ports: []
+    ports: !reset []
 
   etcd:
-    ports: []
+    ports: !reset []
 
   apisix:
     ports:
       - "${APISIX_NODE_LISTEN:-9080}:${APISIX_NODE_LISTEN:-9080}"
 
   apisix-homepage:
-    ports: []
+    ports: !reset []

@@ -52,7 +52,7 @@ echo "Building backend images..."
 "${COMPOSE[@]}" build auth-service user-service notification-service project-service apisix adc
 
 echo "Applying database migrations..."
-"${COMPOSE[@]}" run --rm --no-deps project-service pnpm --filter=project-service migration:up
+"${COMPOSE[@]}" run --rm --no-deps -e COREPACK_ENABLE_DOWNLOAD_PROMPT=0 project-service pnpm --filter=project-service migration:up
 
 echo "Starting backend services and API gateway..."
 "${COMPOSE[@]}" up -d --remove-orphans auth-service user-service notification-service project-service apisix apisix-homepage
