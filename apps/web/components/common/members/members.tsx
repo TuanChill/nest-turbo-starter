@@ -5,7 +5,7 @@ import MemberLine from './member-line';
 import { useMembersFilterStore } from '@/store/members-filter-store';
 import { ArrowDown } from 'lucide-react';
 import { useMemo } from 'react';
-import { User } from '@/mock-data/users';
+import type { User } from '@/mock-data/users';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function Members() {

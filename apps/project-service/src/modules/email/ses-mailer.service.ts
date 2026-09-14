@@ -6,6 +6,7 @@ export interface SendInviteEmailOptions {
   name: string;
   role: string;
   orgName?: string;
+  orgSlug?: string;
   inviterName?: string;
 }
 
@@ -53,7 +54,8 @@ export class SesMailerService {
     const org = options.orgName || 'Circle Workspace';
     const inviter = options.inviterName || 'Workspace Admin';
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
-    const joinUrl = `${frontendUrl}/signup?org=${encodeURIComponent(org.toLowerCase().replace(/\s+/g, '-'))}&email=${encodeURIComponent(options.to)}`;
+    const orgSlug = options.orgSlug || org.toLowerCase().replace(/\s+/g, '-');
+    const joinUrl = `${frontendUrl}/signup?org=${encodeURIComponent(orgSlug)}&email=${encodeURIComponent(options.to)}`;
 
     const htmlContent = `
 <!DOCTYPE html>

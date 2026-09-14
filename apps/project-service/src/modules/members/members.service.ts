@@ -2,7 +2,7 @@ import { EntityManager } from '@mikro-orm/core';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
 import { CreateMemberDto, UpdateMemberDto } from './dto/member.dto';
-import { Member, TeamMember, WorkspaceMember } from '../../data-access';
+import { Member, TeamMember, Workspace, WorkspaceMember } from '../../data-access';
 import { SesMailerService } from '../email/ses-mailer.service';
 
 @Injectable()
@@ -113,11 +113,18 @@ export class MembersService {
 
     // Dispatch invite email in background (non-blocking)
     if (member.email) {
+      const workspace = workspaceId
+        ? await this.em.findOne(Workspace, {
+            $or: [{ id: workspaceId }, { slug: workspaceId }],
+          })
+        : null;
       this.sesMailerService
         .sendMemberInviteEmail({
           to: member.email,
           name: member.name,
           role: member.role,
+          orgName: workspace?.name,
+          orgSlug: workspace?.slug,
         })
         .catch((err) => console.error('Failed to send invite email:', err));
     }

@@ -30,8 +30,8 @@ export function StepInvite({
 
    const inviteUrl =
       typeof window !== 'undefined'
-         ? `${window.location.origin}/join/${workspaceSlug || 'circle'}`
-         : `${SITE_URL}/join/${workspaceSlug || 'circle'}`;
+         ? `${window.location.origin}/signup?org=${encodeURIComponent(workspaceSlug || 'circle')}`
+         : `${SITE_URL}/signup?org=${encodeURIComponent(workspaceSlug || 'circle')}`;
 
    const handleAddEmail = (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === 'Enter' || e.key === ',') {
