@@ -61,7 +61,17 @@ apisix_profile="$(awk -F= '$1 == "APISIX_PROFILE" { value=$2 } END { print value
 apisix_profile="${apisix_profile:-dev}"
 
 echo "Synchronizing API gateway routes..."
-"${COMPOSE[@]}" run --rm --no-deps adc adc sync -f "conf/apisix-${apisix_profile}.yaml"
+for attempt in {1..30}; do
+  if "${COMPOSE[@]}" run --rm --no-deps adc adc sync -f "conf/apisix-${apisix_profile}.yaml"; then
+    break
+  fi
+  if [[ "$attempt" == 30 ]]; then
+    echo "API gateway configuration did not become ready in time." >&2
+    "${COMPOSE[@]}" logs --tail=80 apisix >&2 || true
+    exit 1
+  fi
+  sleep 2
+done
 
 apisix_port="$(awk -F= '$1 == "APISIX_NODE_LISTEN" { value=$2 } END { print value }' .env)"
 apisix_port="${apisix_port:-9080}"

@@ -21,7 +21,7 @@ services:
     ports: !reset []
 
   apisix:
-    ports:
+    ports: !reset
       - "${APISIX_NODE_LISTEN:-9080}:${APISIX_NODE_LISTEN:-9080}"
 
   apisix-homepage:
