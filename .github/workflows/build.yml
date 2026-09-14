@@ -1,50 +1,49 @@
-# name: github actions
+name: Backend CI
 
-# on:
-#   push:
-#     branches:
-#       - dev
-#       - main
-#   pull_request:
-#     branches:
-#       - dev
-#       - main
+on:
+  push:
+    branches: [dev, main]
+  pull_request:
+    branches: [dev, main]
 
-# jobs:
-#   build:
-#     name: nestjs base build
-#     runs-on: ubuntu-latest
+jobs:
+  quality:
+    name: Typecheck, build and test
+    runs-on: ubuntu-latest
 
-#     steps:
-#       - name: Checkout
-#         uses: actions/checkout@v3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-#       - name: Setup Node.js
-#         uses: actions/setup-node@v3
-#         with:
-#           node-version: 18
-#           cache: 'npm'
-#           cache-dependency-path: ./package-lock.json
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.17.0
 
-#       - name: Install dependencies
-#         # Skip post-install scripts here, as a malicious
-#         # script could steal NODE_AUTH_TOKEN.
-#         run: npm ci --ignore-scripts
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
 
-#       - name: Build
-#         run: npm run build
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
-#       - name: Test
-#         run: npm run test
-#         # change continue-on-error to false when test is ready
-#         continue-on-error: true
+      - name: Check types
+        run: pnpm check-types
 
-#       - name: Lint
-#         run: npm run lint
-#         continue-on-error: true
+      - name: Build
+        run: >-
+          pnpm exec turbo run build
+          --filter=auth-service...
+          --filter=user-service...
+          --filter=notification-service...
+          --filter=project-service...
 
-#       # - name: Deploy
-#       #   uses: peaceiris/actions-gh-pages@v3
-#       #   with:
-#       #     github_token: ${{ secrets.GITHUB_TOKEN }}
-#       #     publish_dir: ./dist
+      - name: Test
+        run: >-
+          pnpm exec turbo run test
+          --filter=auth-service
+          --filter=user-service
+          --filter=notification-service
+          --filter=project-service

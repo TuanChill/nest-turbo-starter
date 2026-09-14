@@ -1,0 +1,28 @@
+services:
+  db:
+    ports: []
+
+  redis:
+    ports: []
+
+  auth-service:
+    ports: []
+
+  user-service:
+    ports: []
+
+  notification-service:
+    ports: []
+
+  project-service:
+    ports: []
+
+  etcd:
+    ports: []
+
+  apisix:
+    ports:
+      - "${APISIX_NODE_LISTEN:-9080}:${APISIX_NODE_LISTEN:-9080}"
+
+  apisix-homepage:
+    ports: []

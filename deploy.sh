@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+APP_DIR="/opt/classpro/be"
+COMPOSE=(docker compose -f docker-compose.yml -f docker-compose.prod.yml)
+
+cd "$APP_DIR"
+
+exec 9>/run/lock/classpro-be-deploy.lock
+flock -n 9 || {
+  echo "Another backend deployment is already running." >&2
+  exit 1
+}
+
+if [[ ! -f .env ]]; then
+  echo "Missing $APP_DIR/.env; refusing to deploy without production configuration." >&2
+  exit 1
+fi
+
+echo "Fetching the requested revision..."
+git fetch --prune origin main
+git reset --hard origin/main
+
+if [[ ! -f docker-compose.prod.yml ]]; then
+  echo "Missing docker-compose.prod.yml after checkout." >&2
+  exit 1
+fi
+
+export DOCKER_BUILDKIT=1
+export COMPOSE_DOCKER_CLI_BUILD=1
+
+echo "Validating Compose configuration..."
+"${COMPOSE[@]}" config >/dev/null
+
+echo "Starting stateful dependencies..."
+"${COMPOSE[@]}" up -d db redis etcd
+
+echo "Waiting for PostgreSQL..."
+for attempt in {1..60}; do
+  if "${COMPOSE[@]}" exec -T db pg_isready >/dev/null 2>&1; then
+    break
+  fi
+  if [[ "$attempt" == 60 ]]; then
+    echo "PostgreSQL did not become ready in time." >&2
+    "${COMPOSE[@]}" logs --tail=80 db >&2 || true
+    exit 1
+  fi
+  sleep 2
+done
+
+echo "Building backend images..."
+"${COMPOSE[@]}" build auth-service user-service notification-service project-service apisix adc
+
+echo "Applying database migrations..."
+"${COMPOSE[@]}" run --rm --no-deps project-service pnpm --filter=project-service migration:up
+
+echo "Starting backend services and API gateway..."
+"${COMPOSE[@]}" up -d --remove-orphans auth-service user-service notification-service project-service apisix apisix-homepage
+
+apisix_profile="$(awk -F= '$1 == "APISIX_PROFILE" { value=$2 } END { print value }' .env)"
+apisix_profile="${apisix_profile:-dev}"
+
+echo "Synchronizing API gateway routes..."
+"${COMPOSE[@]}" run --rm --no-deps adc adc sync -f "conf/apisix-${apisix_profile}.yaml"
+
+apisix_port="$(awk -F= '$1 == "APISIX_NODE_LISTEN" { value=$2 } END { print value }' .env)"
+apisix_port="${apisix_port:-9080}"
+
+echo "Running backend smoke check..."
+for attempt in {1..30}; do
+  if curl --fail --silent --show-error --max-time 5 "http://127.0.0.1:${apisix_port}/circle/api/health" >/dev/null; then
+    echo "Backend is healthy on port ${apisix_port}."
+    "${COMPOSE[@]}" ps
+    exit 0
+  fi
+  sleep 2
+done
+
+echo "Backend smoke check failed." >&2
+"${COMPOSE[@]}" ps >&2 || true
+"${COMPOSE[@]}" logs --tail=100 auth-service user-service notification-service project-service apisix >&2 || true
+exit 1

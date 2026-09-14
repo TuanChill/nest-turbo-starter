@@ -17,7 +17,7 @@
     "start:prod": "node dist/main",
     "check-types": "tsc --noEmit -p tsconfig.build.json",
     "lint": "oxlint .",
-    "test": "jest",
+    "test": "jest --passWithNoTests",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "migration:create": "npx mikro-orm migration:create --config mikro-orm.config.ts",
