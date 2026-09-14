@@ -29,6 +29,7 @@ function SignUpForm() {
    const router = useRouter();
    const searchParams = useSearchParams();
    const inviteOrgSlug = searchParams.get('org');
+   const inviteEmail = searchParams.get('email') || '';
    const { signUp, isLoading } = useAuthStore();
    const joinWorkspaceMutation = useJoinWorkspace();
    const [showPassword, setShowPassword] = React.useState(false);
@@ -41,7 +42,7 @@ function SignUpForm() {
       resolver: zodResolver(signupSchema),
       defaultValues: {
          name: '',
-         email: '',
+         email: inviteEmail,
          password: '',
       },
    });

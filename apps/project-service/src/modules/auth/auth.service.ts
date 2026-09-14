@@ -66,10 +66,44 @@ export class AuthService {
     }
 
     const existingMember = await this.em.findOne(Member, { email });
-    if (existingMember) {
+    if (existingMember?.passwordHash) {
       throw new ConflictException(
         'An account with this email address already exists. Please log in.',
       );
+    }
+
+    const passwordHash = await hashData(dto.password);
+    if (existingMember) {
+      // Invitation flow creates a passwordless placeholder member first.
+      // Completing signup activates that member instead of creating a duplicate.
+      existingMember.name = name;
+      existingMember.passwordHash = passwordHash;
+      existingMember.status = 'online';
+      await this.em.flush();
+
+      const { accessToken, refreshToken } = this.signTokenPair({
+        sub: existingMember.id,
+        email: existingMember.email,
+        name: existingMember.name,
+        role: existingMember.role,
+      });
+
+      return {
+        accessToken,
+        refreshToken,
+        user: {
+          id: existingMember.id,
+          name: existingMember.name,
+          email: existingMember.email,
+          avatarUrl: existingMember.avatarUrl,
+          role: existingMember.role,
+          status: existingMember.status,
+          timezone: existingMember.timezone,
+          teamIds: [],
+        },
+        workspace: undefined,
+        isNewUser: true,
+      };
     }
 
     const baseMemberId =
@@ -85,7 +119,6 @@ export class AuthService {
       counter++;
     }
 
-    const passwordHash = await hashData(dto.password);
     const avatarUrl = `https://api.dicebear.com/9.x/glass/svg?seed=${encodeURIComponent(email)}`;
     const member = new Member({
       id: memberId,
