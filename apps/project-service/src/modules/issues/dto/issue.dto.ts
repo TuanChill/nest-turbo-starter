@@ -122,7 +122,7 @@ export class UpdateIssueDto {
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
-  assigneeId?: string;
+  assigneeId?: string | null;
 
   @ApiPropertyOptional()
   @IsString()

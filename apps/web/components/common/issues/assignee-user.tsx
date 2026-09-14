@@ -10,17 +10,28 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { statusUserColors, User } from '@/mock-data/users';
 import { useMembers } from '@/hooks/queries/use-members-query';
+import { useUpdateIssue } from '@/hooks/queries/use-issues-query';
 import { CheckIcon, CircleUserRound, Send, UserIcon } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 interface AssigneeUserProps {
    user: User | null;
+   issueIdentifier?: string;
 }
 
-export function AssigneeUser({ user }: AssigneeUserProps) {
+export function AssigneeUser({ user, issueIdentifier }: AssigneeUserProps) {
    const [open, setOpen] = useState(false);
    const [currentAssignee, setCurrentAssignee] = useState<User | null>(user);
    const { data: members = [] } = useMembers();
+   const updateIssueMutation = useUpdateIssue();
+
+   const persistAssignee = (assignee: User | null) => {
+      if (!issueIdentifier) return;
+      updateIssueMutation.mutate({
+         identifier: issueIdentifier,
+         data: { assigneeId: assignee?.id ?? null },
+      });
+   };
 
    useEffect(() => {
       setCurrentAssignee(user);
@@ -64,6 +75,7 @@ export function AssigneeUser({ user }: AssigneeUserProps) {
                onClick={(e) => {
                   e.stopPropagation();
                   setCurrentAssignee(null);
+                  persistAssignee(null);
                   setOpen(false);
                }}
             >
@@ -79,7 +91,9 @@ export function AssigneeUser({ user }: AssigneeUserProps) {
                   key={user.id}
                   onClick={(e) => {
                      e.stopPropagation();
-                     setCurrentAssignee(user as unknown as User);
+                     const nextAssignee = user as unknown as User;
+                     setCurrentAssignee(nextAssignee);
+                     persistAssignee(nextAssignee);
                      setOpen(false);
                   }}
                >

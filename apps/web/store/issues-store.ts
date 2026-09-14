@@ -141,7 +141,8 @@ export const useIssuesStore = create<IssuesState>((set, get) => ({
             payload.statusCategory = updatedIssue.status.category;
          }
          if (updatedIssue.priority !== undefined) payload.priorityId = updatedIssue.priority.id;
-         if (updatedIssue.assignee !== undefined) payload.assigneeId = updatedIssue.assignee?.id;
+         if (updatedIssue.assignee !== undefined)
+            payload.assigneeId = updatedIssue.assignee?.id ?? null;
          if (updatedIssue.cycleId !== undefined) payload.cycleId = updatedIssue.cycleId;
          if (updatedIssue.project !== undefined) payload.projectId = updatedIssue.project?.id;
          if (updatedIssue.labels !== undefined)

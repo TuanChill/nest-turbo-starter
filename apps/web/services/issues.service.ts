@@ -41,7 +41,7 @@ export interface UpdateIssuePayload {
    statusId?: string;
    statusCategory?: string;
    priorityId?: string;
-   assigneeId?: string;
+   assigneeId?: string | null;
    teamId?: string;
    projectId?: string;
    cycleId?: string;
