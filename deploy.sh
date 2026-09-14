@@ -3,6 +3,7 @@ set -Eeuo pipefail
 
 APP_DIR="/opt/circle/be"
 COMPOSE=(docker compose -f docker-compose.yml -f docker-compose.prod.yml)
+DEPLOY_REF="${1:-origin/main}"
 
 cd "$APP_DIR"
 
@@ -19,7 +20,9 @@ fi
 
 echo "Fetching the requested revision..."
 git fetch --prune origin main
-git reset --hard origin/main
+git rev-parse --verify "${DEPLOY_REF}^{commit}" >/dev/null
+git reset --hard "$DEPLOY_REF"
+echo "Deploying revision $(git rev-parse --short HEAD)..."
 
 if [[ ! -f docker-compose.prod.yml ]]; then
   echo "Missing docker-compose.prod.yml after checkout." >&2

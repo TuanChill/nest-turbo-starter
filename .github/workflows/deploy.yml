@@ -5,6 +5,13 @@ on:
     workflows: [Backend CI]
     types: [completed]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: production-backend-deploy
+  cancel-in-progress: false
+
 jobs:
   deploy:
     name: SSH Deploy Backend
@@ -20,4 +27,4 @@ jobs:
           password: ${{ secrets.SSH_PASSWORD }}
           timeout: 300s
           script: |
-            bash /opt/circle/be/deploy.sh
+            bash /opt/circle/be/deploy.sh "${{ github.event.workflow_run.head_sha }}"
