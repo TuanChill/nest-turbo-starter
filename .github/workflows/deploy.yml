@@ -20,4 +20,4 @@ jobs:
           password: ${{ secrets.SSH_PASSWORD }}
           timeout: 300s
           script: |
-            bash /opt/classpro/be/deploy.sh
+            bash /opt/circle/be/deploy.sh

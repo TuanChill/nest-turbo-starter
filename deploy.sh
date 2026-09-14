@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-APP_DIR="/opt/classpro/be"
+APP_DIR="/opt/circle/be"
 COMPOSE=(docker compose -f docker-compose.yml -f docker-compose.prod.yml)
 
 cd "$APP_DIR"
 
-exec 9>/run/lock/classpro-be-deploy.lock
+exec 9>/run/lock/circle-be-deploy.lock
 flock -n 9 || {
   echo "Another backend deployment is already running." >&2
   exit 1
