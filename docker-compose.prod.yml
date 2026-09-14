@@ -22,7 +22,7 @@ services:
 
   apisix:
     ports: !override
-      - "${APISIX_NODE_LISTEN:-9080}:${APISIX_NODE_LISTEN:-9080}"
+      - "127.0.0.1:${APISIX_NODE_LISTEN:-9080}:${APISIX_NODE_LISTEN:-9080}"
 
   apisix-homepage:
     ports: !reset []
