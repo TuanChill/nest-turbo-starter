@@ -14,7 +14,7 @@ FROM base AS pruner
 WORKDIR /work
 COPY . .
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm-store \
-    pnpm dlx turbo prune web --docker
+    pnpm dlx turbo@2.10.12 prune web --docker
 
 FROM base AS installer
 WORKDIR /work

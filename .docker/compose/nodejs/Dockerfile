@@ -18,7 +18,7 @@ ARG SERVICE
 WORKDIR /work
 COPY . .
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm-store \
-    pnpm dlx turbo prune ${SERVICE} --docker
+    pnpm dlx turbo@2.10.12 prune ${SERVICE} --docker
 # turbo prune only copies workspace package files into out/full, not root
 # config files like tsconfig.json that libs/apps `extends` — carry it over
 # so the extends chain resolves inside the pruned tree.
