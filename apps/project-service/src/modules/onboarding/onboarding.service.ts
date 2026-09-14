@@ -10,12 +10,16 @@ import {
   Workspace,
   WorkspaceMember,
 } from '../../data-access';
+import { SesMailerService } from '../email/ses-mailer.service';
 
 @Injectable()
 export class OnboardingService {
   private readonly logger = new Logger(OnboardingService.name);
 
-  constructor(private readonly em: EntityManager) {}
+  constructor(
+    private readonly em: EntityManager,
+    private readonly sesMailerService: SesMailerService,
+  ) {}
 
   private slugify(text: string): string {
     return text
@@ -214,6 +218,30 @@ export class OnboardingService {
     }
 
     await this.em.flush();
+
+    // Dispatch invitation emails after the workspace and memberships are persisted.
+    if (dto.inviteEmails && dto.inviteEmails.length > 0) {
+      const cleanEmails = dto.inviteEmails
+        .map((email) => email.trim().toLowerCase())
+        .filter((cleanEmail) => cleanEmail && cleanEmail !== member.email);
+
+      for (const cleanEmail of cleanEmails) {
+        const invitedName = cleanEmail.split('@')[0];
+        this.sesMailerService
+          .sendMemberInviteEmail({
+            to: cleanEmail,
+            name: invitedName,
+            role: 'Member',
+            orgName: workspace.name,
+            orgSlug: workspace.slug,
+            inviterName: member.name,
+          })
+          .catch((err) =>
+            this.logger.error(`Failed to send invite email to ${cleanEmail}:`, err),
+          );
+      }
+    }
+
     this.logger.log(
       `Onboarding completed for user [${member.email}] -> Workspace [${workspace.slug}], Team [${team.id}]`,
     );
