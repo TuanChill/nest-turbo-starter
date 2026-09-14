@@ -88,7 +88,7 @@ export function LabelSelector({ selectedLabels, onChange }: LabelSelectorProps) 
                               <CommandItem
                                  key={label.id}
                                  value={label.id}
-                                 onPointerDown={(event) => {
+                                 onMouseDown={(event) => {
                                     if (event.button === 0) {
                                        event.preventDefault();
                                        handleLabelToggle(label);
