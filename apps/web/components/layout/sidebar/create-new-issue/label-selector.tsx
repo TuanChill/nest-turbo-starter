@@ -88,7 +88,18 @@ export function LabelSelector({ selectedLabels, onChange }: LabelSelectorProps) 
                               <CommandItem
                                  key={label.id}
                                  value={label.id}
-                                 onClick={() => handleLabelToggle(label)}
+                                 onPointerDown={(event) => {
+                                    if (event.button === 0) {
+                                       event.preventDefault();
+                                       handleLabelToggle(label);
+                                    }
+                                 }}
+                                 onKeyDown={(event) => {
+                                    if (event.key === 'Enter' || event.key === ' ') {
+                                       event.preventDefault();
+                                       handleLabelToggle(label);
+                                    }
+                                 }}
                                  className="flex items-center justify-between"
                               >
                                  <div className="flex items-center gap-2">
