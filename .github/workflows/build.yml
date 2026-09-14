@@ -47,3 +47,34 @@ jobs:
           --filter=user-service
           --filter=notification-service
           --filter=project-service
+
+  web-quality:
+    name: Web lint and build
+    runs-on: ubuntu-latest
+
+    env:
+      NEXT_PUBLIC_API_URL: https://pm-api.capylabs.io
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.17.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Lint web
+        run: pnpm --filter web lint
+
+      - name: Build web
+        run: pnpm --filter web build

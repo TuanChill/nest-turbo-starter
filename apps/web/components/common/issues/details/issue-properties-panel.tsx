@@ -13,7 +13,7 @@ import { LabelSelector } from '@/components/layout/sidebar/create-new-issue/labe
 import { RelationSelector } from '../relation-selector';
 import { renderProjectIcon } from '@/lib/project-utils';
 import { IssueRefRow } from './content-blocks';
-import { useIssuesStore } from '@/store/issues-store';
+import { useUpdateIssue } from '@/hooks/queries/use-issues-query';
 
 interface IssuePropertiesPanelProps {
    issue: Issue;
@@ -34,10 +34,13 @@ function Section({ title, children }: { title: string; children: React.ReactNode
  * assignee), cycle, labels, project + milestone, relations and linked PRs.
  */
 export function IssuePropertiesPanel({ issue, detail }: IssuePropertiesPanelProps) {
-   const { updateIssue } = useIssuesStore();
+   const updateIssueMutation = useUpdateIssue();
 
    const handleLabelsChange = (newLabels: LabelInterface[]) => {
-      updateIssue(issue.id, { labels: newLabels });
+      updateIssueMutation.mutate({
+         identifier: issue.identifier,
+         data: { labelIds: newLabels.map((label) => label.id) },
+      });
    };
 
    return (
