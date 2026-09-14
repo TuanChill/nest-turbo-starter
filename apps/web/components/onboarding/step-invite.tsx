@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
+import { SITE_URL } from '@/lib/utils/site-url';
 
 interface StepInviteProps {
    inviteEmails: string[];
@@ -30,7 +31,7 @@ export function StepInvite({
    const inviteUrl =
       typeof window !== 'undefined'
          ? `${window.location.origin}/join/${workspaceSlug || 'circle'}`
-         : `http://localhost:3001/join/${workspaceSlug || 'circle'}`;
+         : `${SITE_URL}/join/${workspaceSlug || 'circle'}`;
 
    const handleAddEmail = (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === 'Enter' || e.key === ',') {

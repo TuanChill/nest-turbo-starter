@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import { Toaster } from '@/components/ui/sonner';
+import { SITE_URL } from '@/lib/utils/site-url';
 import './globals.css';
 
 const geistSans = Geist({
@@ -13,8 +14,6 @@ const geistMono = Geist_Mono({
    subsets: ['latin'],
 });
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3001';
-
 export const metadata: Metadata = {
    title: {
       template: '%s | Circle',
@@ -24,7 +23,7 @@ export const metadata: Metadata = {
    openGraph: {
       type: 'website',
       locale: 'en_US',
-      url: siteUrl,
+      url: SITE_URL,
       siteName: 'Circle',
    },
    keywords: ['project-management', 'issues', 'cycles', 'linear-clone', 'agile'],

@@ -24,6 +24,7 @@ import { useCreateMember } from '@/hooks/queries/use-members-query';
 import { useTeams } from '@/hooks/queries/use-teams-query';
 import { Check, Copy, Loader2, Plus, Search, UserPlus, X } from 'lucide-react';
 import { toast } from 'sonner';
+import { SITE_URL } from '@/lib/utils/site-url';
 import { cn } from '@/lib/utils';
 import { useParams } from 'next/navigation';
 
@@ -80,10 +81,7 @@ export function InviteMemberDialog({
    };
 
    const handleCopyInviteLink = () => {
-      const origin =
-         typeof window !== 'undefined'
-            ? window.location.origin
-            : process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3001';
+      const origin = typeof window !== 'undefined' ? window.location.origin : SITE_URL;
       const inviteUrl = `${origin}/signup?org=${orgId || 'lndev-ui'}`;
       navigator.clipboard.writeText(inviteUrl);
       setCopied(true);

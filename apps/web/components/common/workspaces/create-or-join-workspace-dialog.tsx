@@ -18,6 +18,7 @@ import { PlusCircle, LogIn, Sparkles, Check, Globe } from 'lucide-react';
 import { toast } from 'sonner';
 import { ROUTES } from '@/constants/routes';
 import { saveActiveWorkspace } from '@/lib/utils/workspace-persistence';
+import { SITE_HOST } from '@/lib/utils/site-url';
 
 interface CreateOrJoinWorkspaceDialogProps {
    open: boolean;
@@ -210,7 +211,7 @@ export function CreateOrJoinWorkspaceDialog({
                            </p>
                            <p className="text-xs text-muted-foreground font-mono truncate flex items-center gap-1">
                               <Globe className="size-3" />
-                              localhost:3001/{slug || 'workspace-url'}
+                              {SITE_HOST}/{slug || 'workspace-url'}
                            </p>
                         </div>
                      </div>

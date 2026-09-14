@@ -5,6 +5,7 @@ import { ArrowRight, Check, Globe, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SITE_HOST } from '@/lib/utils/site-url';
 
 export const GRADIENT_PRESETS = [
    { label: 'Sunset', value: 'from-orange-600 to-amber-500' },
@@ -98,7 +99,7 @@ export function StepWorkspace({
                </p>
                <p className="text-xs text-muted-foreground font-mono truncate flex items-center gap-1 mt-0.5">
                   <Globe className="size-3 shrink-0" />
-                  localhost:3001/{workspaceSlug || 'workspace-url'}
+                  {SITE_HOST}/{workspaceSlug || 'workspace-url'}
                </p>
             </div>
          </div>
@@ -126,7 +127,7 @@ export function StepWorkspace({
                </Label>
                <div className="flex items-center rounded-md border border-input bg-background/60 focus-within:ring-1 focus-within:ring-ring">
                   <span className="pl-3 text-xs text-muted-foreground font-mono select-none">
-                     localhost:3001/
+                     {SITE_HOST}/
                   </span>
                   <Input
                      id="ws-slug"
