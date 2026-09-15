@@ -34,6 +34,7 @@ Reference set: [Linear Docs](https://linear.app/docs), [Projects](https://linear
 - Issue creation now rejects unknown status/priority IDs and validates cycle and parent-issue team membership before persistence.
 - The public seed endpoint now returns not-found in production. My Issues counts and lists use only authenticated-user/server issue data; they no longer fall back to the first mock user or local mock records. Template queries also wait for a verified workspace ID during legacy-route redirects.
 - Deployment locking now waits for an active deploy to finish for up to ten minutes so a queued release does not fail immediately on a held remote lock.
+- Deployment now reclaims unused Docker cache/images before `git fetch`, because a full production disk can otherwise prevent the new Git pack from being written; named volumes remain untouched.
 - Member responses now filter returned team IDs to teams visible to the requester, preventing cross-workspace team metadata from leaking through an otherwise valid member lookup. The production Agent route now returns an explicit not-configured error instead of canned workspace data; the UI surfaces that API error.
 - Saved-view create/update now validates referenced projects against the view workspace and selected team, preventing cross-workspace or unrelated-team project references.
 - Review detail, diff, and guide views now consume persisted API payloads only; synthetic review/diff fallbacks were removed. Review issue references are validated against the same accessible workspace/team, and review timestamps are returned as real relative times.
@@ -41,6 +42,7 @@ Reference set: [Linear Docs](https://linear.app/docs), [Projects](https://linear
 - Backend issue and document-folder creation now reject missing team context instead of selecting the first accessible team or legacy `ENG`/`CORE` IDs; the document dialog scopes folder queries to the current team.
 - Team/project/issue headers no longer fabricate a `CORE` team while live data is loading or missing. Team lists use persisted cycle and created/updated timestamps, and onboarding rejects an unusable team key instead of silently substituting `ENG`.
 - Initiative reads now discard persisted project links whose primary team is missing or belongs to another workspace, and initiative creation requires explicit workspace context instead of choosing the first accessible workspace.
+- Issue-template references now require target-workspace members and labels, and enforce mutually exclusive label groups before a template is persisted or updated.
 
 ## Verification evidence (2026-09-15)
 

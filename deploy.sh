@@ -18,6 +18,15 @@ if [[ ! -f .env ]]; then
   exit 1
 fi
 
+# Reclaim space before fetching the new revision. The fetch itself writes a
+# temporary pack under .git, so cleanup that only runs after checkout cannot
+# recover from a full production disk. Keep running containers and named
+# volumes (including PostgreSQL data) intact.
+echo "Reclaiming unused Docker build cache and images before fetch..."
+docker builder prune -af --filter until=168h
+docker image prune -af --filter until=168h
+git gc --prune=now
+
 echo "Fetching the requested revision..."
 git fetch --prune origin main
 git rev-parse --verify "${DEPLOY_REF}^{commit}" >/dev/null
@@ -53,12 +62,6 @@ for attempt in {1..60}; do
   fi
   sleep 2
 done
-
-echo "Reclaiming unused Docker build cache and images..."
-# Keep running containers and all named volumes (including PostgreSQL data),
-# while preventing repeated image builds from exhausting the host disk.
-docker builder prune -af --filter until=168h
-docker image prune -af --filter until=168h
 
 changed_files="$(git diff --name-only "${DEPLOY_REF}^" "${DEPLOY_REF}" || true)"
 build_targets=()
