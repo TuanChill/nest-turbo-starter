@@ -24,6 +24,8 @@ export default function IssueLine({
    showId = true,
    showStatusIcon = true,
 }: IssueLineProps) {
+   const actor = notification.user;
+
    return (
       <motion.div
          {...(layoutId && { layoutId: `notification-line-${notification.id}` })}
@@ -37,15 +39,21 @@ export default function IssueLine({
             )}
          >
             <div className="relative flex-shrink-0">
-               <Avatar className="size-8">
-                  <AvatarImage src={notification.user.avatarUrl} alt={notification.user.name} />
-                  <AvatarFallback className="text-xs">
-                     {notification.user.name
-                        .split(' ')
-                        .map((n) => n[0])
-                        .join('')}
-                  </AvatarFallback>
-               </Avatar>
+               {actor ? (
+                  <Avatar className="size-8">
+                     <AvatarImage src={actor.avatarUrl} alt={actor.name} />
+                     <AvatarFallback className="text-xs">
+                        {actor.name
+                           .split(' ')
+                           .map((n) => n[0])
+                           .join('')}
+                     </AvatarFallback>
+                  </Avatar>
+               ) : (
+                  <Avatar className="size-8">
+                     <AvatarFallback className="text-xs">?</AvatarFallback>
+                  </Avatar>
+               )}
 
                <div className="absolute -bottom-1 -right-1 size-5 rounded-full bg-accent border-2 border-background flex items-center justify-center">
                   {getNotificationIcon(notification.type, 'size-3')}

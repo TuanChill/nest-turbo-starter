@@ -61,6 +61,7 @@ export default function IssuePreview({ notification, onMarkAsRead }: IssuePrevie
    // Live issue from the store (falls back to the notification snapshot).
    const issue = issues.find((candidate) => candidate.identifier === notification.identifier);
    const displayIssue = issue ?? notification;
+   const actor = notification.user;
 
    return (
       <div className="flex flex-col h-full overflow-hidden">
@@ -99,21 +100,22 @@ export default function IssuePreview({ notification, onMarkAsRead }: IssuePrevie
                   {/* Notification context */}
                   <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg mb-8">
                      <div className="relative shrink-0">
-                        <Avatar className="size-7">
-                           <AvatarImage
-                              src={notification.user.avatarUrl}
-                              alt={notification.user.name}
-                           />
-                           <AvatarFallback className="text-xs">
-                              {notification.user.name[0]}
-                           </AvatarFallback>
-                        </Avatar>
+                        {actor ? (
+                           <Avatar className="size-7">
+                              <AvatarImage src={actor.avatarUrl} alt={actor.name} />
+                              <AvatarFallback className="text-xs">{actor.name[0]}</AvatarFallback>
+                           </Avatar>
+                        ) : (
+                           <Avatar className="size-7">
+                              <AvatarFallback className="text-xs">?</AvatarFallback>
+                           </Avatar>
+                        )}
                         <div className="absolute -bottom-1 -right-1 size-4 rounded-full bg-accent border border-background flex items-center justify-center">
                            {getNotificationIcon(notification.type, 'size-2.5')}
                         </div>
                      </div>
                      <div className="min-w-0 text-sm">
-                        <span className="font-medium">{notification.user.name}</span>{' '}
+                        <span className="font-medium">{actor?.name ?? 'Unknown member'}</span>{' '}
                         <span className="text-muted-foreground">· {notification.timestamp}</span>
                         <p className="text-foreground/90 mt-0.5">{notification.content}</p>
                      </div>

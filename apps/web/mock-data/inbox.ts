@@ -20,7 +20,7 @@ export interface InboxItem extends Issue {
    /** Notification-specific fields */
    content: string;
    type: NotificationType;
-   user: User;
+   user: User | null;
    timestamp: string;
    /** Server timestamp used for stable ordering; timestamp is display-only. */
    notificationCreatedAt?: string;
@@ -95,7 +95,7 @@ const seeds: InboxSeed[] = [
 const issueByIdentifier = new Map(issues.map((issue) => [issue.identifier, issue]));
 
 export const inboxItems: InboxItem[] = seeds
-   .map(([identifier, type, actorIdx, content, timestamp, read], index) => {
+   .map<InboxItem | null>(([identifier, type, actorIdx, content, timestamp, read], index) => {
       const issue = issueByIdentifier.get(identifier);
       if (!issue) return null;
 

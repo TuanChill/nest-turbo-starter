@@ -21,9 +21,9 @@ interface NotificationsState {
    // Actions
    initNotifications: () => Promise<void>;
    setSelectedNotification: (notification: InboxItem | undefined) => void;
-   markAsRead: (id: string) => void;
-   markAllAsRead: () => void;
-   markAsUnread: (id: string) => void;
+   markAsRead: (id: string) => Promise<void>;
+   markAllAsRead: () => Promise<void>;
+   markAsUnread: (id: string) => Promise<void>;
    deleteNotification: (id: string) => Promise<void>;
    deleteAllNotifications: () => Promise<void>;
    deleteReadNotifications: () => Promise<void>;
@@ -74,7 +74,9 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
       set({ selectedNotification: notification });
    },
 
-   markAsRead: (id: string) => {
+   markAsRead: async (id: string) => {
+      const previous = get().notifications;
+      const previousSelected = get().selectedNotification;
       set((state) => ({
          notifications: state.notifications.map((notification) =>
             notification.id === id ? { ...notification, read: true } : notification
@@ -83,14 +85,23 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
             state.selectedNotification?.id === id
                ? { ...state.selectedNotification, read: true }
                : state.selectedNotification,
+         error: null,
       }));
 
-      apiMarkNotificationAsRead(id).catch((err) =>
-         console.error(`Failed to mark notification ${id} as read:`, err)
-      );
+      try {
+         await apiMarkNotificationAsRead(id);
+      } catch (err) {
+         set({
+            notifications: previous,
+            selectedNotification: previousSelected,
+            error: err instanceof Error ? err.message : 'Could not update notification',
+         });
+      }
    },
 
-   markAllAsRead: () => {
+   markAllAsRead: async () => {
+      const previous = get().notifications;
+      const previousSelected = get().selectedNotification;
       set((state) => ({
          notifications: state.notifications.map((notification) => ({
             ...notification,
@@ -99,14 +110,23 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
          selectedNotification: state.selectedNotification
             ? { ...state.selectedNotification, read: true }
             : undefined,
+         error: null,
       }));
 
-      apiMarkAllNotificationsAsRead().catch((err) =>
-         console.error('Failed to mark all notifications as read:', err)
-      );
+      try {
+         await apiMarkAllNotificationsAsRead();
+      } catch (err) {
+         set({
+            notifications: previous,
+            selectedNotification: previousSelected,
+            error: err instanceof Error ? err.message : 'Could not update notifications',
+         });
+      }
    },
 
-   markAsUnread: (id: string) => {
+   markAsUnread: async (id: string) => {
+      const previous = get().notifications;
+      const previousSelected = get().selectedNotification;
       set((state) => ({
          notifications: state.notifications.map((notification) =>
             notification.id === id ? { ...notification, read: false } : notification
@@ -115,11 +135,18 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
             state.selectedNotification?.id === id
                ? { ...state.selectedNotification, read: false }
                : state.selectedNotification,
+         error: null,
       }));
 
-      apiMarkNotificationAsRead(id, false).catch((err) =>
-         console.error(`Failed to mark notification ${id} as unread:`, err)
-      );
+      try {
+         await apiMarkNotificationAsRead(id, false);
+      } catch (err) {
+         set({
+            notifications: previous,
+            selectedNotification: previousSelected,
+            error: err instanceof Error ? err.message : 'Could not update notification',
+         });
+      }
    },
 
    deleteNotification: async (id: string) => {
@@ -205,7 +232,7 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
    },
 
    getNotificationsByUser: (userId: string) => {
-      return get().notifications.filter((notification) => notification.user.id === userId);
+      return get().notifications.filter((notification) => notification.user?.id === userId);
    },
 
    // Utility functions
