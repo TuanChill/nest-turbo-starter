@@ -14,6 +14,7 @@ import { useParams } from 'next/navigation';
 import { GroupedIssuesView } from './grouped-issues-view';
 import { InsightsPanel } from './insights-panel';
 import { SearchIssues } from './search-issues';
+import QueryErrorState from '@/components/common/query-error-state';
 
 export type CycleView = 'active' | 'upcoming';
 
@@ -33,9 +34,19 @@ export default function CycleIssues({ cycleView }: CycleIssuesProps) {
    const { isSearchOpen, searchQuery } = useSearchStore();
    const { viewType } = useViewStore();
    const { filters } = useFilterStore();
-   const { data: serverIssues = [] } = useIssues();
+   const {
+      data: serverIssues = [],
+      isError: issuesError,
+      error: issuesQueryError,
+      refetch: refetchIssues,
+   } = useIssues();
    const { openPanel } = useRightPanelStore();
-   const { data: cycles = [] } = useCycles(teamId);
+   const {
+      data: cycles = [],
+      isError: cyclesError,
+      error: cyclesQueryError,
+      refetch: refetchCycles,
+   } = useCycles(teamId);
 
    const issues = serverIssues;
 
@@ -57,6 +68,16 @@ export default function CycleIssues({ cycleView }: CycleIssuesProps) {
       () => applyIssueFilters(cycleIssues, filters),
       [cycleIssues, filters]
    );
+
+   if (issuesError) {
+      return (
+         <QueryErrorState subject="cycle issues" error={issuesQueryError} onRetry={refetchIssues} />
+      );
+   }
+
+   if (cyclesError) {
+      return <QueryErrorState subject="cycles" error={cyclesQueryError} onRetry={refetchCycles} />;
+   }
 
    if (isSearching) {
       return (

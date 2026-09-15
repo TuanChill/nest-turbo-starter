@@ -136,7 +136,7 @@ export function CreateProjectDialog({
    const [statusId, setStatusId] = React.useState('in-progress');
    const [priorityId, setPriorityId] = React.useState('no-priority');
    const [healthId, setHealthId] = React.useState('on-track');
-   const [startDate, setStartDate] = React.useState(new Date().toISOString().split('T')[0]);
+   const [startDate, setStartDate] = React.useState('');
    const [targetDate, setTargetDate] = React.useState('');
    const [initiativeId, setInitiativeId] = React.useState<string>('none');
    const [selectedLabelIds, setSelectedLabelIds] = React.useState<string[]>([]);
@@ -227,7 +227,7 @@ export function CreateProjectDialog({
             healthId,
             percentComplete: selectedStatus.id === 'done' ? 100 : 0,
             icon: selectedIcon,
-            startDate: startDate || new Date().toISOString().split('T')[0],
+            startDate: startDate || undefined,
             targetDate: targetDate || undefined,
             initiativeId: initiativeId !== 'none' ? initiativeId : undefined,
             labelIds: selectedLabelIds,

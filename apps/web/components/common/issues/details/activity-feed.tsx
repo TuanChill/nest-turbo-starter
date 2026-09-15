@@ -42,7 +42,9 @@ function EventRow({ item }: { item: Extract<ActivityItem, { kind: 'event' }> }) 
             {EVENT_ICONS[item.event] ?? <CircleDot className="size-3.5" />}
          </span>
          <span className="min-w-0 truncate">
-            <span className="text-foreground/90 font-medium">{item.actor?.name || 'Member'}</span>{' '}
+            <span className="text-foreground/90 font-medium">
+               {item.actor?.name || 'Unknown member'}
+            </span>{' '}
             {item.text}
          </span>
          <span className="shrink-0 text-xs">· {item.timeAgo}</span>
@@ -64,9 +66,9 @@ function CommentCard({
          <div className="flex items-center gap-2 mb-1.5">
             <Avatar className="size-5">
                <AvatarImage src={item.actor?.avatarUrl} alt={item.actor?.name} />
-               <AvatarFallback>{item.actor?.name?.[0] || 'U'}</AvatarFallback>
+               <AvatarFallback>{item.actor?.name?.[0] || '?'}</AvatarFallback>
             </Avatar>
-            <span className="text-sm font-medium">{item.actor?.name || 'Member'}</span>
+            <span className="text-sm font-medium">{item.actor?.name || 'Unknown member'}</span>
             <span className="text-xs text-muted-foreground">{item.timeAgo}</span>
          </div>
          <div className="text-sm [&_p]:my-1.5">

@@ -18,7 +18,7 @@ import { CreateViewPayload } from '@/services/views.service';
 import { useFilterStore } from '@/store/filter-store';
 import { useDisplaySettingsStore } from '@/store/display-settings-store';
 import { useViewStore } from '@/store/view-store';
-import { useIssuesStore } from '@/store/issues-store';
+import { useIssues } from '@/hooks/queries/use-issues-query';
 import { useAuthStore } from '@/store/auth-store';
 import { useMembers } from '@/hooks/queries/use-members-query';
 import { useProjects } from '@/hooks/queries/use-projects-query';
@@ -58,7 +58,7 @@ export function AddViewDialog({ open, onOpenChange, projectId }: AddViewDialogPr
    // Same data + columns the Issues page filter bar uses, so the chips shown
    // here (what will actually be saved) are pixel-identical to what the user
    // just set up — no guessing what "active filters" refers to.
-   const { issues } = useIssuesStore();
+   const { data: issues = [] } = useIssues({ projectId });
    const { data: members = [] } = useMembers();
    const { data: projects = [] } = useProjects();
    const { data: cycles = [] } = useCycles();

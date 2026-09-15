@@ -9,7 +9,10 @@ import {
   CreateIssueDto,
   UpdateIssueDto,
 } from './dto/issue.dto';
-import { getIssuePropertyValidationError } from './issue-rules';
+import {
+  getIssuePropertyValidationError,
+  resolveDefaultIssueTeamId,
+} from './issue-rules';
 import { isRelationInIssueTeam } from './relation-scope';
 import {
   Cycle,
@@ -755,7 +758,17 @@ export class IssuesService {
       if (teamId && !accessibleTeamIds.includes(teamId)) {
         throw new NotFoundException(`Team ${teamId} not found`);
       }
-      teamId = teamId || visibleProjectTeamIds[0];
+      teamId = resolveDefaultIssueTeamId({
+        requestedTeamId: teamId,
+        primaryTeamId: proj.teamId,
+        projectTeamIds,
+        accessibleTeamIds,
+      });
+      if (!teamId) {
+        throw new BadRequestException(
+          'teamId is required when a project has multiple accessible teams',
+        );
+      }
     }
 
     if (!teamId) {

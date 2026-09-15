@@ -432,7 +432,7 @@ function Overview({ initiative }: { initiative: Initiative }) {
                   {initiative.activity?.slice(0, 3).map((event) => (
                      <span key={event.id} className="flex items-start gap-2">
                         <FileText className="size-3.5 mt-px shrink-0" />
-                        {event.actor?.name ?? 'A member'} {event.event} this initiative ·{' '}
+                        {event.actor?.name ?? 'Unknown member'} {event.event} this initiative ·{' '}
                         {new Date(event.createdAt).toLocaleDateString()}
                      </span>
                   ))}
@@ -459,7 +459,7 @@ function Activity({ initiative }: { initiative: Initiative }) {
                   >
                      <FileText className="size-4 text-muted-foreground shrink-0" />
                      <span className="flex-1">
-                        {event.actor?.name ?? 'A member'} {event.event} this initiative
+                        {event.actor?.name ?? 'Unknown member'} {event.event} this initiative
                      </span>
                      <span className="text-xs text-muted-foreground">
                         {new Date(event.createdAt).toLocaleDateString()}

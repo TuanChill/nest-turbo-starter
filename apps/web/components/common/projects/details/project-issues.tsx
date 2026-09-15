@@ -43,17 +43,40 @@ import { useViews } from '@/hooks/queries/use-views-query';
 import { useViewStore } from '@/store/view-store';
 import { useDisplaySettingsStore } from '@/store/display-settings-store';
 import { useSearchParams } from 'next/navigation';
+import QueryErrorState from '@/components/common/query-error-state';
 
 /** Project "Issues" tab: the project's issues grouped by status. */
 export default function ProjectIssues({ projectId }: ProjectIssuesProps) {
    const { orgId } = useParams<{ orgId: string }>();
    const searchParams = useSearchParams();
    const activeViewId = searchParams.get('view');
-   const { data: project, isLoading } = useProject(projectId);
-   const { data: detail, isLoading: detailLoading } = useProjectDetail(projectId, Boolean(project));
-   const { data: views = [] } = useViews({ projectId });
+   const {
+      data: project,
+      isLoading,
+      isError: projectError,
+      error: projectQueryError,
+      refetch: refetchProject,
+   } = useProject(projectId);
+   const {
+      data: detail,
+      isLoading: detailLoading,
+      isError: detailError,
+      error: detailQueryError,
+      refetch: refetchDetail,
+   } = useProjectDetail(projectId, Boolean(project));
+   const {
+      data: views = [],
+      isError: viewsError,
+      error: viewsQueryError,
+      refetch: refetchViews,
+   } = useViews({ projectId });
 
-   const { data: allIssues = [] } = useIssues();
+   const {
+      data: allIssues = [],
+      isError: issuesError,
+      error: issuesQueryError,
+      refetch: refetchIssues,
+   } = useIssues({ projectId });
    const { filters, setFilters } = useFilterStore();
    const { viewType, setViewType } = useViewStore();
    const { setDisplaySettings } = useDisplaySettingsStore();
@@ -88,6 +111,38 @@ export default function ProjectIssues({ projectId }: ProjectIssuesProps) {
    );
 
    const displayedIssues = useMemo(() => applyIssueFilters(issues, filters), [issues, filters]);
+
+   if (projectError) {
+      return (
+         <QueryErrorState subject="project" error={projectQueryError} onRetry={refetchProject} />
+      );
+   }
+
+   if (detailError) {
+      return (
+         <QueryErrorState
+            subject="project details"
+            error={detailQueryError}
+            onRetry={refetchDetail}
+         />
+      );
+   }
+
+   if (issuesError) {
+      return (
+         <QueryErrorState
+            subject="project issues"
+            error={issuesQueryError}
+            onRetry={refetchIssues}
+         />
+      );
+   }
+
+   if (viewsError) {
+      return (
+         <QueryErrorState subject="project views" error={viewsQueryError} onRetry={refetchViews} />
+      );
+   }
 
    if (isLoading) {
       return <ProjectIssuesSkeleton />;
