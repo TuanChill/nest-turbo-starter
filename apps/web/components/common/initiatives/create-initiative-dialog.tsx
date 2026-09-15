@@ -24,6 +24,7 @@ import {
 import { useCreateInitiative } from '@/hooks/queries/use-initiatives-query';
 import { useProjects } from '@/hooks/queries/use-projects-query';
 import { useMembers } from '@/hooks/queries/use-members-query';
+import { useLabels } from '@/hooks/queries/use-labels-query';
 import { Check, Loader2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -85,6 +86,7 @@ export function CreateInitiativeDialog({
    const { orgId } = useParams<{ orgId: string }>();
    const { data: projects = [] } = useProjects();
    const { data: members = [] } = useMembers();
+   const { data: labels = [] } = useLabels('project');
 
    const [name, setName] = React.useState('');
    const [selectedIcon, setSelectedIcon] = React.useState('🧱');
@@ -94,6 +96,8 @@ export function CreateInitiativeDialog({
    const [priorityId, setPriorityId] = React.useState('no-priority');
    const [healthId, setHealthId] = React.useState('on-track');
    const [selectedProjectIds, setSelectedProjectIds] = React.useState<string[]>([]);
+   const [selectedLabelIds, setSelectedLabelIds] = React.useState<string[]>([]);
+   const [resourcesText, setResourcesText] = React.useState('');
    const [description, setDescription] = React.useState('');
    const [isSubmitting, setIsSubmitting] = React.useState(false);
 
@@ -110,6 +114,12 @@ export function CreateInitiativeDialog({
       );
    };
 
+   const toggleLabel = (labelId: string) => {
+      setSelectedLabelIds((prev) =>
+         prev.includes(labelId) ? prev.filter((id) => id !== labelId) : [...prev, labelId]
+      );
+   };
+
    const handleSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
       const trimmedName = name.trim();
@@ -120,6 +130,13 @@ export function CreateInitiativeDialog({
 
       setIsSubmitting(true);
       try {
+         const resources = resourcesText
+            .split('\n')
+            .map((line) => {
+               const [label, ...urlParts] = line.split('|').map((part) => part.trim());
+               return { label, url: urlParts.join('|') };
+            })
+            .filter((resource) => resource.label && resource.url);
          const payload = {
             name: trimmedName,
             workspaceId: orgId,
@@ -131,6 +148,8 @@ export function CreateInitiativeDialog({
             priorityId,
             healthId,
             projectIds: selectedProjectIds,
+            labelIds: selectedLabelIds,
+            resources,
          };
          await createInitiativeMutation.mutateAsync(payload);
 
@@ -138,6 +157,8 @@ export function CreateInitiativeDialog({
          setName('');
          setDescription('');
          setSelectedProjectIds([]);
+         setSelectedLabelIds([]);
+         setResourcesText('');
          setOpen(false);
       } catch (err: unknown) {
          console.error('Failed to create initiative:', err);
@@ -370,6 +391,62 @@ export function CreateInitiativeDialog({
                         </div>
                      </div>
                   )}
+
+                  {/* Initiative labels */}
+                  {labels.length > 0 && (
+                     <div className="space-y-1.5">
+                        <Label className="text-xs font-medium flex items-center justify-between">
+                           <span>Labels</span>
+                           <span className="text-[11px] text-muted-foreground font-normal">
+                              {selectedLabelIds.length} selected
+                           </span>
+                        </Label>
+                        <div className="flex flex-wrap gap-1.5">
+                           {labels.map((label) => {
+                              const isSelected = selectedLabelIds.includes(label.id);
+                              return (
+                                 <button
+                                    key={label.id}
+                                    type="button"
+                                    onClick={() => toggleLabel(label.id)}
+                                    className={cn(
+                                       'inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-xs transition-all',
+                                       isSelected
+                                          ? 'border-primary bg-primary/10 text-foreground'
+                                          : 'border-border/50 text-muted-foreground hover:bg-sidebar/50'
+                                    )}
+                                 >
+                                    <span
+                                       className="size-2 rounded-full"
+                                       style={{ backgroundColor: label.color }}
+                                    />
+                                    {label.name}
+                                    {isSelected && <Check className="size-3 text-primary" />}
+                                 </button>
+                              );
+                           })}
+                        </div>
+                     </div>
+                  )}
+
+                  {/* Resources */}
+                  <div className="space-y-1.5">
+                     <Label htmlFor="init-resources" className="text-xs font-medium">
+                        Resources (optional)
+                     </Label>
+                     <Textarea
+                        id="init-resources"
+                        placeholder="Design brief | https://example.com/brief\nRoadmap | https://example.com/roadmap"
+                        value={resourcesText}
+                        onChange={(e) => setResourcesText(e.target.value)}
+                        disabled={isSubmitting}
+                        rows={2}
+                        className="text-xs resize-none"
+                     />
+                     <p className="text-[11px] text-muted-foreground">
+                        One resource per line using <code>label | URL</code>.
+                     </p>
+                  </div>
 
                   {/* Description */}
                   <div className="space-y-1.5">
