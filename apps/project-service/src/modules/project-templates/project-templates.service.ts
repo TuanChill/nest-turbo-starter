@@ -1,4 +1,4 @@
-import type { EntityManager } from '@mikro-orm/core';
+import { EntityManager } from '@mikro-orm/core';
 import {
   BadRequestException,
   ConflictException,
@@ -21,10 +21,10 @@ import {
   WorkspaceMember,
 } from '../../data-access';
 import type { ProjectTemplateConfig } from '../../data-access';
-import type { IssuesService } from '../issues/issues.service';
+import { IssuesService } from '../issues/issues.service';
 import { assertMutuallyExclusiveLabelSelection } from '../labels/label-rules';
-import type { ProjectsService } from '../projects/projects.service';
-import type { WorkspacesService } from '../workspaces/workspaces.service';
+import { ProjectsService } from '../projects/projects.service';
+import { WorkspacesService } from '../workspaces/workspaces.service';
 
 @Injectable()
 export class ProjectTemplatesService {

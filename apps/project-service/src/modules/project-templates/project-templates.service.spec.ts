@@ -2,6 +2,22 @@ import type { EntityManager } from '@mikro-orm/core';
 import { ProjectTemplatesService } from './project-templates.service';
 import { ProjectTemplate, Team, Workspace, WorkspaceMember } from '../../data-access';
 
+jest.mock('@mikro-orm/core', () => ({
+  EntityManager: class MockEntityManager {},
+}));
+
+jest.mock('../issues/issues.service', () => ({
+  IssuesService: class MockIssuesService {},
+}));
+
+jest.mock('../projects/projects.service', () => ({
+  ProjectsService: class MockProjectsService {},
+}));
+
+jest.mock('../workspaces/workspaces.service', () => ({
+  WorkspacesService: class MockWorkspacesService {},
+}));
+
 jest.mock('../../data-access', () => {
   class MockProjectTemplate {
     constructor(partial?: Record<string, unknown>) {
