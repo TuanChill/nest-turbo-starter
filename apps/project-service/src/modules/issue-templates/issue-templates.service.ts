@@ -12,12 +12,14 @@ import {
   IssueTemplate,
   IssueTemplateConfig,
   Label,
+  LabelGroup,
   Member,
   Project,
   Team,
   Workspace,
   WorkspaceMember,
 } from '../../data-access';
+import { assertMutuallyExclusiveLabelSelection } from '../labels/label-rules';
 import { WorkspacesService } from '../workspaces/workspaces.service';
 
 @Injectable()
@@ -66,20 +68,36 @@ export class IssueTemplatesService {
   ) {
     if (teamId) await this.assertTeamAccess(teamId, workspaceId, memberId);
     if (config.assigneeId) {
-      const assignee = await this.em.findOne(Member, { id: config.assigneeId });
-      if (!assignee)
-        throw new BadRequestException('The template assignee no longer exists');
+      const [assignee, workspaceMembership] = await Promise.all([
+        this.em.findOne(Member, { id: config.assigneeId }),
+        this.em.findOne(WorkspaceMember, {
+          workspaceId,
+          memberId: config.assigneeId,
+        }),
+      ]);
+      if (!assignee || !workspaceMembership) {
+        throw new BadRequestException(
+          'The template assignee is not a member of the target workspace',
+        );
+      }
     }
     if (config.labelIds?.length) {
       const labels = await this.em.find(Label, {
         id: { $in: config.labelIds },
         scope: { $in: ['issue', 'both'] },
+        workspaceId,
       });
       const existing = new Set(labels.map((label) => label.id));
       const missing = config.labelIds.filter((id) => !existing.has(id));
       if (missing.length) {
         throw new BadRequestException(`Unknown issue label(s): ${missing.join(', ')}`);
       }
+      const groupIds = [...new Set(labels.map((label) => label.groupId).filter(Boolean))];
+      const groups = await this.em.find(LabelGroup, {
+        id: { $in: groupIds },
+        workspaceId,
+      });
+      assertMutuallyExclusiveLabelSelection(labels, groups);
     }
     if (config.projectId) {
       const project = await this.em.findOne(Project, { id: config.projectId });
