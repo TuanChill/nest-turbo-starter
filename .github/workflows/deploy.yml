@@ -34,11 +34,14 @@ jobs:
             echo "Disk usage before deployment cleanup:"
             df -h / /opt/circle/be /var/lib/docker || true
             df -i / /opt/circle/be /var/lib/docker || true
-            docker builder prune -af --filter until=168h
-            docker container prune -f
-            docker image prune -af --filter until=168h
+            docker system df || true
+            # Remove all unused Docker objects, but preserve named volumes so
+            # PostgreSQL/Redis state survives the deploy.
+            docker system prune -af
             find /tmp -xdev -type f -mtime +1 -delete 2>/dev/null || true
             find /var/log -xdev \( -name '*.gz' -o -name '*.1' -o -name '*.old' \) -type f -delete 2>/dev/null || true
+            echo "Disk usage after deployment cleanup:"
+            df -h / /opt/circle/be /var/lib/docker || true
             cd /opt/circle/be
             origin_url="$(git config --get remote.origin.url)"
             if ! git gc --prune=now; then

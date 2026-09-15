@@ -23,8 +23,9 @@ fi
 # recover from a full production disk. Keep running containers and named
 # volumes (including PostgreSQL data) intact.
 echo "Reclaiming unused Docker build cache before fetch..."
-docker builder prune -af --filter until=168h
-docker image prune -af --filter until=168h
+# Remove all unused Docker objects, but preserve named volumes so
+# PostgreSQL/Redis state survives the deploy.
+docker system prune -af
 git gc --prune=now
 
 echo "Fetching the requested revision..."
