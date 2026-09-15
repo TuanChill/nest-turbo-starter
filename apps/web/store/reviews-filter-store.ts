@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { ReviewStatus } from '@/mock-data/reviews';
+import { ReviewStatus } from '@/types/review';
 
 interface ReviewsFilterState {
    statuses: ReviewStatus[];

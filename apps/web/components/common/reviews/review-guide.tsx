@@ -1,7 +1,7 @@
 'use client';
 
 import { Checkbox } from '@/components/ui/checkbox';
-import { getReviewFileDiff, getReviewGuide, Review } from '@/mock-data/reviews';
+import { Review } from '@/types/review';
 import { FileCode2 } from 'lucide-react';
 import { useMemo } from 'react';
 import { DiffView } from './diff-view';
@@ -9,7 +9,11 @@ import { DiffStat, InlineText, PrIcon } from './review-shared';
 
 /** Guide tab: narrated walk-through sections next to the relevant diff. */
 export function ReviewGuide({ review }: { review: Review }) {
-   const sections = useMemo(() => getReviewGuide(review), [review]);
+   const sections = useMemo(() => review.guideSections, [review.guideSections]);
+   const diffsByFile = useMemo(
+      () => new Map(review.fileDiffs.map((diff) => [`${diff.path}/${diff.name}`, diff])),
+      [review.fileDiffs]
+   );
 
    return (
       <div className="h-full overflow-y-auto relative">
@@ -35,8 +39,11 @@ export function ReviewGuide({ review }: { review: Review }) {
             </div>
 
             {sections.map((section, index) => {
-               const file = review.files.find((candidate) => candidate.name === section.diffName);
-               const diff = file ? getReviewFileDiff(review, file) : undefined;
+               const diff = section.diffName
+                  ? diffsByFile.get(
+                       `${review.files.find((file) => file.name === section.diffName)?.path}/${section.diffName}`
+                    )
+                  : undefined;
                return (
                   <div
                      key={section.title}
@@ -75,10 +82,23 @@ export function ReviewGuide({ review }: { review: Review }) {
                            ))}
                         </div>
                      </div>
-                     <div>{diff && <DiffView diff={diff} />}</div>
+                     <div>
+                        {diff ? (
+                           <DiffView diff={diff} />
+                        ) : (
+                           <div className="rounded-lg border p-4 text-sm text-muted-foreground">
+                              No persisted diff is available for this guide section.
+                           </div>
+                        )}
+                     </div>
                   </div>
                );
             })}
+            {sections.length === 0 && (
+               <div className="rounded-lg border p-6 text-sm text-muted-foreground">
+                  This review has no persisted guide sections.
+               </div>
+            )}
          </div>
 
          <div className="sticky bottom-4 flex justify-center pointer-events-none">

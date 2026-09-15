@@ -3,7 +3,6 @@
 import * as React from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { getReviewById } from '@/mock-data/reviews';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Eye, Link2, MoreHorizontal, Play, Star } from 'lucide-react';
 import Link from 'next/link';
@@ -12,6 +11,7 @@ import { ReviewDiff } from './review-diff';
 import { ReviewGuide } from './review-guide';
 import { ReviewOverview } from './review-overview';
 import { DiffStat, IssueCheckIcon, PrIcon } from './review-shared';
+import QueryErrorState from '@/components/common/query-error-state';
 
 export type ReviewSection = 'overview' | 'guide' | 'diff';
 
@@ -48,14 +48,14 @@ import { useReview } from '@/hooks/queries/use-reviews-query';
 /** Right pane of the Reviews split view: breadcrumb, tabs and section body. */
 export function ReviewDetail({ reviewId, section }: { reviewId: string; section: ReviewSection }) {
    const { orgId } = useParams<{ orgId: string }>();
-   const { data: fetchedReview, isLoading } = useReview(reviewId);
-
-   const review = React.useMemo(() => {
-      return fetchedReview || getReviewById(reviewId);
-   }, [fetchedReview, reviewId]);
+   const { data: review, isLoading, isError, error, refetch } = useReview(reviewId);
 
    if (isLoading) {
       return <ReviewSkeleton />;
+   }
+
+   if (isError) {
+      return <QueryErrorState subject="review" error={error} onRetry={() => refetch()} />;
    }
 
    if (!review) {

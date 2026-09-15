@@ -12,7 +12,7 @@ import {
    CommandList,
 } from '@/components/ui/command';
 import { useReviewsFilterStore } from '@/store/reviews-filter-store';
-import { ReviewStatus } from '@/mock-data/reviews';
+import { ReviewStatus } from '@/types/review';
 import { Check, ChevronRight, GitPullRequest, ListFilter } from 'lucide-react';
 import { PrIcon } from './review-shared';
 

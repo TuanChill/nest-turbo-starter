@@ -1,7 +1,7 @@
 'use client';
 
 import { cn } from '@/lib/utils';
-import { ReviewStatus } from '@/mock-data/reviews';
+import { ReviewStatus } from '@/types/review';
 import { Fragment } from 'react';
 
 const PR_ICON_COLORS: Record<ReviewStatus, string> = {

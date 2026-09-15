@@ -1,9 +1,12 @@
 import { EntityManager } from '@mikro-orm/core';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateReviewDto, UpdateReviewDto } from './dto/review.dto';
+import { assertReviewIssueScope } from './review-scope';
 import {
+  Issue,
   Member,
   Review,
+  Team,
   toSafeMember,
   Workspace,
   WorkspaceMember,
@@ -26,9 +29,9 @@ export class ReviewsService {
       id: review.id,
       title: review.title,
       author,
-      // No dedicated reviewer-assignment field exists yet, so "for-you" is
-      // simply "reviews you didn't author" — same fallback semantics as
-      // Linear when nobody has been explicitly requested as a reviewer.
+      // No dedicated reviewer-assignment field exists yet. Keep the existing
+      // persisted classification deterministic until reviewer assignments are
+      // modeled rather than inventing a reviewer or notification record.
       list: userId && review.authorId === userId ? 'created' : 'for-you',
       status: review.status,
       // No GitHub PR integration exists — only the identifier (matching the
@@ -40,7 +43,7 @@ export class ReviewsService {
       deletions,
       checksPassed: 0,
       checksTotal: 0,
-      timeAgo: review.updatedAt.toISOString().split('T')[0],
+      timeAgo: formatTimeAgo(review.updatedAt),
       createdAt: review.createdAt.toISOString().split('T')[0],
       updatedAt: review.updatedAt.toISOString().split('T')[0],
       files,
@@ -50,6 +53,25 @@ export class ReviewsService {
       guideSections: review.guideSections || [],
       fileDiffs: review.fileDiffs || [],
     };
+  }
+
+  private async assertResolvesIssue(
+    identifier: string,
+    workspaceId: string,
+    memberId: string,
+  ) {
+    const issue = await this.em.findOne(Issue, { identifier });
+    const team = issue ? await this.em.findOne(Team, { id: issue.teamId }) : null;
+    const accessibleTeamIds = new Set(
+      await this.workspacesService.getAccessibleTeamIds(memberId),
+    );
+    assertReviewIssueScope(
+      identifier,
+      issue?.teamId ?? '',
+      team?.workspaceId,
+      workspaceId,
+      accessibleTeamIds,
+    );
   }
 
   async findAll(status?: 'open' | 'merged' | 'closed', userId?: string) {
@@ -110,6 +132,9 @@ export class ReviewsService {
       }
       workspaceId = workspace.id;
     }
+    if (dto.resolves) {
+      await this.assertResolvesIssue(dto.resolves, workspaceId, authorId);
+    }
     const id = dto.id || `rev-${Date.now()}`;
     const review = new Review({
       id,
@@ -146,7 +171,21 @@ export class ReviewsService {
     if (dto.resolves !== undefined) review.resolves = dto.resolves;
     if (dto.branch !== undefined) review.branch = dto.branch;
 
+    if (dto.resolves) {
+      await this.assertResolvesIssue(dto.resolves, review.workspaceId!, userId);
+    }
+
     await this.em.flush();
     return this.findOne(id, userId);
   }
+}
+
+function formatTimeAgo(date: Date): string {
+  const diffMs = Math.max(0, Date.now() - new Date(date).getTime());
+  const minutes = Math.floor(diffMs / 60000);
+  if (minutes < 60) return `${Math.max(1, minutes)}m`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h`;
+  const days = Math.floor(hours / 24);
+  return `${days}d`;
 }

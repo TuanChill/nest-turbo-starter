@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import type { Review } from '@/mock-data/reviews';
+import type { Review } from '@/types/review';
 
 export type { Review };
 export type ReviewItem = Review;

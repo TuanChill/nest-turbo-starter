@@ -3,7 +3,7 @@
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
-import { getReviewFileDiff, Review } from '@/mock-data/reviews';
+import { Review } from '@/types/review';
 import {
    Check,
    FileCode2,
@@ -25,6 +25,10 @@ export function ReviewDiff({ review }: { review: Review }) {
             (file.name + file.path).toLowerCase().includes(query.trim().toLowerCase())
          ),
       [review.files, query]
+   );
+   const diffsByFile = useMemo(
+      () => new Map(review.fileDiffs.map((diff) => [`${diff.path}/${diff.name}`, diff])),
+      [review.fileDiffs]
    );
 
    return (
@@ -94,11 +98,25 @@ export function ReviewDiff({ review }: { review: Review }) {
                ))}
             </div>
             <div className="flex-1 min-w-0 overflow-y-auto p-4 flex flex-col gap-4">
-               {files.map((file) => (
-                  <div key={file.name + file.path} id={`diff-${file.name}`}>
-                     <DiffView diff={getReviewFileDiff(review, file)} />
+               {files.map((file) => {
+                  const diff = diffsByFile.get(`${file.path}/${file.name}`);
+                  return (
+                     <div key={file.name + file.path} id={`diff-${file.name}`}>
+                        {diff ? (
+                           <DiffView diff={diff} />
+                        ) : (
+                           <div className="rounded-lg border p-4 text-sm text-muted-foreground">
+                              No persisted diff is available for {file.name}.
+                           </div>
+                        )}
+                     </div>
+                  );
+               })}
+               {files.length === 0 && (
+                  <div className="rounded-lg border p-6 text-sm text-muted-foreground">
+                     This review has no persisted file statistics.
                   </div>
-               ))}
+               )}
             </div>
          </div>
       </div>

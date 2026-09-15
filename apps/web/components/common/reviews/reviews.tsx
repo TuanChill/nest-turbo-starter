@@ -5,7 +5,7 @@ import { SidebarTrigger } from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils';
 import { useReviews } from '@/hooks/queries/use-reviews-query';
 import QueryErrorState from '@/components/common/query-error-state';
-import { Review, ReviewList, ReviewStatus } from '@/mock-data/reviews';
+import { Review, ReviewList, ReviewStatus } from '@/types/review';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { ReactNode, useState } from 'react';
