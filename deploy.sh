@@ -8,10 +8,10 @@ DEPLOY_REF="${1:-origin/main}"
 cd "$APP_DIR"
 
 exec 9>/run/lock/circle-be-deploy.lock
-flock -n 9 || {
-  echo "Another backend deployment is already running." >&2
+if ! flock -w 600 9; then
+  echo "Timed out waiting for another backend deployment to finish." >&2
   exit 1
-}
+fi
 
 if [[ ! -f .env ]]; then
   echo "Missing $APP_DIR/.env; refusing to deploy without production configuration." >&2
