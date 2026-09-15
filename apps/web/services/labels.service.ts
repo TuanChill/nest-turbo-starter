@@ -34,6 +34,19 @@ export const labelsService = {
       });
    },
 
+   async updateLabelGroup(id: string, payload: Partial<LabelGroup>): Promise<LabelGroup> {
+      return apiClient<LabelGroup>(`/circle/api/labels/groups/${id}`, {
+         method: 'PATCH',
+         body: JSON.stringify(payload),
+      });
+   },
+
+   async deleteLabelGroup(id: string): Promise<{ success: boolean }> {
+      return apiClient<{ success: boolean }>(`/circle/api/labels/groups/${id}`, {
+         method: 'DELETE',
+      });
+   },
+
    async getLabels(scope: 'issue' | 'project' = 'issue'): Promise<LabelItem[]> {
       return apiClient<LabelItem[]>('/circle/api/labels', { params: { scope } });
    },

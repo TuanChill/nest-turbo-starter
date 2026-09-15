@@ -29,6 +29,31 @@ export function useCreateLabelGroup() {
    });
 }
 
+export function useUpdateLabelGroup() {
+   const queryClient = useQueryClient();
+   return useMutation({
+      mutationFn: ({ id, payload }: { id: string; payload: Partial<LabelGroup> }) =>
+         labelsService.updateLabelGroup(id, payload),
+      onSuccess: () => {
+         queryClient.invalidateQueries({ queryKey: labelKeys.lists() });
+         toast.success('Label group updated');
+      },
+      onError: (error: Error) => toast.error(error.message || 'Failed to update label group'),
+   });
+}
+
+export function useDeleteLabelGroup() {
+   const queryClient = useQueryClient();
+   return useMutation({
+      mutationFn: (id: string) => labelsService.deleteLabelGroup(id),
+      onSuccess: () => {
+         queryClient.invalidateQueries({ queryKey: labelKeys.lists() });
+         toast.success('Label group deleted');
+      },
+      onError: (error: Error) => toast.error(error.message || 'Failed to delete label group'),
+   });
+}
+
 export function useCreateLabel() {
    const queryClient = useQueryClient();
 
@@ -41,5 +66,30 @@ export function useCreateLabel() {
       onError: (error: Error) => {
          toast.error(error.message || 'Failed to create label');
       },
+   });
+}
+
+export function useUpdateLabel() {
+   const queryClient = useQueryClient();
+   return useMutation({
+      mutationFn: ({ id, payload }: { id: string; payload: Partial<LabelItem> }) =>
+         labelsService.updateLabel(id, payload),
+      onSuccess: () => {
+         queryClient.invalidateQueries({ queryKey: labelKeys.lists() });
+         toast.success('Label updated');
+      },
+      onError: (error: Error) => toast.error(error.message || 'Failed to update label'),
+   });
+}
+
+export function useDeleteLabel() {
+   const queryClient = useQueryClient();
+   return useMutation({
+      mutationFn: (id: string) => labelsService.deleteLabel(id),
+      onSuccess: () => {
+         queryClient.invalidateQueries({ queryKey: labelKeys.lists() });
+         toast.success('Label deleted');
+      },
+      onError: (error: Error) => toast.error(error.message || 'Failed to delete label'),
    });
 }
