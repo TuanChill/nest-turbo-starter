@@ -26,18 +26,18 @@ const RELATION_TYPE_LABEL: Record<RelationType, string> = {
 };
 
 interface RelationSelectorProps {
-   issueId: string;
    issueIdentifier: string;
+   teamId: string;
 }
 
 /** Popover to link the current issue to another existing issue (blocks / blocked by / relates to / duplicate of). */
-export function RelationSelector({ issueIdentifier }: RelationSelectorProps) {
+export function RelationSelector({ issueIdentifier, teamId }: RelationSelectorProps) {
    const [open, setOpen] = useState(false);
    const [relationType, setRelationType] = useState<RelationType>('relates_to');
    const { data: issues = [] } = useIssues();
    const { mutate: addRelation } = useAddIssueRelation();
 
-   const candidates = issues.filter((i) => i.identifier !== issueIdentifier);
+   const candidates = issues.filter((i) => i.identifier !== issueIdentifier && i.teamId === teamId);
 
    const handleSelect = (targetIdentifier: string) => {
       setOpen(false);

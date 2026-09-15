@@ -3,7 +3,7 @@
 import { IssueDetail } from '@/mock-data/issue-details';
 import { Issue } from '@/mock-data/issues';
 import { LabelInterface } from '@/mock-data/labels';
-import { Ban, GitPullRequestArrow } from 'lucide-react';
+import { GitPullRequestArrow } from 'lucide-react';
 import { AssigneeUser } from '../assignee-user';
 import { CycleSelector } from '../cycle-selector';
 import { LabelBadge } from '../label-badge';
@@ -13,7 +13,7 @@ import { LabelSelector } from '@/components/layout/sidebar/create-new-issue/labe
 import { RelationSelector } from '../relation-selector';
 import { renderProjectIcon } from '@/lib/project-utils';
 import { IssueRefRow } from './content-blocks';
-import { useUpdateIssue } from '@/hooks/queries/use-issues-query';
+import { useDeleteIssueRelation, useUpdateIssue } from '@/hooks/queries/use-issues-query';
 
 interface IssuePropertiesPanelProps {
    issue: Issue;
@@ -35,6 +35,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
  */
 export function IssuePropertiesPanel({ issue, detail }: IssuePropertiesPanelProps) {
    const updateIssueMutation = useUpdateIssue();
+   const deleteRelationMutation = useDeleteIssueRelation();
 
    const handleLabelsChange = (newLabels: LabelInterface[]) => {
       updateIssueMutation.mutate({
@@ -87,31 +88,39 @@ export function IssuePropertiesPanel({ issue, detail }: IssuePropertiesPanelProp
             </Section>
          )}
 
-         {detail.blockedByIds && detail.blockedByIds.length > 0 && (
-            <Section title="Blocked by">
-               <div className="flex flex-col">
-                  {detail.blockedByIds.map((identifier) => (
-                     <div key={identifier} className="flex items-center gap-1.5 min-w-0">
-                        <Ban className="size-3.5 text-red-500 shrink-0" />
-                        <IssueRefRow identifier={identifier} />
-                     </div>
-                  ))}
-               </div>
-            </Section>
-         )}
-
-         {detail.relatedIds && detail.relatedIds.length > 0 && (
-            <Section title="Related">
-               <div className="flex flex-col">
-                  {detail.relatedIds.map((identifier) => (
-                     <IssueRefRow key={identifier} identifier={identifier} />
-                  ))}
-               </div>
-            </Section>
-         )}
-
          <Section title="Relations">
-            <RelationSelector issueId={issue.id} issueIdentifier={issue.identifier} />
+            <div className="flex flex-col gap-1.5">
+               {detail.relations?.map((relation) => (
+                  <div key={relation.id} className="flex items-center gap-2 text-sm min-w-0 group">
+                     <span className="text-xs text-muted-foreground shrink-0">
+                        {relation.relationType === 'blocked_by'
+                           ? 'Blocked by'
+                           : relation.relationType === 'blocks'
+                             ? 'Blocks'
+                             : relation.relationType === 'duplicate_of'
+                               ? 'Duplicate of'
+                               : 'Related'}
+                     </span>
+                     <IssueRefRow identifier={relation.identifier} />
+                     <button
+                        type="button"
+                        className="ml-auto hidden group-hover:inline text-[11px] text-muted-foreground hover:text-destructive"
+                        onClick={() => {
+                           if (window.confirm('Remove this issue relation?')) {
+                              deleteRelationMutation.mutate({
+                                 identifier: issue.identifier,
+                                 relationId: relation.id,
+                              });
+                           }
+                        }}
+                        disabled={deleteRelationMutation.isPending}
+                     >
+                        Remove
+                     </button>
+                  </div>
+               ))}
+               <RelationSelector issueIdentifier={issue.identifier} teamId={issue.teamId || ''} />
+            </div>
          </Section>
 
          {detail.prLinks && detail.prLinks.length > 0 && (

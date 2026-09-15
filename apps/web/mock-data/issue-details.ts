@@ -59,6 +59,11 @@ export interface IssueDetail {
    subIssueIds?: string[];
    relatedIds?: string[];
    blockedByIds?: string[];
+   relations?: Array<{
+      id: string;
+      identifier: string;
+      relationType: 'blocks' | 'blocked_by' | 'relates_to' | 'duplicate_of';
+   }>;
    prLinks?: PrLink[];
    milestone?: string;
 }

@@ -133,4 +133,14 @@ export class IssuesController {
   ) {
     return this.issuesService.addRelation(identifier, dto, memberId);
   }
+
+  @ApiOperation({ summary: 'Remove a relation between issues' })
+  @Delete(':identifier/relations/:relationId')
+  deleteRelation(
+    @Param('identifier') identifier: string,
+    @Param('relationId') relationId: string,
+    @User('id') memberId: string,
+  ) {
+    return this.issuesService.deleteRelation(identifier, relationId, memberId);
+  }
 }

@@ -130,3 +130,12 @@ export async function addIssueRelation(
       body: JSON.stringify({ targetIdentifier, relationType }),
    });
 }
+
+export async function deleteIssueRelation(
+   identifier: string,
+   relationId: string
+): Promise<IssueDetail> {
+   return apiClient<IssueDetail>(`/issues/${identifier}/relations/${relationId}`, {
+      method: 'DELETE',
+   });
+}

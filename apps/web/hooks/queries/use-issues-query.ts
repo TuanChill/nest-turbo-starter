@@ -156,3 +156,20 @@ export function useAddIssueRelation() {
       },
    });
 }
+
+export function useDeleteIssueRelation() {
+   const queryClient = useQueryClient();
+
+   return useMutation({
+      mutationFn: ({ identifier, relationId }: { identifier: string; relationId: string }) =>
+         issuesService.deleteRelation(identifier, relationId),
+      onSuccess: (updatedDetail, { identifier }) => {
+         queryClient.setQueryData(issueKeys.activity(identifier), updatedDetail);
+         queryClient.invalidateQueries({ queryKey: issueKeys.activity(identifier) });
+         toast.success('Relation removed');
+      },
+      onError: (error: Error) => {
+         toast.error(error.message || 'Failed to remove relation');
+      },
+   });
+}

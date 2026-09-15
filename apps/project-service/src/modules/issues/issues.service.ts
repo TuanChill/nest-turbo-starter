@@ -506,8 +506,26 @@ export class IssuesService {
 
     const blockedByIds: string[] = [];
     const relatedIds: string[] = [];
+    const relationItems: Array<{
+      id: string;
+      identifier: string;
+      relationType: 'blocks' | 'blocked_by' | 'relates_to' | 'duplicate_of';
+    }> = [];
 
     for (const rel of relations) {
+      const isSource = rel.sourceIdentifier === issue.identifier;
+      const otherIdentifier = isSource ? rel.targetIdentifier : rel.sourceIdentifier;
+      const relationType =
+        rel.relationType === 'relates_to' || rel.relationType === 'duplicate_of'
+          ? rel.relationType
+          : rel.relationType === 'blocks'
+            ? isSource
+              ? 'blocks'
+              : 'blocked_by'
+            : isSource
+              ? 'blocked_by'
+              : 'blocks';
+      relationItems.push({ id: rel.id, identifier: otherIdentifier, relationType });
       if (
         rel.relationType === 'blocked_by' &&
         rel.sourceIdentifier === issue.identifier
@@ -568,6 +586,7 @@ export class IssuesService {
       subIssueIds: base.subissues,
       relatedIds: relatedIds.length > 0 ? relatedIds : undefined,
       blockedByIds: blockedByIds.length > 0 ? blockedByIds : undefined,
+      relations: relationItems,
       prLinks: prLinks.map((p) => ({
         id: p.id,
         title: p.title,
@@ -1062,6 +1081,31 @@ export class IssuesService {
     });
 
     this.em.persist(relation);
+    await this.em.flush();
+    return this.findDetail(issue.identifier);
+  }
+
+  async deleteRelation(identifierOrId: string, relationId: string, memberId: string) {
+    const issue = await this.em.findOne(Issue, {
+      $or: [{ identifier: identifierOrId }, { id: identifierOrId }],
+    });
+    if (!issue) throw new NotFoundException(`Issue ${identifierOrId} not found`);
+    await this.assertTeamAccess(
+      memberId,
+      issue.teamId,
+      `Issue ${identifierOrId} not found`,
+    );
+
+    const relation = await this.em.findOne(IssueRelation, { id: relationId });
+    if (
+      !relation ||
+      (relation.sourceIdentifier !== issue.identifier &&
+        relation.targetIdentifier !== issue.identifier)
+    ) {
+      throw new NotFoundException(`Relation ${relationId} not found`);
+    }
+
+    this.em.remove(relation);
     await this.em.flush();
     return this.findDetail(issue.identifier);
   }
