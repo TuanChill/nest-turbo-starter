@@ -103,134 +103,148 @@ export function LinearEditor({
       return createSlashCommandExtension(setSlashState, onKeyDownRef);
    }, []);
 
-   const editor = useEditor(
-      {
-         extensions: [
-            StarterKit.configure({
-               heading: {
-                  levels: [1, 2, 3, 4],
-               },
-               codeBlock: {
-                  HTMLAttributes: {
-                     class: 'rounded-lg border border-border/60 bg-muted/40 p-4 font-mono text-[13px] leading-6',
-                  },
-               },
-            }),
-            Placeholder.configure({
-               placeholder,
-               emptyEditorClass: 'is-editor-empty',
-            }),
-            TaskList.configure({
-               HTMLAttributes: {
-                  class: 'taskList',
-               },
-            }),
-            TaskItem.configure({
-               nested: true,
-               HTMLAttributes: {
-                  class: 'taskItem',
-               },
-            }),
-            Link.configure({
-               openOnClick: false,
-               autolink: true,
-               HTMLAttributes: {
-                  class: 'text-primary underline underline-offset-4 cursor-pointer hover:text-primary/80',
-               },
-            }),
-            Underline,
-            Markdown.configure({
-               html: true,
-               tightLists: true,
-               bulletListMarker: '-',
-            }),
-            slashCommandExt,
-         ],
-         content: value,
-         editable: editorIsEditable,
-         autofocus: autoFocus ? 'end' : false,
-         editorProps: {
-            attributes: {
-               class: cn(
-                  'focus:outline-none w-full text-[15px] leading-7 text-foreground',
-                  minHeight
-               ),
+   // Keep one ProseMirror instance for the lifetime of this component. The save
+   // callbacks are refreshed through Tiptap's latest options, but putting them
+   // in the dependency array would destroy/recreate the editor whenever the
+   // mutation or activity query changes state, which drops the caret/focus.
+   const editor = useEditor({
+      extensions: [
+         StarterKit.configure({
+            heading: {
+               levels: [1, 2, 3, 4],
             },
-            handleKeyDown: (view, event) => {
-               // Let slash command handle keydown first if open
-               if (slashState.isOpen && onKeyDownRef.current) {
-                  const handled = onKeyDownRef.current(event);
-                  if (handled) return true;
-               }
-
-               // Cmd+Enter or Ctrl+Enter to commit / blur
-               if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
-                  event.preventDefault();
-                  view.dom.blur();
-                  return true;
-               }
-
-               // Escape key blurs editor when menu is closed
-               if (event.key === 'Escape' && !slashState.isOpen) {
-                  event.preventDefault();
-                  view.dom.blur();
-                  return true;
-               }
-
-               return false;
+            codeBlock: {
+               HTMLAttributes: {
+                  class: 'rounded-lg border border-border/60 bg-muted/40 p-4 font-mono text-[13px] leading-6',
+               },
             },
+         }),
+         Placeholder.configure({
+            placeholder,
+            emptyEditorClass: 'is-editor-empty',
+         }),
+         TaskList.configure({
+            HTMLAttributes: {
+               class: 'taskList',
+            },
+         }),
+         TaskItem.configure({
+            nested: true,
+            HTMLAttributes: {
+               class: 'taskItem',
+            },
+         }),
+         Link.configure({
+            openOnClick: false,
+            autolink: true,
+            HTMLAttributes: {
+               class: 'text-primary underline underline-offset-4 cursor-pointer hover:text-primary/80',
+            },
+         }),
+         Underline,
+         Markdown.configure({
+            html: true,
+            tightLists: true,
+            bulletListMarker: '-',
+         }),
+         slashCommandExt,
+      ],
+      content: value,
+      editable: editorIsEditable,
+      autofocus: autoFocus ? 'end' : false,
+      editorProps: {
+         attributes: {
+            class: cn('focus:outline-none w-full text-[15px] leading-7 text-foreground', minHeight),
          },
-         onUpdate: ({ editor: ed }) => {
-            const md =
-               (
-                  ed.storage as { markdown?: { getMarkdown: () => string } }
-               ).markdown?.getMarkdown() ?? '';
-            lastReportedValue.current = md;
-            onChange?.(md);
-            scheduleSave(md);
-         },
-         onCreate: ({ editor: ed }) => {
-            // Tiptap can normalize legacy Markdown on initialization. Treat that
-            // canonical form as the saved baseline so merely entering edit mode
-            // never creates a description-change event.
-            const md =
-               (
-                  ed.storage as { markdown?: { getMarkdown: () => string } }
-               ).markdown?.getMarkdown() ?? '';
-            lastReportedValue.current = md;
-            lastSavedValue.current = md;
-            lastExternalValue.current = value;
-         },
-         onBlur: ({ editor: ed }) => {
-            const md =
-               (
-                  ed.storage as { markdown?: { getMarkdown: () => string } }
-               ).markdown?.getMarkdown() ?? '';
-            lastReportedValue.current = md;
-            onBlur?.(md);
-            triggerSave(md);
-            if (isClickToEdit) {
-               setIsEditing(false);
+         handleKeyDown: (view, event) => {
+            // Let slash command handle keydown first if open
+            if (slashState.isOpen && onKeyDownRef.current) {
+               const handled = onKeyDownRef.current(event);
+               if (handled) return true;
             }
+
+            // Cmd+Enter or Ctrl+Enter to commit / blur
+            if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+               event.preventDefault();
+               view.dom.blur();
+               return true;
+            }
+
+            // Escape key blurs editor when menu is closed
+            if (event.key === 'Escape' && !slashState.isOpen) {
+               event.preventDefault();
+               view.dom.blur();
+               return true;
+            }
+
+            return false;
          },
       },
-      [isMounted, scheduleSave, triggerSave, isClickToEdit]
-   );
+      onUpdate: ({ editor: ed }) => {
+         const md =
+            (ed.storage as { markdown?: { getMarkdown: () => string } }).markdown?.getMarkdown() ??
+            '';
+         lastReportedValue.current = md;
+         onChange?.(md);
+         scheduleSave(md);
+      },
+      onCreate: ({ editor: ed }) => {
+         // Tiptap can normalize legacy Markdown on initialization. Treat that
+         // canonical form as the saved baseline so merely entering edit mode
+         // never creates a description-change event.
+         const md =
+            (ed.storage as { markdown?: { getMarkdown: () => string } }).markdown?.getMarkdown() ??
+            '';
+         lastReportedValue.current = md;
+         lastSavedValue.current = md;
+         lastExternalValue.current = value;
+      },
+      onBlur: ({ editor: ed }) => {
+         const md =
+            (ed.storage as { markdown?: { getMarkdown: () => string } }).markdown?.getMarkdown() ??
+            '';
+         lastReportedValue.current = md;
+         onBlur?.(md);
+         triggerSave(md);
+         if (isClickToEdit) {
+            setIsEditing(false);
+         }
+      },
+   });
 
    // Sync value if changed from outside
    React.useEffect(() => {
       if (!editor || editor.isDestroyed) return;
-      if (value !== lastExternalValue.current) {
-         lastExternalValue.current = value;
-         editor.commands.setContent(value, { emitUpdate: false });
-         const md =
-            (
-               editor.storage as { markdown?: { getMarkdown: () => string } }
-            ).markdown?.getMarkdown() ?? '';
-         lastReportedValue.current = md;
-         lastSavedValue.current = md;
+      if (value === lastExternalValue.current) return;
+
+      // Background issue/activity refetches can update the prop while the user
+      // is typing. Never replace the document in that window: setContent resets
+      // the selection and makes the editor lose focus. Re-check when editing
+      // ends so genuine external changes still reach the read-only view.
+      if (editor.isFocused || (isClickToEdit && isEditing)) {
+         return;
       }
-   }, [editor, value]);
+
+      lastExternalValue.current = value;
+      const currentMarkdown =
+         (editor.storage as { markdown?: { getMarkdown: () => string } }).markdown?.getMarkdown() ??
+         '';
+
+      // The local editor may already contain the latest value (for example,
+      // after an optimistic save). Avoid resetting its selection unnecessarily.
+      if (currentMarkdown === value) {
+         lastReportedValue.current = currentMarkdown;
+         lastSavedValue.current = currentMarkdown;
+         return;
+      }
+
+      editor.commands.setContent(value, { emitUpdate: false });
+      const md =
+         (editor.storage as { markdown?: { getMarkdown: () => string } }).markdown?.getMarkdown() ??
+         '';
+      lastReportedValue.current = md;
+      lastSavedValue.current = md;
+   }, [editor, value, isClickToEdit, isEditing]);
 
    // Sync editable state
    React.useEffect(() => {

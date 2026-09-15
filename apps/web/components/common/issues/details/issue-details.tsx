@@ -170,6 +170,15 @@ export default function IssueDetails() {
       return '';
    }, [descriptionOverride, issue?.description, detail?.description]);
 
+   const issueDescription = issue?.description;
+
+   React.useEffect(() => {
+      if (descriptionOverride === null || issueDescription === undefined) return;
+      if (issueDescription.trim() === descriptionOverride) {
+         setDescriptionOverride(null);
+      }
+   }, [descriptionOverride, issueDescription]);
+
    const handleSaveDescription = React.useCallback(
       (newMarkdown: string) => {
          if (!issue) return;
@@ -181,9 +190,6 @@ export default function IssueDetails() {
          updateIssueMutation.mutate(
             { identifier: issue.identifier, data: { description: trimmed } },
             {
-               onSuccess: () => {
-                  setDescriptionOverride(null);
-               },
                onError: () => {
                   setDescriptionOverride(null);
                   toast.error('Failed to update description');
