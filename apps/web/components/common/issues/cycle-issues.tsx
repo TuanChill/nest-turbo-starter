@@ -4,7 +4,6 @@ import { CycleDetailsPanel } from '@/components/common/cycles/cycle-details-pane
 import { useCycles } from '@/hooks/queries/use-cycles-query';
 import { displayOrderedStatus } from '@/lib/workflow-status';
 import { useFilterStore } from '@/store/filter-store';
-import { useIssuesStore } from '@/store/issues-store';
 import { applyIssueFilters } from './issue-filter-columns';
 import { IssueFilterBar } from './issue-filter-bar';
 import { useRightPanelStore } from '@/store/right-panel-store';
@@ -35,16 +34,10 @@ export default function CycleIssues({ cycleView }: CycleIssuesProps) {
    const { viewType } = useViewStore();
    const { filters } = useFilterStore();
    const { data: serverIssues = [] } = useIssues();
-   const { issues: storeIssues = [] } = useIssuesStore();
    const { openPanel } = useRightPanelStore();
    const { data: cycles = [] } = useCycles(teamId);
 
-   const issues = useMemo(() => {
-      const ids = new Set(serverIssues.map((i) => i.id));
-      const idents = new Set(serverIssues.map((i) => i.identifier));
-      const extras = storeIssues.filter((i) => !ids.has(i.id) && !idents.has(i.identifier));
-      return [...serverIssues, ...extras];
-   }, [serverIssues, storeIssues]);
+   const issues = serverIssues;
 
    // No fallback to an arbitrary cycle: a team can genuinely have no cycle
    // with status 'current'/'upcoming' (e.g. right after the active cycle is
@@ -85,7 +78,7 @@ export default function CycleIssues({ cycleView }: CycleIssuesProps) {
 
    return (
       <div className="w-full h-full flex flex-col overflow-hidden">
-         <IssueFilterBar />
+         <IssueFilterBar issues={cycleIssues} />
          <div className="flex-1 min-h-0 w-full flex overflow-hidden">
             <div className="flex-1 min-w-0 h-full overflow-hidden">
                <GroupedIssuesView

@@ -4,7 +4,7 @@ import { useMemo } from 'react';
 import { DataTableFilter } from '@/components/data-table-filter';
 import { useDataTableFilters } from '@/components/data-table-filter/hooks/use-data-table-filters';
 import { useFilterStore } from '@/store/filter-store';
-import { useIssuesStore } from '@/store/issues-store';
+import type { Issue } from '@/mock-data/issues';
 import { useMembers } from '@/hooks/queries/use-members-query';
 import { useProjects } from '@/hooks/queries/use-projects-query';
 import { useCycles } from '@/hooks/queries/use-cycles-query';
@@ -21,8 +21,7 @@ import { buildIssueFilterColumns } from './issue-filter-columns';
  * point "Filter" button lives in the header toolbar (see
  * <IssueFilterTrigger/>), like Linear.
  */
-export function IssueFilterBar() {
-   const { issues } = useIssuesStore();
+export function IssueFilterBar({ issues }: { issues: Issue[] }) {
    const { filters, setFilters } = useFilterStore();
    const { data: members = [] } = useMembers();
    const { data: projects = [] } = useProjects();

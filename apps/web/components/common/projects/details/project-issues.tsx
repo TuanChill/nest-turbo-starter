@@ -39,7 +39,6 @@ function ProjectIssuesSkeleton() {
 
 import { useProject, useProjectDetail } from '@/hooks/queries/use-projects-query';
 import { useIssues } from '@/hooks/queries/use-issues-query';
-import { useIssuesStore } from '@/store/issues-store';
 import { useViews } from '@/hooks/queries/use-views-query';
 import { useViewStore } from '@/store/view-store';
 import { useDisplaySettingsStore } from '@/store/display-settings-store';
@@ -55,7 +54,6 @@ export default function ProjectIssues({ projectId }: ProjectIssuesProps) {
    const { data: views = [] } = useViews({ projectId });
 
    const { data: allIssues = [] } = useIssues();
-   const { issues: localIssues = [] } = useIssuesStore();
    const { filters, setFilters } = useFilterStore();
    const { viewType, setViewType } = useViewStore();
    const { setDisplaySettings } = useDisplaySettingsStore();
@@ -80,20 +78,13 @@ export default function ProjectIssues({ projectId }: ProjectIssuesProps) {
       }
    }, [activeCustomView, setFilters, setViewType, setDisplaySettings]);
 
-   const combinedIssues = useMemo(() => {
-      const ids = new Set(allIssues.map((i) => i.id));
-      const idents = new Set(allIssues.map((i) => i.identifier));
-      const extras = localIssues.filter((i) => !ids.has(i.id) && !idents.has(i.identifier));
-      return [...allIssues, ...extras];
-   }, [allIssues, localIssues]);
-
    const issues = useMemo(
       () =>
-         combinedIssues.filter(
+         allIssues.filter(
             (issue) =>
                issue.project?.id === projectId || (project?.id && issue.project?.id === project.id)
          ),
-      [combinedIssues, projectId, project?.id]
+      [allIssues, projectId, project?.id]
    );
 
    const displayedIssues = useMemo(() => applyIssueFilters(issues, filters), [issues, filters]);
@@ -125,7 +116,7 @@ export default function ProjectIssues({ projectId }: ProjectIssuesProps) {
 
    return (
       <div className="w-full h-full flex flex-col overflow-hidden">
-         <IssueFilterBar />
+         <IssueFilterBar issues={issues} />
          <div className="flex-1 min-h-0 w-full flex overflow-hidden">
             <div className="flex-1 min-w-0 h-full overflow-hidden">
                <GroupedIssuesView

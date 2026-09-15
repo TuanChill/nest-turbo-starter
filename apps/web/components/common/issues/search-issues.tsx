@@ -1,6 +1,5 @@
 'use client';
 
-import { useIssuesStore } from '@/store/issues-store';
 import { useSearchStore } from '@/store/search-store';
 import { useMemo } from 'react';
 import { IssueLine } from './issue-line';
@@ -8,15 +7,9 @@ import { useIssues } from '@/hooks/queries/use-issues-query';
 
 export function SearchIssues() {
    const { data: serverIssues = [] } = useIssues();
-   const { issues: storeIssues = [] } = useIssuesStore();
    const { searchQuery, isSearchOpen } = useSearchStore();
 
-   const issues = useMemo(() => {
-      const ids = new Set(serverIssues.map((i) => i.id));
-      const idents = new Set(serverIssues.map((i) => i.identifier));
-      const extras = storeIssues.filter((i) => !ids.has(i.id) && !idents.has(i.identifier));
-      return [...serverIssues, ...extras];
-   }, [serverIssues, storeIssues]);
+   const issues = serverIssues;
 
    const searchResults = useMemo(() => {
       const query = searchQuery.trim().toLowerCase();
