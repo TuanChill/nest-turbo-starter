@@ -54,6 +54,8 @@ export interface Project {
    healthUpdatedAgoDays?: number;
    /** Subscription state for the authenticated member. */
    isSubscribed?: boolean;
+   /** Persisted project members returned by the live API. */
+   members?: User[];
 }
 
 type BaseProject = Omit<

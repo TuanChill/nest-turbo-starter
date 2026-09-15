@@ -12,6 +12,8 @@ import { useCycles } from '@/hooks/queries/use-cycles-query';
 import { PanelFilterTarget, usePanelFilter } from '@/components/common/issues/use-panel-filter';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
 import { ProjectProgressChart } from './project-progress-chart';
 import { StatusSelector } from '../status-selector';
 import { PrioritySelector } from '../priority-selector';
@@ -19,9 +21,10 @@ import { LeadSelector } from '../lead-selector';
 import { DatePicker } from '../date-picker';
 import { useUpdateProject, useToggleMilestone } from '@/hooks/queries/use-projects-query';
 import { AddMilestonePopover } from '../add-milestone-popover';
-import { ArrowRight, Calendar, Check, Compass, Slack, UserPlus } from 'lucide-react';
+import { ArrowRight, Calendar, Check, Compass, Slack } from 'lucide-react';
 import { useMemo } from 'react';
 import { LabelSelector } from '@/components/layout/sidebar/create-new-issue/label-selector';
+import { ProjectMembersPicker } from '../project-members-picker';
 import {
    DropdownMenu,
    DropdownMenuCheckboxItem,
@@ -126,6 +129,7 @@ function PropertyRow({ label, children }: { label: string; children: React.React
  * progress breakdowns and a compact activity feed.
  */
 export function ProjectPropertiesPanel({ project, detail, issues }: ProjectPropertiesPanelProps) {
+   const { orgId } = useParams<{ orgId: string }>();
    const panelFilter = usePanelFilter();
    const completed = issues.filter(isCompleted).length;
 
@@ -179,17 +183,6 @@ export function ProjectPropertiesPanel({ project, detail, issues }: ProjectPrope
    };
 
    const started = issues.filter((issue) => issue.status.category === 'started').length;
-
-   const members = useMemo(() => {
-      const seen = new Set<string>();
-      return issues
-         .map((issue) => issue.assignee)
-         .filter((assignee): assignee is NonNullable<typeof assignee> => {
-            if (!assignee || seen.has(assignee.id)) return false;
-            seen.add(assignee.id);
-            return true;
-         });
-   }, [issues]);
 
    const assigneeRows = useMemo(
       () =>
@@ -277,24 +270,7 @@ export function ProjectPropertiesPanel({ project, detail, issues }: ProjectPrope
                   <LeadSelector lead={project.lead} onLeadChange={handleLeadChange} />
                </PropertyRow>
                <PropertyRow label="Members">
-                  {members.length > 0 ? (
-                     <span className="inline-flex items-center gap-1.5">
-                        <span className="flex -space-x-1.5">
-                           {members.slice(0, 3).map((member) => (
-                              <Avatar key={member.id} className="size-5 border-2 border-container">
-                                 <AvatarImage src={member.avatarUrl} alt={member.name} />
-                                 <AvatarFallback>{member.name[0]}</AvatarFallback>
-                              </Avatar>
-                           ))}
-                        </span>
-                        {members.length} {members.length === 1 ? 'member' : 'members'}
-                     </span>
-                  ) : (
-                     <button className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors">
-                        <UserPlus className="size-3.5" />
-                        Add members
-                     </button>
-                  )}
+                  <ProjectMembersPicker projectId={project.id} fallbackMembers={project.members} />
                </PropertyRow>
                <PropertyRow label="Dates">
                   <span className="inline-flex items-center gap-1">
@@ -355,10 +331,13 @@ export function ProjectPropertiesPanel({ project, detail, issues }: ProjectPrope
                   </DropdownMenu>
                </PropertyRow>
                <PropertyRow label="Slack">
-                  <button className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors">
+                  <span
+                     className="flex items-center gap-1.5 text-muted-foreground"
+                     title="Slack integration is not configured"
+                  >
                      <Slack className="size-3.5" />
-                     Connect channel
-                  </button>
+                     Unavailable
+                  </span>
                </PropertyRow>
                <PropertyRow label="Initiatives">
                   {project.initiative ? (
@@ -408,7 +387,7 @@ export function ProjectPropertiesPanel({ project, detail, issues }: ProjectPrope
             {detail.milestones.length === 0 ? (
                <p className="text-xs text-muted-foreground">
                   Add milestones to organize work within your project and break it into more
-                  granular stages. <span className="text-foreground/70 underline">Learn more</span>
+                  granular stages.
                </p>
             ) : (
                <div className="flex flex-col gap-1.5">
@@ -512,9 +491,12 @@ export function ProjectPropertiesPanel({ project, detail, issues }: ProjectPrope
          <div className="px-5 py-4">
             <div className="flex items-center justify-between mb-2">
                <h3 className="text-sm font-medium">Activity</h3>
-               <button className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+               <Link
+                  href={`/${orgId}/project/${project.id}/activity`}
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+               >
                   See all
-               </button>
+               </Link>
             </div>
             <div className="flex flex-col gap-3">
                {detail.activity.map((event) => (

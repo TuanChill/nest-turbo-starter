@@ -1,6 +1,7 @@
 import { apiClient } from './api-client';
 import type { Project } from '@/mock-data/projects';
 import type { ProjectDetail } from '@/mock-data/project-details';
+import type { Member } from './members.service';
 
 export type { Project, ProjectDetail };
 
@@ -39,6 +40,17 @@ export const projectsService = {
          `/circle/api/projects/${id}/subscription`,
          { method: 'DELETE' }
       );
+   },
+
+   async getProjectMembers(id: string): Promise<Member[]> {
+      return apiClient<Member[]>(`/circle/api/projects/${id}/members`);
+   },
+
+   async replaceProjectMembers(id: string, memberIds: string[]): Promise<Member[]> {
+      return apiClient<Member[]>(`/circle/api/projects/${id}/members`, {
+         method: 'PUT',
+         body: JSON.stringify({ memberIds }),
+      });
    },
 
    async createProject(payload: Partial<Project>): Promise<Project> {

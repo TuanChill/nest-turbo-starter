@@ -19,17 +19,15 @@ import {
    CalendarPlus,
    ChevronRight,
    Compass,
-   Plus,
    Slack,
-   Star,
    Tag,
-   UserPlus,
    X,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useMemo } from 'react';
 import { ProjectProgressChart } from './details/project-progress-chart';
+import { ProjectMembersPicker } from './project-members-picker';
 
 interface ProjectPeekPanelProps {
    projectId: string;
@@ -81,17 +79,6 @@ export function ProjectPeekPanel({ projectId, onClose }: ProjectPeekPanelProps) 
       return () => window.removeEventListener('keydown', onKeyDown);
    }, [onClose]);
 
-   const members = useMemo(() => {
-      const seen = new Set<string>();
-      return issues
-         .map((issue) => issue.assignee)
-         .filter((assignee): assignee is NonNullable<typeof assignee> => {
-            if (!assignee || seen.has(assignee.id)) return false;
-            seen.add(assignee.id);
-            return true;
-         });
-   }, [issues]);
-
    if (!project || !detail) return null;
 
    const team = teams.find((candidate) => candidate.id === project.teamId);
@@ -115,9 +102,6 @@ export function ProjectPeekPanel({ projectId, onClose }: ProjectPeekPanelProps) 
                </span>
                <ChevronRight className="size-4 shrink-0 text-muted-foreground group-hover:text-foreground transition-colors" />
             </Link>
-            <button className="text-muted-foreground hover:text-foreground transition-colors shrink-0">
-               <Star className="size-4" />
-            </button>
             <button
                onClick={onClose}
                className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
@@ -131,9 +115,6 @@ export function ProjectPeekPanel({ projectId, onClose }: ProjectPeekPanelProps) 
          <Card>
             <div className="flex items-center justify-between mb-1.5">
                <h3 className="text-sm font-medium">Properties</h3>
-               <button className="text-muted-foreground hover:text-foreground transition-colors">
-                  <Plus className="size-3.5" />
-               </button>
             </div>
             <div className="flex flex-col">
                <PropertyRow label="Status">
@@ -158,24 +139,7 @@ export function ProjectPeekPanel({ projectId, onClose }: ProjectPeekPanelProps) 
                   )}
                </PropertyRow>
                <PropertyRow label="Members">
-                  {members.length > 0 ? (
-                     <span className="inline-flex items-center gap-1.5">
-                        <span className="flex -space-x-1.5">
-                           {members.slice(0, 3).map((member) => (
-                              <Avatar key={member.id} className="size-5 border-2 border-container">
-                                 <AvatarImage src={member.avatarUrl} alt={member.name} />
-                                 <AvatarFallback>{member.name[0]}</AvatarFallback>
-                              </Avatar>
-                           ))}
-                        </span>
-                        {members.length} {members.length === 1 ? 'member' : 'members'}
-                     </span>
-                  ) : (
-                     <button className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors">
-                        <UserPlus className="size-3.5" />
-                        Add members
-                     </button>
-                  )}
+                  <ProjectMembersPicker projectId={project.id} fallbackMembers={project.members} />
                </PropertyRow>
                <PropertyRow label="Dates">
                   <span className="inline-flex items-center gap-1">
@@ -198,10 +162,13 @@ export function ProjectPeekPanel({ projectId, onClose }: ProjectPeekPanelProps) 
                   </span>
                </PropertyRow>
                <PropertyRow label="Slack">
-                  <button className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors">
+                  <span
+                     className="flex items-center gap-1.5 text-muted-foreground"
+                     title="Slack integration is not configured"
+                  >
                      <Slack className="size-3.5" />
-                     Connect channel
-                  </button>
+                     Unavailable
+                  </span>
                </PropertyRow>
                <PropertyRow label="Initiatives">
                   {project.initiative ? (
@@ -247,7 +214,7 @@ export function ProjectPeekPanel({ projectId, onClose }: ProjectPeekPanelProps) 
             {detail.milestones.length === 0 ? (
                <p className="text-xs text-muted-foreground">
                   Add milestones to organize work within your project and break it into more
-                  granular stages. <span className="text-foreground/70 underline">Learn more</span>
+                  granular stages.
                </p>
             ) : (
                <div className="flex flex-col gap-1.5">

@@ -22,6 +22,7 @@ export const projectKeys = {
    overview: (id: string) => [...projectKeys.detail(id), 'overview'] as const,
    activity: (id: string) => [...projectKeys.detail(id), 'activity'] as const,
    subscription: (id: string) => [...projectKeys.detail(id), 'subscription'] as const,
+   members: (id: string) => [...projectKeys.detail(id), 'members'] as const,
 };
 
 export const projectTemplateKeys = {
