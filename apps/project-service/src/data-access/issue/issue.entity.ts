@@ -21,9 +21,9 @@ export class Issue {
   title: string;
 
   // Source of truth for description is `description` (plain markdown text, user-editable).
-  // `descriptionBlocks` (ContentBlock[]) is legacy/seed structured content only — when a user
-  // edits `description`, issues.service.ts clears `descriptionBlocks` so reads fall back to
-  // rendering `description` (see findDetail()'s "Default description if blocks empty").
+  // `descriptionBlocks` (ContentBlock[]) is legacy/seed structured content only. When a user
+  // edits `description`, issues.service.ts clears `descriptionBlocks` and detail returns the
+  // persisted description fields without synthesizing placeholder blocks.
   @Property({ type: 'text', default: '' })
   description: string;
 

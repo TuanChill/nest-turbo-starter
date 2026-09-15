@@ -21,6 +21,7 @@ import {
   PrLink,
   Project,
   Team,
+  TeamMember,
   toSafeMember,
   WorkspaceMember,
 } from '../../data-access';
@@ -116,6 +117,26 @@ export class IssuesService {
     });
     assertMutuallyExclusiveLabelSelection(labels, exclusiveGroups);
     return uniqueLabelIds;
+  }
+
+  private async validateAssigneeId(assigneeId: string | undefined, teamId: string) {
+    if (!assigneeId) return;
+    const [member, team, teamMembership] = await Promise.all([
+      this.em.findOne(Member, { id: assigneeId }),
+      this.em.findOne(Team, { id: teamId }),
+      this.em.findOne(TeamMember, { teamId, memberId: assigneeId }),
+    ]);
+    const workspaceMembership = team?.workspaceId
+      ? await this.em.findOne(WorkspaceMember, {
+          workspaceId: team.workspaceId,
+          memberId: assigneeId,
+        })
+      : null;
+    if (!member || (!teamMembership && !workspaceMembership) || !team) {
+      throw new BadRequestException(
+        `Assignee ${assigneeId} is not a member of team ${teamId}`,
+      );
+    }
   }
 
   /** assignee + creator + everyone who has commented, minus the actor causing the event. */
@@ -574,6 +595,7 @@ export class IssuesService {
         throw new NotFoundException('No accessible team to create this issue in');
       }
     }
+    await this.validateAssigneeId(dto.assigneeId, teamId);
 
     const prefix =
       team?.id?.toUpperCase() ||
@@ -672,6 +694,10 @@ export class IssuesService {
     };
 
     const nextTeamId = dto.teamId ?? issue.teamId;
+    await this.validateAssigneeId(
+      dto.assigneeId !== undefined ? dto.assigneeId : issue.assigneeId,
+      nextTeamId,
+    );
     if (dto.teamId !== undefined && dto.teamId !== issue.teamId) {
       await this.assertTeamAccess(
         actorId,
