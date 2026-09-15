@@ -12,6 +12,7 @@ import {
   Label,
   Member,
   Project,
+  ProjectActivity,
   ProjectLabel,
   ProjectMember,
   ProjectMilestone,
@@ -133,6 +134,36 @@ export class ProjectsService {
       );
     }
     return [...new Set(memberIds)];
+  }
+
+  private recordActivity(
+    projectId: string,
+    actorId: string,
+    event: string,
+    metadata: Record<string, unknown> = {},
+  ) {
+    this.em.persist(new ProjectActivity({ projectId, actorId, event, metadata }));
+  }
+
+  private activityText(event: string, metadata: Record<string, unknown>) {
+    switch (event) {
+      case 'created':
+        return 'created this project';
+      case 'updated':
+        return `updated ${Array.isArray(metadata.fields) ? metadata.fields.join(', ') : 'project properties'}`;
+      case 'members_changed':
+        return 'updated project members';
+      case 'milestone_added':
+        return `added milestone ${String(metadata.name ?? '')}`.trim();
+      case 'milestone_toggled':
+        return `${metadata.completed ? 'completed' : 'reopened'} a milestone`;
+      case 'health_update':
+        return 'posted a project update';
+      case 'deleted':
+        return 'deleted this project';
+      default:
+        return event;
+    }
   }
 
   private transformProject(
@@ -291,6 +322,11 @@ export class ProjectsService {
     );
     const members = await this.em.find(Member, {});
     const membersMap = new Map(members.map((m) => [m.id, toSafeMember(m)]));
+    const activities = await this.em.find(
+      ProjectActivity,
+      { projectId: id },
+      { orderBy: { createdAt: 'ASC' } },
+    );
 
     const enrichedUpdates = updates.map((u) => ({
       id: u.id,
@@ -312,7 +348,12 @@ export class ProjectsService {
         completed: m.completed,
       })),
       updates: enrichedUpdates,
-      activity: [],
+      activity: activities.map((activity) => ({
+        id: activity.id,
+        user: membersMap.get(activity.actorId) ?? null,
+        date: activity.createdAt.toISOString().split('T')[0],
+        text: this.activityText(activity.event, activity.metadata),
+      })),
     };
   }
 
@@ -357,6 +398,7 @@ export class ProjectsService {
           new ProjectMember({ projectId: id, memberId: projectMemberId }),
       ),
     );
+    this.recordActivity(id, memberId, 'created', { name: dto.name });
 
     if (dto.labelIds !== undefined) {
       const labelIds = await this.validateLabelIds(dto.labelIds, dto.teamId);
@@ -398,6 +440,9 @@ export class ProjectsService {
 
     if (dto.memberIds !== undefined) {
       await this.replaceMembers(id, dto.memberIds, memberId, false);
+      this.recordActivity(id, memberId, 'members_changed', {
+        count: dto.memberIds.length,
+      });
     }
 
     if (dto.labelIds !== undefined) {
@@ -412,6 +457,11 @@ export class ProjectsService {
       }
     }
 
+    const changedFields = Object.keys(dto);
+    if (changedFields.length > 0) {
+      this.recordActivity(id, memberId, 'updated', { fields: changedFields });
+    }
+
     await this.em.flush();
     return this.findOne(id);
   }
@@ -420,7 +470,8 @@ export class ProjectsService {
     const project = await this.em.findOne(Project, { id });
     if (project) {
       await this.assertTeamAccess(memberId, project.teamId, `Project ${id} not found`);
-      this.em.remove(project);
+      this.recordActivity(id, memberId, 'deleted');
+      project.deletedAt = new Date();
       await this.em.flush();
     }
     return { success: true };
@@ -481,6 +532,7 @@ export class ProjectsService {
     project.healthUpdatedAt = new Date();
 
     this.em.persist([update, project]);
+    this.recordActivity(projectId, memberId, 'health_update', { health: dto.health });
     await this.em.flush();
     return this.findDetail(projectId);
   }
@@ -502,6 +554,7 @@ export class ProjectsService {
     });
 
     this.em.persist(milestone);
+    this.recordActivity(projectId, memberId, 'milestone_added', { name: dto.name });
     await this.em.flush();
     return this.findDetail(projectId);
   }
@@ -522,6 +575,9 @@ export class ProjectsService {
     if (!milestone) throw new NotFoundException(`Milestone ${milestoneId} not found`);
 
     milestone.completed = !milestone.completed;
+    this.recordActivity(projectId, memberId, 'milestone_toggled', {
+      completed: milestone.completed,
+    });
     await this.em.flush();
     return this.findDetail(projectId);
   }

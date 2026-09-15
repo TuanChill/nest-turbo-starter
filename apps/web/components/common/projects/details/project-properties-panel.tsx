@@ -459,13 +459,22 @@ export function ProjectPropertiesPanel({ project, detail, issues }: ProjectPrope
             <div className="flex flex-col gap-3">
                {detail.activity.map((event) => (
                   <div key={event.id} className="flex items-start gap-2 text-xs">
-                     <Avatar className="size-4 mt-0.5 shrink-0">
-                        <AvatarImage src={event.user.avatarUrl} alt={event.user.name} />
-                        <AvatarFallback>{event.user.name[0]}</AvatarFallback>
-                     </Avatar>
+                     {event.user ? (
+                        <Avatar className="size-4 mt-0.5 shrink-0">
+                           <AvatarImage src={event.user.avatarUrl} alt={event.user.name} />
+                           <AvatarFallback>{event.user.name[0]}</AvatarFallback>
+                        </Avatar>
+                     ) : (
+                        <span
+                           className="size-4 mt-0.5 rounded-full bg-muted shrink-0"
+                           aria-hidden="true"
+                        />
+                     )}
                      <p className="text-muted-foreground leading-relaxed">
-                        <span className="text-foreground">{event.user.name}</span> {event.text} ·{' '}
-                        {formatDay(event.date)}
+                        <span className="text-foreground">
+                           {event.user?.name ?? 'Unknown member'}
+                        </span>{' '}
+                        {event.text} · {formatDay(event.date)}
                      </p>
                   </div>
                ))}

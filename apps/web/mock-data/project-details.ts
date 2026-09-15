@@ -38,7 +38,7 @@ export interface ProjectUpdate {
 /** Lightweight activity event ("x added themselves as a member…"). */
 export interface ProjectActivityEvent {
    id: string;
-   user: User;
+   user?: User | null;
    date: string;
    text: string;
 }

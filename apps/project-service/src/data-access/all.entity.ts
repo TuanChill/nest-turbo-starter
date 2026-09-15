@@ -10,6 +10,7 @@ import { LabelGroup } from './label/label-group.entity';
 import { IssueLabel, Label, ProjectLabel } from './label/label.entity';
 import { Member } from './member/member.entity';
 import { Notification } from './notification/notification.entity';
+import { ProjectActivity } from './project/project-activity.entity';
 import { ProjectMember } from './project/project-member.entity';
 import { ProjectMilestone } from './project/project-milestone.entity';
 import { ProjectTemplate } from './project/project-template.entity';
@@ -48,6 +49,7 @@ export const ALL_ENTITIES = [
   Project,
   ProjectMilestone,
   ProjectMember,
+  ProjectActivity,
   ProjectTemplate,
   ProjectUpdate,
   Cycle,

@@ -116,6 +116,7 @@ export default function ProjectActivity({ projectId }: ProjectActivityProps) {
    const [text, setText] = useState('');
 
    const updates = useMemo<ProjectUpdate[]>(() => detail?.updates ?? [], [detail?.updates]);
+   const activities = useMemo(() => detail?.activity ?? [], [detail?.activity]);
 
    const updatesByMonth = useMemo(() => {
       const groups = new Map<string, ProjectUpdate[]>();
@@ -291,6 +292,43 @@ export default function ProjectActivity({ projectId }: ProjectActivityProps) {
                      </div>
                   </div>
                </div>
+
+               {/* Persisted activity */}
+               {activities.length > 0 && (
+                  <div className="mt-8">
+                     <h3 className="text-lg font-semibold mb-3">Activity</h3>
+                     <div className="flex flex-col gap-2">
+                        {activities.map((activity) => (
+                           <div
+                              key={activity.id}
+                              className="flex items-center gap-2 text-sm text-muted-foreground"
+                           >
+                              {activity.user ? (
+                                 <Avatar className="size-5">
+                                    <AvatarImage
+                                       src={activity.user.avatarUrl}
+                                       alt={activity.user.name}
+                                    />
+                                    <AvatarFallback>{activity.user.name[0]}</AvatarFallback>
+                                 </Avatar>
+                              ) : (
+                                 <span
+                                    className="size-5 rounded-full bg-muted"
+                                    aria-hidden="true"
+                                 />
+                              )}
+                              <span className="text-foreground">
+                                 {activity.user?.name ?? 'Unknown member'}
+                              </span>
+                              <span>{activity.text}</span>
+                              <span className="ml-auto text-xs">
+                                 {format(parseISO(activity.date), 'MMM d')}
+                              </span>
+                           </div>
+                        ))}
+                     </div>
+                  </div>
+               )}
 
                {/* Timeline */}
                {updatesByMonth.length === 0 ? (
