@@ -243,7 +243,6 @@ export default function TeamSettings({ teamId }: TeamSettingsProps) {
                            description="Manage team members"
                            trailing={<span>{team.members.length} members</span>}
                            chevron
-                           onClick={() => {}}
                         />
                      </Link>
                      <SettingsRow
@@ -266,7 +265,6 @@ export default function TeamSettings({ teamId }: TeamSettingsProps) {
                            description="Labels available to this team's issues"
                            trailing={<span>{labels.length} labels</span>}
                            chevron
-                           onClick={() => {}}
                         />
                      </Link>
                      <SettingsRow
@@ -316,7 +314,6 @@ export default function TeamSettings({ teamId }: TeamSettingsProps) {
                            description="Focus your team over short, time-boxed windows"
                            trailing={<span>{cycles.length > 0 ? 'Active' : 'Off'}</span>}
                            chevron
-                           onClick={() => {}}
                         />
                      </Link>
                   </SettingsCard>
@@ -330,7 +327,6 @@ export default function TeamSettings({ teamId }: TeamSettingsProps) {
                            title="Team agents"
                            description="Add guidance for how agents should operate within this team"
                            chevron
-                           onClick={() => {}}
                         />
                      </Link>
                      <SettingsRow

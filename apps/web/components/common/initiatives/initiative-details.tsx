@@ -155,6 +155,7 @@ function PropertyRow({ label, children }: { label: string; children: React.React
 }
 
 function Overview({ initiative }: { initiative: Initiative }) {
+   const { orgId } = useParams<{ orgId: string }>();
    const { data: liveProjects = [] } = useProjects();
    const postUpdate = usePostInitiativeUpdate();
    const [isUpdateEditorOpen, setIsUpdateEditorOpen] = useState(false);
@@ -420,9 +421,12 @@ function Overview({ initiative }: { initiative: Initiative }) {
             <div className="flex flex-col gap-3">
                <div className="flex items-center justify-between">
                   <span className="text-sm font-medium">Activity</span>
-                  <button className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+                  <Link
+                     href={`/${orgId}/initiative/${initiative.id}?tab=activity`}
+                     className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
                      See all
-                  </button>
+                  </Link>
                </div>
                <div className="flex flex-col gap-2 text-xs text-muted-foreground">
                   {initiative.activity?.slice(0, 3).map((event) => (
