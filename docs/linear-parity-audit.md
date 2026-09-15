@@ -44,6 +44,8 @@ Reference set: [Linear Docs](https://linear.app/docs), [Projects](https://linear
 - Initiative reads now discard persisted project links whose primary team is missing or belongs to another workspace, and initiative creation requires explicit workspace context instead of choosing the first accessible workspace.
 - Issue-template references now require target-workspace members and labels, and enforce mutually exclusive label groups before a template is persisted or updated.
 - Issue detail reads now discard stale or cross-team relation rows and cross-team sub-issue links instead of exposing persisted identifiers outside the current team.
+- Member profiles now use persisted member and label data without `CORE`, generated join dates, generated avatars, or mock label breakdowns. Comment submission no longer inserts a fabricated optimistic activity; API success supplies the persisted activity and API failure remains visible.
+- Google OAuth now requires the configured client ID and a verified Google profile; missing configuration or profile data produces an explicit error instead of mock credentials/profile values.
 
 ## Verification evidence (2026-09-15)
 

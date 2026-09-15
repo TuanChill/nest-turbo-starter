@@ -7,6 +7,7 @@ import { ActivityItem } from '@/mock-data/issue-details';
 import type { Member } from '@/services/members.service';
 import { useAuthStore } from '@/store/auth-store';
 import { addIssueComment, addIssueReaction } from '@/lib/api/issues';
+import { toast } from 'sonner';
 import {
    Ban,
    CircleDot,
@@ -105,6 +106,7 @@ export function ActivityFeed({
    const [items, setItems] = useState<ActivityItem[]>(activity);
    const [draft, setDraft] = useState('');
    const [isSubmitting, setIsSubmitting] = useState(false);
+   const [submitError, setSubmitError] = useState<string | null>(null);
    const skipNextActivitySyncRef = useRef(false);
    const { user } = useAuthStore();
    const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -175,53 +177,32 @@ export function ActivityFeed({
    const submitComment = async () => {
       const text = draft.trim();
       if (!text || !user) return;
-      const previousItems = items;
+      if (!issueIdentifier) {
+         const message = 'Unable to post a comment without an issue identifier';
+         setSubmitError(message);
+         toast.error(message);
+         return;
+      }
       setIsSubmitting(true);
-
-      const actor = {
-         id: user.id,
-         name: user.name || user.email.split('@')[0],
-         email: user.email,
-         avatarUrl: user.avatarUrl || `https://api.dicebear.com/9.x/glass/svg?seed=${user.email}`,
-         role: 'Member' as const,
-         status: 'online' as const,
-         joinedDate: new Date().toISOString().slice(0, 10),
-         timezone: 'UTC',
-         teamIds: user.teamIds ?? [],
-      };
-
-      const newComment: ActivityItem = {
-         kind: 'comment',
-         id: `local-${Date.now()}`,
-         actor,
-         timeAgo: 'just now',
-         body: [{ type: 'paragraph', text }],
-         reactions: [],
-      };
-
-      setItems((previous) => [...previous, newComment]);
-      setDraft('');
-      setMentionQuery(null);
-      setMentionStart(-1);
-
-      if (issueIdentifier) {
-         try {
-            const updated = await addIssueComment(issueIdentifier, {
-               textContent: text,
-               commentBlocks: [{ type: 'paragraph', text }],
-            });
-            if (updated?.activity) {
-               skipNextActivitySyncRef.current = true;
-               setItems(updated.activity);
-            }
-         } catch (err) {
-            setItems(previousItems);
-            setDraft(text);
-            console.error(`Failed to post comment on ${issueIdentifier}:`, err);
-         } finally {
-            setIsSubmitting(false);
+      setSubmitError(null);
+      try {
+         const updated = await addIssueComment(issueIdentifier, {
+            textContent: text,
+            commentBlocks: [{ type: 'paragraph', text }],
+         });
+         if (updated?.activity) {
+            skipNextActivitySyncRef.current = true;
+            setItems(updated.activity);
          }
-      } else {
+         setDraft('');
+         setMentionQuery(null);
+         setMentionStart(-1);
+      } catch (err) {
+         const message = err instanceof Error ? err.message : 'Failed to post comment';
+         setSubmitError(message);
+         toast.error(message);
+         console.error(`Failed to post comment on ${issueIdentifier}:`, err);
+      } finally {
          setIsSubmitting(false);
       }
    };
@@ -260,6 +241,7 @@ export function ActivityFeed({
                Subscribe
             </button>
          </div>
+         {submitError && <p className="mb-2 text-xs text-destructive">{submitError}</p>}
 
          <div className="flex flex-col">
             {items.map((item) =>

@@ -4,9 +4,7 @@ import * as React from 'react';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { useAuthStore } from '@/store/auth-store';
 
-const GOOGLE_CLIENT_ID =
-   process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ||
-   '1000000000000-mockgoogleclientidforlocaldevelopment.apps.googleusercontent.com';
+const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
    const { initSession } = useAuthStore();

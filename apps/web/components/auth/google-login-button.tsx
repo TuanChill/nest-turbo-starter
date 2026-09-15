@@ -42,6 +42,7 @@ export function GoogleLoginButton({ text = 'Continue with Google' }: GoogleLogin
 
    const { loginWithGoogle, isLoading } = useAuthStore();
    const [isGoogleLoading, setIsGoogleLoading] = React.useState(false);
+   const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
    const googleLogin = useGoogleLogin({
       onSuccess: async (tokenResponse) => {
@@ -52,20 +53,21 @@ export function GoogleLoginButton({ text = 'Continue with Google' }: GoogleLogin
                headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
             });
 
-            let profile = {
-               email: 'google.user@gmail.com',
-               name: 'Google User',
-               picture: `https://api.dicebear.com/9.x/glass/svg?seed=google`,
-            };
-
-            if (userInfoRes.ok) {
-               const userInfo = await userInfoRes.json();
-               profile = {
-                  email: userInfo.email,
-                  name: userInfo.name || userInfo.email.split('@')[0],
-                  picture: userInfo.picture,
-               };
+            if (!userInfoRes.ok) {
+               throw new Error('Unable to verify the Google profile');
             }
+            const userInfo = await userInfoRes.json();
+            if (typeof userInfo.email !== 'string' || !userInfo.email) {
+               throw new Error('Google profile did not include an email address');
+            }
+            const profile = {
+               email: userInfo.email,
+               name:
+                  typeof userInfo.name === 'string' && userInfo.name
+                     ? userInfo.name
+                     : userInfo.email.split('@')[0],
+               picture: typeof userInfo.picture === 'string' ? userInfo.picture : undefined,
+            };
 
             const res = await loginWithGoogle({
                idToken: tokenResponse.access_token,
@@ -103,8 +105,14 @@ export function GoogleLoginButton({ text = 'Continue with Google' }: GoogleLogin
       <Button
          type="button"
          variant="outline"
-         disabled={isLoading || isGoogleLoading}
-         onClick={() => googleLogin()}
+         disabled={!googleClientId || isLoading || isGoogleLoading}
+         onClick={() => {
+            if (!googleClientId) {
+               toast.error('Google sign-in is not configured');
+               return;
+            }
+            googleLogin();
+         }}
          className="w-full h-9 text-xs font-medium border-border/70 hover:bg-accent/60 transition-all flex items-center justify-center shadow-sm"
       >
          {isGoogleLoading ? (
