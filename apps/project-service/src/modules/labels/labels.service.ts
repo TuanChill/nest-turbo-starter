@@ -1,14 +1,15 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
 import { EntityManager } from '@mikro-orm/core';
-import { Label } from '../../data-access';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateLabelDto, UpdateLabelDto } from './dto/label.dto';
+import { IssueLabel, Label, LabelScope, ProjectLabel } from '../../data-access';
 
 @Injectable()
 export class LabelsService {
   constructor(private readonly em: EntityManager) {}
 
-  async findAll() {
-    return this.em.find(Label, {});
+  async findAll(scope?: Exclude<LabelScope, 'both'>) {
+    if (!scope) return this.em.find(Label, {});
+    return this.em.find(Label, { scope: { $in: [scope, 'both'] } });
   }
 
   async findOne(id: string) {
@@ -18,7 +19,19 @@ export class LabelsService {
   }
 
   async create(dto: CreateLabelDto) {
-    const label = new Label(dto);
+    const name = dto.name.trim();
+    const scope = dto.scope ?? 'both';
+    const labels = await this.em.find(Label, {});
+    const duplicate = labels.some(
+      (label) =>
+        label.name.trim().toLocaleLowerCase() === name.toLocaleLowerCase() &&
+        (label.scope === 'both' || scope === 'both' || label.scope === scope),
+    );
+    if (duplicate) {
+      throw new ConflictException(`Label "${name}" already exists in this scope`);
+    }
+
+    const label = new Label({ ...dto, name, scope });
     this.em.persist(label);
     await this.em.flush();
     return label;
@@ -28,7 +41,19 @@ export class LabelsService {
     const label = await this.em.findOne(Label, { id });
     if (!label) throw new NotFoundException(`Label ${id} not found`);
 
-    Object.assign(label, dto);
+    const name = dto.name?.trim() ?? label.name;
+    const scope = dto.scope ?? label.scope;
+    const labels = await this.em.find(Label, { id: { $ne: id } });
+    const duplicate = labels.some(
+      (candidate) =>
+        candidate.name.trim().toLocaleLowerCase() === name.toLocaleLowerCase() &&
+        (candidate.scope === 'both' || scope === 'both' || candidate.scope === scope),
+    );
+    if (duplicate) {
+      throw new ConflictException(`Label "${name}" already exists in this scope`);
+    }
+
+    Object.assign(label, { ...dto, name, scope });
     await this.em.flush();
     return label;
   }
@@ -36,6 +61,11 @@ export class LabelsService {
   async delete(id: string) {
     const label = await this.em.findOne(Label, { id });
     if (label) {
+      const [issueLinks, projectLinks] = await Promise.all([
+        this.em.find(IssueLabel, { labelId: id }),
+        this.em.find(ProjectLabel, { labelId: id }),
+      ]);
+      this.em.remove([...issueLinks, ...projectLinks]);
       this.em.remove(label);
       await this.em.flush();
     }

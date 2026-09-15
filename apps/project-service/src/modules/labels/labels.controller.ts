@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CreateLabelDto, UpdateLabelDto } from './dto/label.dto';
 import { LabelsService } from './labels.service';
@@ -10,8 +10,8 @@ export class LabelsController {
 
   @ApiOperation({ summary: 'Get all labels' })
   @Get()
-  findAll() {
-    return this.labelsService.findAll();
+  findAll(@Query('scope') scope?: 'issue' | 'project') {
+    return this.labelsService.findAll(scope);
   }
 
   @ApiOperation({ summary: 'Get label by ID' })

@@ -3,10 +3,10 @@ import { labelsService, LabelItem } from '@/services/labels.service';
 import { labelKeys } from './keys';
 import { toast } from 'sonner';
 
-export function useLabels() {
+export function useLabels(scope: 'issue' | 'project' = 'issue') {
    return useQuery({
-      queryKey: labelKeys.lists(),
-      queryFn: () => labelsService.getLabels(),
+      queryKey: labelKeys.list(scope),
+      queryFn: () => labelsService.getLabels(scope),
    });
 }
 

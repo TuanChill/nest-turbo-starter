@@ -4,13 +4,14 @@ export interface LabelItem {
    id: string;
    name: string;
    color: string;
+   scope?: 'issue' | 'project' | 'both';
 }
 
 export type LabelInterface = LabelItem;
 
 export const labelsService = {
-   async getLabels(): Promise<LabelItem[]> {
-      return apiClient<LabelItem[]>('/circle/api/labels');
+   async getLabels(scope: 'issue' | 'project' = 'issue'): Promise<LabelItem[]> {
+      return apiClient<LabelItem[]>('/circle/api/labels', { params: { scope } });
    },
 
    async createLabel(payload: Partial<LabelItem>): Promise<LabelItem> {

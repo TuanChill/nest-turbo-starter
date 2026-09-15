@@ -2,6 +2,8 @@ import { EntityRepositoryType } from '@mikro-orm/core';
 import { Entity, PrimaryKey, Property } from '@mikro-orm/decorators/legacy';
 import { LabelRepository } from './label.repository';
 
+export type LabelScope = 'issue' | 'project' | 'both';
+
 @Entity({ tableName: 'labels', repository: () => LabelRepository })
 export class Label {
   [EntityRepositoryType]?: LabelRepository;
@@ -14,6 +16,9 @@ export class Label {
 
   @Property({ type: 'string' })
   color: string;
+
+  @Property({ type: 'string', default: 'both' })
+  scope: LabelScope = 'both';
 
   constructor(partial?: Partial<Label>) {
     if (partial) {

@@ -7,6 +7,7 @@ import { Issue } from '@/mock-data/issues';
 import { getCycleById } from '@/mock-data/cycles';
 import { ProjectDetail } from '@/mock-data/project-details';
 import { Project } from '@/mock-data/projects';
+import { LabelInterface } from '@/mock-data/labels';
 import { useTeams } from '@/hooks/queries/use-teams-query';
 import { PanelFilterTarget, usePanelFilter } from '@/components/common/issues/use-panel-filter';
 import { cn } from '@/lib/utils';
@@ -18,8 +19,9 @@ import { LeadSelector } from '../lead-selector';
 import { DatePicker } from '../date-picker';
 import { useUpdateProject, useToggleMilestone } from '@/hooks/queries/use-projects-query';
 import { AddMilestonePopover } from '../add-milestone-popover';
-import { ArrowRight, Calendar, Check, Compass, Plus, Slack, Tag, UserPlus } from 'lucide-react';
+import { ArrowRight, Calendar, Check, Compass, Slack, UserPlus } from 'lucide-react';
 import { useMemo } from 'react';
+import { LabelSelector } from '@/components/layout/sidebar/create-new-issue/label-selector';
 
 interface ProjectPropertiesPanelProps {
    project: Project;
@@ -149,6 +151,12 @@ export function ProjectPropertiesPanel({ project, detail, issues }: ProjectPrope
          payload: {
             targetDate: date ? format(date, 'yyyy-MM-dd') : undefined,
          } as unknown as Partial<Project>,
+      });
+   };
+   const handleLabelsChange = (newLabels: LabelInterface[]) => {
+      updateProjectMutation.mutate({
+         id: project.id,
+         payload: { labelIds: newLabels.map((label) => label.id) } as unknown as Partial<Project>,
       });
    };
 
@@ -304,12 +312,6 @@ export function ProjectPropertiesPanel({ project, detail, issues }: ProjectPrope
                </PropertyRow>
                <PropertyRow label="Labels">
                   <div className="flex items-center gap-1.5">
-                     {project.labels.length === 0 && (
-                        <span className="inline-flex items-center gap-1.5 text-muted-foreground">
-                           <Tag className="size-3.5" />
-                           Add label
-                        </span>
-                     )}
                      {project.labels.map((label) => (
                         <span
                            key={label.id}
@@ -322,9 +324,16 @@ export function ProjectPropertiesPanel({ project, detail, issues }: ProjectPrope
                            {label.name}
                         </span>
                      ))}
-                     <button className="text-muted-foreground hover:text-foreground transition-colors">
-                        <Plus className="size-3.5" />
-                     </button>
+                     {project.labels.length === 0 && (
+                        <span className="text-xs text-muted-foreground">Add label</span>
+                     )}
+                     <LabelSelector
+                        selectedLabels={project.labels}
+                        onChange={handleLabelsChange}
+                        showCounts={false}
+                        allowCreate
+                        scope="project"
+                     />
                   </div>
                </PropertyRow>
             </div>

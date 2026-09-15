@@ -14,6 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { health as allHealth } from '@/mock-data/projects';
 import { priorities } from '@/mock-data/priorities';
 import { useProjectsFilterStore } from '@/store/projects-filter-store';
+import { useLabels } from '@/hooks/queries/use-labels-query';
 import { useState } from 'react';
 import {
    ArrowUpDown,
@@ -22,9 +23,10 @@ import {
    ChevronRight,
    HeartPulse,
    ListFilter,
+   Tag,
 } from 'lucide-react';
 
-type FilterType = 'health' | 'priority' | 'sort';
+type FilterType = 'health' | 'priority' | 'labels' | 'sort';
 
 export function Filter() {
    const [open, setOpen] = useState(false);
@@ -32,6 +34,7 @@ export function Filter() {
 
    const { filters, sort, toggleFilter, clearFilters, getActiveFiltersCount, setSort } =
       useProjectsFilterStore();
+   const { data: labels = [] } = useLabels('project');
 
    return (
       <Popover open={open} onOpenChange={setOpen}>
@@ -80,6 +83,23 @@ export function Filter() {
                               {filters.priority.length > 0 && (
                                  <span className="text-xs text-muted-foreground mr-1">
                                     {filters.priority.length}
+                                 </span>
+                              )}
+                              <ChevronRight className="size-4" />
+                           </div>
+                        </CommandItem>
+                        <CommandItem
+                           onSelect={() => setActive('labels')}
+                           className="flex items-center justify-between cursor-pointer"
+                        >
+                           <span className="flex items-center gap-2">
+                              <Tag className="size-4 text-muted-foreground" />
+                              Labels
+                           </span>
+                           <div className="flex items-center">
+                              {filters.labels.length > 0 && (
+                                 <span className="text-xs text-muted-foreground mr-1">
+                                    {filters.labels.length}
                                  </span>
                               )}
                               <ChevronRight className="size-4" />
@@ -177,6 +197,43 @@ export function Filter() {
                                  {p.name}
                               </div>
                               {filters.priority.includes(p.id) && <CheckIcon size={16} />}
+                           </CommandItem>
+                        ))}
+                     </CommandGroup>
+                  </CommandList>
+               </Command>
+            ) : active === 'labels' ? (
+               <Command>
+                  <div className="flex items-center border-b p-2">
+                     <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-6"
+                        onClick={() => setActive(null)}
+                     >
+                        <ChevronRight className="size-4 rotate-180" />
+                     </Button>
+                     <span className="ml-2 font-medium">Labels</span>
+                  </div>
+                  <CommandInput placeholder="Search project labels..." />
+                  <CommandList>
+                     <CommandEmpty>No project labels found.</CommandEmpty>
+                     <CommandGroup>
+                        {labels.map((label) => (
+                           <CommandItem
+                              key={label.id}
+                              value={`${label.name} ${label.id}`}
+                              onSelect={() => toggleFilter('labels', label.id)}
+                              className="flex items-center justify-between"
+                           >
+                              <span className="flex items-center gap-2">
+                                 <span
+                                    className="size-2.5 rounded-full"
+                                    style={{ backgroundColor: label.color }}
+                                 />
+                                 {label.name}
+                              </span>
+                              {filters.labels.includes(label.id) && <CheckIcon size={16} />}
                            </CommandItem>
                         ))}
                      </CommandGroup>

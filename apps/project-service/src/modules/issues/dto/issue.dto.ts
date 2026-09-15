@@ -1,6 +1,13 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsArray, IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import {
+  ArrayUnique,
+  IsArray,
+  IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 
 export class CreateIssueDto {
   @ApiPropertyOptional({ example: 'LNUI-701' })
@@ -68,6 +75,8 @@ export class CreateIssueDto {
 
   @ApiPropertyOptional({ type: [String] })
   @IsArray()
+  @ArrayUnique()
+  @IsString({ each: true })
   @IsOptional()
   labelIds?: string[];
 
@@ -146,6 +155,8 @@ export class UpdateIssueDto {
 
   @ApiPropertyOptional({ type: [String] })
   @IsArray()
+  @ArrayUnique()
+  @IsString({ each: true })
   @IsOptional()
   labelIds?: string[];
 

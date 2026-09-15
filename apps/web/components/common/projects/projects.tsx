@@ -72,6 +72,10 @@ export default function Projects({ teamId }: { teamId?: string }) {
          const prioritySet = new Set(filters.priority);
          list = list.filter((project) => prioritySet.has(project.priority.id));
       }
+      if (filters.labels.length > 0) {
+         const labelSet = new Set(filters.labels);
+         list = list.filter((project) => project.labels.some((label) => labelSet.has(label.id)));
+      }
 
       const compare = (a: Project, b: Project) => {
          switch (ordering) {

@@ -72,6 +72,7 @@ export const cycleKeys = {
 export const labelKeys = {
    all: ['labels'] as const,
    lists: () => [...labelKeys.all, 'list'] as const,
+   list: (scope: 'issue' | 'project' = 'issue') => [...labelKeys.lists(), { scope }] as const,
 };
 
 export const reviewKeys = {

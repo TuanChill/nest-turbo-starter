@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
+  ArrayUnique,
   IsArray,
   IsEnum,
   IsNotEmpty,
@@ -77,6 +78,8 @@ export class CreateProjectDto {
 
   @ApiPropertyOptional({ type: [String] })
   @IsArray()
+  @ArrayUnique()
+  @IsString({ each: true })
   @IsOptional()
   labelIds?: string[];
 
@@ -161,6 +164,8 @@ export class UpdateProjectDto {
 
   @ApiPropertyOptional({ type: [String] })
   @IsArray()
+  @ArrayUnique()
+  @IsString({ each: true })
   @IsOptional()
   labelIds?: string[];
 

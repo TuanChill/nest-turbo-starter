@@ -252,6 +252,9 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
                            <LabelSelector
                               selectedLabels={project.labels}
                               onChange={handleLabelsChange}
+                              showCounts={false}
+                              allowCreate
+                              scope="project"
                            />
                         </div>
                      </div>

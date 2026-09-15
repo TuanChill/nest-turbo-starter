@@ -111,7 +111,7 @@ export function CreateProjectDialog({
    const { data: teams = [] } = useTeams();
    const { data: members = [] } = useMembers();
    const { data: initiatives = [] } = useInitiatives();
-   const { data: labels = [] } = useLabels();
+   const { data: labels = [] } = useLabels('project');
 
    const [name, setName] = React.useState('');
    const [teamId, setTeamId] = React.useState(defaultTeamId || (teams[0]?.id ?? 'CORE'));

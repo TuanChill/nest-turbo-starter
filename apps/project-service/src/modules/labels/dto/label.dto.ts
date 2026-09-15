@@ -1,5 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+
+const LABEL_SCOPES = ['issue', 'project', 'both'] as const;
+type LabelScope = (typeof LABEL_SCOPES)[number];
 
 export class CreateLabelDto {
   @ApiProperty({ example: 'ui' })
@@ -16,6 +19,11 @@ export class CreateLabelDto {
   @IsString()
   @IsNotEmpty()
   color: string;
+
+  @ApiPropertyOptional({ enum: LABEL_SCOPES, default: 'both' })
+  @IsEnum(LABEL_SCOPES)
+  @IsOptional()
+  scope?: LabelScope;
 }
 
 export class UpdateLabelDto {
@@ -28,4 +36,9 @@ export class UpdateLabelDto {
   @IsString()
   @IsOptional()
   color?: string;
+
+  @ApiPropertyOptional({ enum: LABEL_SCOPES })
+  @IsEnum(LABEL_SCOPES)
+  @IsOptional()
+  scope?: LabelScope;
 }

@@ -1,5 +1,5 @@
 import { EntityManager } from '@mikro-orm/core';
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { v7 } from 'uuid';
 import {
   AddReactionDto,
@@ -91,6 +91,19 @@ export class IssuesService {
     if (!accessibleTeamIds.includes(teamId)) {
       throw new NotFoundException(notFoundMessage);
     }
+  }
+
+  private async validateLabelIds(labelIds: string[]) {
+    const labels = await this.em.find(Label, {
+      id: { $in: labelIds },
+      scope: { $in: ['issue', 'both'] },
+    });
+    const existingIds = new Set(labels.map((label) => label.id));
+    const missingIds = labelIds.filter((labelId) => !existingIds.has(labelId));
+    if (missingIds.length > 0) {
+      throw new BadRequestException(`Unknown issue label(s): ${missingIds.join(', ')}`);
+    }
+    return labelIds;
   }
 
   /** assignee + creator + everyone who has commented, minus the actor causing the event. */
@@ -254,7 +267,7 @@ export class IssuesService {
     });
 
     const members = await this.em.find(Member, {});
-    const labels = await this.em.find(Label, {});
+    const labels = await this.em.find(Label, { scope: { $in: ['issue', 'both'] } });
     const projects = await this.em.find(Project, {});
     const issueLabels = await this.em.find(IssueLabel, {});
 
@@ -314,7 +327,7 @@ export class IssuesService {
     }
 
     const members = await this.em.find(Member, {});
-    const labels = await this.em.find(Label, {});
+    const labels = await this.em.find(Label, { scope: { $in: ['issue', 'both'] } });
     const projects = await this.em.find(Project, {});
     const issueLabels = await this.em.find(IssueLabel, {
       $or: [{ issueId: issue.id }, { issueId: issue.identifier }],
@@ -545,8 +558,9 @@ export class IssuesService {
 
     this.em.persist(issue);
 
-    if (dto.labelIds && dto.labelIds.length > 0) {
-      const ilEntities = dto.labelIds.map((lid) => new IssueLabel(identifier, lid));
+    if (dto.labelIds !== undefined) {
+      const labelIds = await this.validateLabelIds(dto.labelIds);
+      const ilEntities = labelIds.map((lid) => new IssueLabel(identifier, lid));
       this.em.persist(ilEntities);
     }
 
@@ -710,14 +724,15 @@ export class IssuesService {
     if (dto.milestone !== undefined) issue.milestone = dto.milestone;
 
     if (dto.labelIds !== undefined) {
+      const labelIds = await this.validateLabelIds(dto.labelIds);
       const existing = await this.em.find(IssueLabel, {
         $or: [{ issueId: issue.id }, { issueId: issue.identifier }],
       });
       for (const e of existing) {
         this.em.remove(e);
       }
-      if (dto.labelIds.length > 0) {
-        const newIls = dto.labelIds.map((lid) => new IssueLabel(issue.identifier, lid));
+      if (labelIds.length > 0) {
+        const newIls = labelIds.map((lid) => new IssueLabel(issue.identifier, lid));
         this.em.persist(newIls);
       }
     }

@@ -11,25 +11,44 @@ import {
 } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useIssuesStore } from '@/store/issues-store';
-import { useLabels } from '@/hooks/queries/use-labels-query';
+import { useCreateLabel, useLabels } from '@/hooks/queries/use-labels-query';
 import { LabelInterface, labels as mockLabels } from '@/mock-data/labels';
-import { CheckIcon, TagIcon } from 'lucide-react';
+import { CheckIcon, Loader2, Plus, TagIcon } from 'lucide-react';
 import { useId, useState } from 'react';
 import { cn } from '@/lib/utils';
 
 interface LabelSelectorProps {
    selectedLabels: LabelInterface[];
    onChange: (labels: LabelInterface[]) => void;
+   /** Project labels do not show issue counts in Linear's project label menu. */
+   showCounts?: boolean;
+   /** Linear allows creating a project label directly from the label menu. */
+   allowCreate?: boolean;
+   scope?: 'issue' | 'project';
 }
 
-export function LabelSelector({ selectedLabels, onChange }: LabelSelectorProps) {
+export function LabelSelector({
+   selectedLabels,
+   onChange,
+   showCounts = true,
+   allowCreate = false,
+   scope = 'issue',
+}: LabelSelectorProps) {
    const id = useId();
    const [open, setOpen] = useState<boolean>(false);
+   const [search, setSearch] = useState('');
+   const [isCreating, setIsCreating] = useState(false);
 
    const { filterByLabel } = useIssuesStore();
-   const { data: labels = [] } = useLabels();
+   const { data: labels = [] } = useLabels(scope);
+   const createLabelMutation = useCreateLabel();
 
    const allLabels = labels.length > 0 ? labels : mockLabels;
+   const normalizedSearch = search.trim().toLocaleLowerCase();
+   const canCreate =
+      allowCreate &&
+      normalizedSearch.length > 0 &&
+      !allLabels.some((label) => label.name.toLocaleLowerCase() === normalizedSearch);
 
    const handleLabelToggle = (label: LabelInterface) => {
       const isSelected = selectedLabels.some((l) => l.id === label.id);
@@ -42,6 +61,31 @@ export function LabelSelector({ selectedLabels, onChange }: LabelSelectorProps) 
       }
 
       onChange(newLabels);
+   };
+
+   const handleCreateLabel = async () => {
+      const name = search.trim();
+      if (!name || isCreating) return;
+
+      setIsCreating(true);
+      try {
+         const slug = name
+            .toLocaleLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-|-$/g, '')
+            .slice(0, 48);
+         const created = await createLabelMutation.mutateAsync({
+            id: `${slug || 'label'}-${crypto.randomUUID().slice(0, 8)}`,
+            name,
+            color: '#8b5cf6',
+            scope,
+         });
+         onChange([...selectedLabels, created]);
+         setSearch('');
+         setOpen(false);
+      } finally {
+         setIsCreating(false);
+      }
    };
 
    return (
@@ -78,16 +122,50 @@ export function LabelSelector({ selectedLabels, onChange }: LabelSelectorProps) 
                align="start"
             >
                <Command>
-                  <CommandInput placeholder="Search labels..." />
+                  <CommandInput
+                     placeholder="Search labels..."
+                     value={search}
+                     onValueChange={setSearch}
+                  />
                   <CommandList>
-                     <CommandEmpty>No labels found.</CommandEmpty>
+                     <CommandEmpty>
+                        {canCreate ? 'Create a new label below.' : 'No labels found.'}
+                     </CommandEmpty>
+                     {canCreate && (
+                        <CommandGroup>
+                           <CommandItem
+                              value={`create ${search}`}
+                              onMouseDown={(event) => {
+                                 if (event.button === 0) {
+                                    event.preventDefault();
+                                    void handleCreateLabel();
+                                 }
+                              }}
+                              onKeyDown={(event) => {
+                                 if (event.key === 'Enter' || event.key === ' ') {
+                                    event.preventDefault();
+                                    void handleCreateLabel();
+                                 }
+                              }}
+                              disabled={isCreating}
+                              className="text-primary"
+                           >
+                              {isCreating ? (
+                                 <Loader2 className="size-4 animate-spin" />
+                              ) : (
+                                 <Plus className="size-4" />
+                              )}
+                              Create “{search.trim()}”
+                           </CommandItem>
+                        </CommandGroup>
+                     )}
                      <CommandGroup>
                         {allLabels.map((label) => {
                            const isSelected = selectedLabels.some((l) => l.id === label.id);
                            return (
                               <CommandItem
                                  key={label.id}
-                                 value={label.id}
+                                 value={`${label.name} ${label.id}`}
                                  onMouseDown={(event) => {
                                     if (event.button === 0) {
                                        event.preventDefault();
@@ -110,9 +188,11 @@ export function LabelSelector({ selectedLabels, onChange }: LabelSelectorProps) 
                                     <span>{label.name}</span>
                                  </div>
                                  {isSelected && <CheckIcon size={16} className="ml-auto" />}
-                                 <span className="text-muted-foreground text-xs">
-                                    {filterByLabel(label.id).length}
-                                 </span>
+                                 {showCounts && (
+                                    <span className="text-muted-foreground text-xs">
+                                       {filterByLabel(label.id).length}
+                                    </span>
+                                 )}
                               </CommandItem>
                            );
                         })}

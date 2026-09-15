@@ -1,5 +1,5 @@
 import { EntityManager } from '@mikro-orm/core';
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { v7 } from 'uuid';
 import {
   CreateMilestoneDto,
@@ -92,6 +92,25 @@ export class ProjectsService {
     }
   }
 
+  /**
+   * Project labels are a replace-all property, like Linear's project label
+   * picker. Validate the full set before changing the join table so an invalid
+   * label can never be silently ignored by transformProject().
+   */
+  private async validateLabelIds(labelIds: string[]) {
+    const uniqueLabelIds = [...new Set(labelIds)];
+    const labels = await this.em.find(Label, {
+      id: { $in: uniqueLabelIds },
+      scope: { $in: ['project', 'both'] },
+    });
+    const existingIds = new Set(labels.map((label) => label.id));
+    const missingIds = uniqueLabelIds.filter((labelId) => !existingIds.has(labelId));
+    if (missingIds.length > 0) {
+      throw new BadRequestException(`Unknown project label(s): ${missingIds.join(', ')}`);
+    }
+    return uniqueLabelIds;
+  }
+
   private transformProject(
     project: Project,
     membersMap: Map<string, any>,
@@ -171,7 +190,7 @@ export class ProjectsService {
 
     const projects = await this.em.find(Project, where);
     const members = await this.em.find(Member, {});
-    const labels = await this.em.find(Label, {});
+    const labels = await this.em.find(Label, { scope: { $in: ['project', 'both'] } });
     const projectLabels = await this.em.find(ProjectLabel, {});
     const issues = await this.em.find(Issue, {
       projectId: { $in: projects.map((p) => p.id) },
@@ -206,7 +225,7 @@ export class ProjectsService {
     }
 
     const members = await this.em.find(Member, {});
-    const labels = await this.em.find(Label, {});
+    const labels = await this.em.find(Label, { scope: { $in: ['project', 'both'] } });
     const projectLabels = await this.em.find(ProjectLabel, { projectId: id });
     const issues = await this.em.find(Issue, { projectId: id });
 
@@ -292,8 +311,9 @@ export class ProjectsService {
 
     this.em.persist(project);
 
-    if (dto.labelIds && dto.labelIds.length > 0) {
-      const plEntities = dto.labelIds.map((lid) => new ProjectLabel(id, lid));
+    if (dto.labelIds !== undefined) {
+      const labelIds = await this.validateLabelIds(dto.labelIds);
+      const plEntities = labelIds.map((lid) => new ProjectLabel(id, lid));
       this.em.persist(plEntities);
     }
     await this.em.flush();
@@ -330,12 +350,13 @@ export class ProjectsService {
     if (dto.resources !== undefined) project.resources = dto.resources;
 
     if (dto.labelIds !== undefined) {
+      const labelIds = await this.validateLabelIds(dto.labelIds);
       const existing = await this.em.find(ProjectLabel, { projectId: id });
       for (const e of existing) {
         this.em.remove(e);
       }
-      if (dto.labelIds.length > 0) {
-        const newPl = dto.labelIds.map((lid) => new ProjectLabel(id, lid));
+      if (labelIds.length > 0) {
+        const newPl = labelIds.map((lid) => new ProjectLabel(id, lid));
         this.em.persist(newPl);
       }
     }
