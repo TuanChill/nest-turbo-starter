@@ -37,6 +37,7 @@ Reference set: [Linear Docs](https://linear.app/docs), [Projects](https://linear
 - Member responses now filter returned team IDs to teams visible to the requester, preventing cross-workspace team metadata from leaking through an otherwise valid member lookup. The production Agent route now returns an explicit not-configured error instead of canned workspace data; the UI surfaces that API error.
 - Saved-view create/update now validates referenced projects against the view workspace and selected team, preventing cross-workspace or unrelated-team project references.
 - Review detail, diff, and guide views now consume persisted API payloads only; synthetic review/diff fallbacks were removed. Review issue references are validated against the same accessible workspace/team, and review timestamps are returned as real relative times.
+- Issue creation no longer falls back to the arbitrary `ENG`/`CORE` team IDs. It now requires an actual route/project-selected team and shows an error before sending an invalid request.
 
 ## Verification evidence (2026-09-15)
 

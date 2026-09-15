@@ -74,7 +74,7 @@ export function CreateNewIssue() {
    const routeTeamId = routeTeamMatch ? routeTeamMatch[1] : null;
 
    const activeProject = defaultProject || routeProject || undefined;
-   const activeTeamId = activeProject?.teamId || defaultTeamId || routeTeamId || teams[0]?.id;
+   const activeTeamId = activeProject?.teamId || defaultTeamId || routeTeamId || undefined;
    const activeTeam = teams.find((t) => t.id === activeTeamId);
    const { data: issueTemplates = [] } = useIssueTemplates(resolvedWorkspaceId, activeTeamId);
 
@@ -168,6 +168,10 @@ export function CreateNewIssue() {
          toast.error('Title is required');
          return;
       }
+      if (!activeTeamId) {
+         toast.error('Select a team before creating an issue');
+         return;
+      }
 
       setIsSubmitting(true);
       try {
@@ -180,7 +184,7 @@ export function CreateNewIssue() {
             statusCategory: addIssueForm.status?.category,
             priorityId: addIssueForm.priority?.id,
             assigneeId: addIssueForm.assignee?.id,
-            teamId: addIssueForm.project?.teamId || activeProject?.teamId || activeTeamId || 'ENG',
+            teamId: addIssueForm.project?.teamId || activeProject?.teamId || activeTeamId,
             projectId: addIssueForm.project?.id || activeProject?.id,
             cycleId: addIssueForm.cycleId,
             labelIds: addIssueForm.labels?.map((l) => l.id),
@@ -214,7 +218,7 @@ export function CreateNewIssue() {
                         ) : (
                            <Heart className="size-4 text-orange-500 fill-orange-500" />
                         )}
-                        <span className="font-medium">{activeTeam?.id || 'CORE'}</span>
+                        <span className="font-medium">{activeTeam?.id || 'Select team'}</span>
                      </Button>
                   </div>
                </DialogTitle>
