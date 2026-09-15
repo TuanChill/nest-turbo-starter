@@ -38,6 +38,27 @@ export class WorkspacesService {
     return Array.from(teamIds);
   }
 
+  /** Workspaces visible to a member, including workspaces reached through a team membership. */
+  async getAccessibleWorkspaceIds(memberId: string): Promise<string[]> {
+    const [workspaceMemberships, teamMemberships] = await Promise.all([
+      this.em.find(WorkspaceMember, { memberId }),
+      this.em.find(TeamMember, { memberId }),
+    ]);
+
+    const workspaceIds = new Set(
+      workspaceMemberships.map((membership) => membership.workspaceId),
+    );
+    const teamIds = teamMemberships.map((membership) => membership.teamId);
+    if (teamIds.length > 0) {
+      const teams = await this.em.find(Team, { id: { $in: teamIds } });
+      for (const team of teams) {
+        if (team.workspaceId) workspaceIds.add(team.workspaceId);
+      }
+    }
+
+    return Array.from(workspaceIds);
+  }
+
   private slugify(text: string): string {
     return text
       .toString()

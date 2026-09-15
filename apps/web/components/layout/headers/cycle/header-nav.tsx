@@ -3,15 +3,26 @@
 import { CyclePlayIcon } from '@/components/common/cycles/cycle-line';
 import { Button } from '@/components/ui/button';
 import {
+   AlertDialog,
+   AlertDialogAction,
+   AlertDialogCancel,
+   AlertDialogContent,
+   AlertDialogDescription,
+   AlertDialogFooter,
+   AlertDialogHeader,
+   AlertDialogTitle,
+   AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import {
    DropdownMenu,
    DropdownMenuContent,
    DropdownMenuItem,
    DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { SidebarTrigger } from '@/components/ui/sidebar';
-import { useCycles } from '@/hooks/queries/use-cycles-query';
+import { useCycles, useDeleteCycle } from '@/hooks/queries/use-cycles-query';
 import { useTeams } from '@/hooks/queries/use-teams-query';
-import { CheckCircle2, ChevronRight, Link2, MoreHorizontal, Star } from 'lucide-react';
+import { CheckCircle2, ChevronRight, Link2, MoreHorizontal, Star, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
@@ -29,6 +40,7 @@ export default function HeaderNav({ cycleView }: { cycleView: CycleView }) {
    const nextCycle = cycles.find((c) => c.status === 'upcoming');
    const cycleName = cycle?.name ?? (cycleView === 'active' ? 'Current cycle' : 'Upcoming cycle');
    const [isCompleteOpen, setIsCompleteOpen] = useState(false);
+   const deleteCycleMutation = useDeleteCycle();
 
    const handleCopyLink = () => {
       const url = `${window.location.origin}/${orgId}/team/${team.id}/cycle/${cycleView}`;
@@ -80,6 +92,33 @@ export default function HeaderNav({ cycleView }: { cycleView: CycleView }) {
                         <CheckCircle2 className="size-3.5" />
                         Complete cycle
                      </DropdownMenuItem>
+                  )}
+                  {cycle && (
+                     <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                           <DropdownMenuItem onSelect={(event) => event.preventDefault()}>
+                              <Trash2 className="size-3.5" />
+                              Delete cycle
+                           </DropdownMenuItem>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                           <AlertDialogHeader>
+                              <AlertDialogTitle>Delete {cycle.name}?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                 Issues in this cycle will return to the team backlog. This action
+                                 cannot be undone from the UI.
+                              </AlertDialogDescription>
+                           </AlertDialogHeader>
+                           <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                 onClick={() => deleteCycleMutation.mutate(cycle.id)}
+                              >
+                                 Delete cycle
+                              </AlertDialogAction>
+                           </AlertDialogFooter>
+                        </AlertDialogContent>
+                     </AlertDialog>
                   )}
                </DropdownMenuContent>
             </DropdownMenu>

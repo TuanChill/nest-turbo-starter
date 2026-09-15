@@ -16,6 +16,7 @@ import {
   ProjectMember,
   ProjectMilestone,
   ProjectUpdate,
+  Team,
   toSafeMember,
 } from '../../data-access';
 import { WorkspacesService } from '../workspaces/workspaces.service';
@@ -98,11 +99,13 @@ export class ProjectsService {
    * picker. Validate the full set before changing the join table so an invalid
    * label can never be silently ignored by transformProject().
    */
-  private async validateLabelIds(labelIds: string[]) {
+  private async validateLabelIds(labelIds: string[], teamId: string) {
     const uniqueLabelIds = [...new Set(labelIds)];
+    const team = await this.em.findOne(Team, { id: teamId });
     const labels = await this.em.find(Label, {
       id: { $in: uniqueLabelIds },
       scope: { $in: ['project', 'both'] },
+      ...(team?.workspaceId ? { workspaceId: team.workspaceId } : {}),
     });
     const existingIds = new Set(labels.map((label) => label.id));
     const missingIds = uniqueLabelIds.filter((labelId) => !existingIds.has(labelId));
@@ -338,7 +341,7 @@ export class ProjectsService {
     this.em.persist(project);
 
     if (dto.labelIds !== undefined) {
-      const labelIds = await this.validateLabelIds(dto.labelIds);
+      const labelIds = await this.validateLabelIds(dto.labelIds, dto.teamId);
       const plEntities = labelIds.map((lid) => new ProjectLabel(id, lid));
       this.em.persist(plEntities);
     }
@@ -376,7 +379,7 @@ export class ProjectsService {
     if (dto.resources !== undefined) project.resources = dto.resources;
 
     if (dto.labelIds !== undefined) {
-      const labelIds = await this.validateLabelIds(dto.labelIds);
+      const labelIds = await this.validateLabelIds(dto.labelIds, project.teamId);
       const existing = await this.em.find(ProjectLabel, { projectId: id });
       for (const e of existing) {
         this.em.remove(e);

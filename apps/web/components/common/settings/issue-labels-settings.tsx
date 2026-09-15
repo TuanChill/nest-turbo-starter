@@ -12,9 +12,15 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label as FormLabel } from '@/components/ui/label';
 import { useIssues } from '@/hooks/queries/use-issues-query';
-import { useCreateLabel, useLabels } from '@/hooks/queries/use-labels-query';
+import {
+   useCreateLabel,
+   useCreateLabelGroup,
+   useLabelGroups,
+   useLabels,
+} from '@/hooks/queries/use-labels-query';
 import { Loader2 } from 'lucide-react';
 import { FormEvent, useMemo, useState } from 'react';
+import { useParams } from 'next/navigation';
 import { SelectMenu } from './shared';
 
 /** Matches the color names already used by existing labels (label.color is a CSS color keyword). */
@@ -39,28 +45,7 @@ const slugify = (value: string) =>
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '');
 
-/** Invented descriptions for a few labels (Linear shows a Description column). */
-const DESCRIPTIONS: Record<string, string> = {
-   bug: 'Something is broken and needs a fix',
-   accessibility: 'Keyboard, focus and screen-reader work',
-   performance: 'Speed, memory and bundle size work',
-};
-
-const hashString = (value: string): number => {
-   let hash = 0;
-   for (let i = 0; i < value.length; i++) hash = (hash * 31 + value.charCodeAt(i)) >>> 0;
-   return hash;
-};
-
-const LAST_APPLIED = [
-   '12 minutes ago',
-   '41 minutes ago',
-   '3 hours ago',
-   '17 hours ago',
-   '2 days ago',
-   '6 days ago',
-];
-const CREATED = ['Sep 2023', 'Jan 2024', 'Jun 2024', 'Feb 2025', 'Jun 2025', 'Jul 12'];
+const formatDate = (value?: string) => (value ? new Date(value).toLocaleDateString() : '—');
 
 const formatCount = (count: number) =>
    count >= 1000 ? `${(count / 1000).toFixed(1)}K` : String(count);
@@ -71,10 +56,16 @@ export default function IssueLabelsSettings() {
    const { data: issues = [] } = useIssues();
    const { data: labels = [] } = useLabels();
    const createLabel = useCreateLabel();
+   const createLabelGroup = useCreateLabelGroup();
+   const { data: groups = [] } = useLabelGroups('issue');
+   const { orgId } = useParams<{ orgId: string }>();
 
    const [isCreateOpen, setIsCreateOpen] = useState(false);
    const [newLabelName, setNewLabelName] = useState('');
    const [newLabelColor, setNewLabelColor] = useState(LABEL_COLOR_OPTIONS[0]);
+   const [newLabelGroupId, setNewLabelGroupId] = useState('');
+   const [isGroupOpen, setIsGroupOpen] = useState(false);
+   const [newGroupName, setNewGroupName] = useState('');
 
    const handleCreateLabel = async (event: FormEvent) => {
       event.preventDefault();
@@ -82,13 +73,16 @@ export default function IssueLabelsSettings() {
       if (!name) return;
       await createLabel.mutateAsync({
          id: slugify(name),
+         workspaceId: orgId,
          name,
          color: newLabelColor,
          scope: 'issue',
+         ...(newLabelGroupId ? { groupId: newLabelGroupId } : {}),
       });
       setIsCreateOpen(false);
       setNewLabelName('');
       setNewLabelColor(LABEL_COLOR_OPTIONS[0]);
+      setNewLabelGroupId('');
    };
 
    const rows = useMemo(() => {
@@ -102,9 +96,6 @@ export default function IssueLabelsSettings() {
          .map((label) => ({
             ...label,
             issues: counts.get(label.id) ?? 0,
-            description: DESCRIPTIONS[label.id],
-            lastApplied: LAST_APPLIED[hashString(label.id) % LAST_APPLIED.length],
-            created: CREATED[hashString(label.name) % CREATED.length],
          }))
          .filter((label) => label.name.toLowerCase().includes(query.toLowerCase()))
          .sort((a, b) => a.name.localeCompare(b.name));
@@ -126,7 +117,7 @@ export default function IssueLabelsSettings() {
                   <SelectMenu options={['Workspace', 'All teams']} />
                </div>
                <div className="flex items-center gap-2">
-                  <Button size="xs" variant="secondary">
+                  <Button size="xs" variant="secondary" onClick={() => setIsGroupOpen(true)}>
                      New group
                   </Button>
                   <Button size="xs" onClick={() => setIsCreateOpen(true)}>
@@ -144,28 +135,36 @@ export default function IssueLabelsSettings() {
                <div className="w-[80px]">Created</div>
             </div>
 
-            {rows.map((label) => (
-               <div
-                  key={label.id}
-                  className="flex items-center px-2 py-2.5 text-sm border-b border-muted-foreground/5 hover:bg-sidebar/50"
-               >
-                  <div className="flex-1 min-w-0 flex items-center gap-2.5">
-                     <span
-                        className="size-2.5 rounded-full shrink-0"
-                        style={{ backgroundColor: label.color }}
-                     />
-                     <span className="truncate">{label.name}</span>
+            {rows.map((label, index) => (
+               <div key={label.id}>
+                  {label.groupId &&
+                     groups.find((group) => group.id === label.groupId)?.name &&
+                     (!rows[index - 1] || rows[index - 1].groupId !== label.groupId) && (
+                        <div className="px-2 pt-4 pb-1 text-xs font-medium text-muted-foreground">
+                           {groups.find((group) => group.id === label.groupId)?.name}
+                        </div>
+                     )}
+                  <div className="flex items-center px-2 py-2.5 text-sm border-b border-muted-foreground/5 hover:bg-sidebar/50">
+                     <div className="flex-1 min-w-0 flex items-center gap-2.5">
+                        <span
+                           className="size-2.5 rounded-full shrink-0"
+                           style={{ backgroundColor: label.color }}
+                        />
+                        <span className="truncate">{label.name}</span>
+                     </div>
+                     <div className="hidden md:block w-[260px] text-xs text-muted-foreground truncate pr-4">
+                        {label.description || '—'}
+                     </div>
+                     <div className="w-[70px] text-xs text-muted-foreground">
+                        {label.issues > 0 && formatCount(label.issues)}
+                     </div>
+                     <div className="hidden sm:block w-[110px] text-xs text-muted-foreground">
+                        {label.issues > 0 ? 'Tracked' : '—'}
+                     </div>
+                     <div className="w-[80px] text-xs text-muted-foreground">
+                        {formatDate(label.createdAt)}
+                     </div>
                   </div>
-                  <div className="hidden md:block w-[260px] text-xs text-muted-foreground truncate pr-4">
-                     {label.description}
-                  </div>
-                  <div className="w-[70px] text-xs text-muted-foreground">
-                     {label.issues > 0 && formatCount(label.issues)}
-                  </div>
-                  <div className="hidden sm:block w-[110px] text-xs text-muted-foreground">
-                     {label.issues > 0 && label.lastApplied}
-                  </div>
-                  <div className="w-[80px] text-xs text-muted-foreground">{label.created}</div>
                </div>
             ))}
             {rows.length === 0 && (
@@ -211,6 +210,22 @@ export default function IssueLabelsSettings() {
                            ))}
                         </div>
                      </div>
+                     <div className="space-y-1.5">
+                        <FormLabel htmlFor="new-label-group">Group</FormLabel>
+                        <select
+                           id="new-label-group"
+                           value={newLabelGroupId}
+                           onChange={(event) => setNewLabelGroupId(event.target.value)}
+                           className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                        >
+                           <option value="">No group</option>
+                           {groups.map((group) => (
+                              <option key={group.id} value={group.id}>
+                                 {group.name}
+                              </option>
+                           ))}
+                        </select>
+                     </div>
                   </div>
                   <DialogFooter>
                      <Button
@@ -230,6 +245,62 @@ export default function IssueLabelsSettings() {
                            <Loader2 className="size-3.5 animate-spin" />
                         ) : (
                            'Create label'
+                        )}
+                     </Button>
+                  </DialogFooter>
+               </form>
+            </DialogContent>
+         </Dialog>
+
+         <Dialog open={isGroupOpen} onOpenChange={setIsGroupOpen}>
+            <DialogContent className="sm:max-w-[420px]">
+               <form
+                  onSubmit={async (event) => {
+                     event.preventDefault();
+                     const name = newGroupName.trim();
+                     if (!name) return;
+                     await createLabelGroup.mutateAsync({
+                        workspaceId: orgId,
+                        name,
+                        scope: 'issue',
+                     });
+                     setNewGroupName('');
+                     setIsGroupOpen(false);
+                  }}
+               >
+                  <DialogHeader>
+                     <DialogTitle>New label group</DialogTitle>
+                     <DialogDescription>Group related issue labels together.</DialogDescription>
+                  </DialogHeader>
+                  <div className="py-4 space-y-1.5">
+                     <FormLabel htmlFor="new-label-group-name">Name</FormLabel>
+                     <Input
+                        id="new-label-group-name"
+                        value={newGroupName}
+                        onChange={(event) => setNewGroupName(event.target.value)}
+                        disabled={createLabelGroup.isPending}
+                        autoFocus
+                        required
+                     />
+                  </div>
+                  <DialogFooter>
+                     <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setIsGroupOpen(false)}
+                     >
+                        Cancel
+                     </Button>
+                     <Button
+                        type="submit"
+                        size="sm"
+                        disabled={createLabelGroup.isPending || !newGroupName.trim()}
+                     >
+                        {createLabelGroup.isPending ? (
+                           <Loader2 className="size-3.5 animate-spin" />
+                        ) : (
+                           'Create group'
                         )}
                      </Button>
                   </DialogFooter>

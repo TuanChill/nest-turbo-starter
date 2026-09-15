@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useCycles } from '@/hooks/queries/use-cycles-query';
-import { Cycle } from '@/mock-data/cycles';
+import type { Cycle } from '@/services/cycles.service';
 import { CheckIcon } from 'lucide-react';
 import { useEffect, useId, useState } from 'react';
 

@@ -19,7 +19,7 @@ import {
    DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { SidebarTrigger } from '@/components/ui/sidebar';
-import { filterIssuesForView, filterProjectsForView } from '@/mock-data/views';
+import { filterIssuesForView, filterProjectsForView } from '@/lib/view-filters';
 import { useIssues } from '@/hooks/queries/use-issues-query';
 import { useProjects } from '@/hooks/queries/use-projects-query';
 import { useDeleteView, useViews } from '@/hooks/queries/use-views-query';

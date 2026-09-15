@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { initiativesService, Initiative } from '@/services/initiatives.service';
+import { initiativesService, InitiativeMutationPayload } from '@/services/initiatives.service';
 import { initiativeKeys } from './keys';
 import { toast } from 'sonner';
 
@@ -22,7 +22,8 @@ export function useCreateInitiative() {
    const queryClient = useQueryClient();
 
    return useMutation({
-      mutationFn: (payload: Partial<Initiative>) => initiativesService.createInitiative(payload),
+      mutationFn: (payload: InitiativeMutationPayload) =>
+         initiativesService.createInitiative(payload),
       onSuccess: (newInit) => {
          queryClient.invalidateQueries({ queryKey: initiativeKeys.lists() });
          toast.success(`Initiative "${newInit.name}" created`);
@@ -37,7 +38,7 @@ export function useUpdateInitiative() {
    const queryClient = useQueryClient();
 
    return useMutation({
-      mutationFn: ({ id, payload }: { id: string; payload: Partial<Initiative> }) =>
+      mutationFn: ({ id, payload }: { id: string; payload: InitiativeMutationPayload }) =>
          initiativesService.updateInitiative(id, payload),
       onSuccess: (updated) => {
          queryClient.invalidateQueries({ queryKey: initiativeKeys.lists() });
@@ -46,6 +47,22 @@ export function useUpdateInitiative() {
       },
       onError: (error: Error) => {
          toast.error(error.message || 'Failed to update initiative');
+      },
+   });
+}
+
+export function useDeleteInitiative() {
+   const queryClient = useQueryClient();
+
+   return useMutation({
+      mutationFn: (id: string) => initiativesService.deleteInitiative(id),
+      onSuccess: (_, id) => {
+         queryClient.invalidateQueries({ queryKey: initiativeKeys.lists() });
+         queryClient.removeQueries({ queryKey: initiativeKeys.detail(id) });
+         toast.success('Initiative deleted');
+      },
+      onError: (error: Error) => {
+         toast.error(error.message || 'Failed to delete initiative');
       },
    });
 }

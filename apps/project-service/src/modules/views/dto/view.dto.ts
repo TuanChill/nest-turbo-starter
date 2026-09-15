@@ -2,6 +2,11 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsEnum, IsNotEmpty, IsObject, IsOptional, IsString } from 'class-validator';
 
 export class CreateViewDto {
+  @ApiPropertyOptional({ example: 'circle-workspace' })
+  @IsString()
+  @IsOptional()
+  workspaceId?: string;
+
   @ApiPropertyOptional({ example: 'blocked-3-days' })
   @IsString()
   @IsOptional()

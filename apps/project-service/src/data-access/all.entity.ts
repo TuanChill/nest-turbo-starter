@@ -1,10 +1,12 @@
 import { Cycle } from './cycle/cycle.entity';
 import { DocumentFolder, TeamDocument } from './document/document.entity';
+import { InitiativeActivity } from './initiative/initiative-activity.entity';
 import { Initiative } from './initiative/initiative.entity';
 import { IssueActivity } from './issue/issue-activity.entity';
 import { IssueRelation, PrLink } from './issue/issue-relation.entity';
 import { IssueTemplate } from './issue/issue-template.entity';
 import { Issue } from './issue/issue.entity';
+import { LabelGroup } from './label/label-group.entity';
 import { IssueLabel, Label, ProjectLabel } from './label/label.entity';
 import { Member } from './member/member.entity';
 import { Notification } from './notification/notification.entity';
@@ -40,6 +42,7 @@ export const ALL_ENTITIES = [
   Team,
   TeamMember,
   Label,
+  LabelGroup,
   IssueLabel,
   ProjectLabel,
   Project,
@@ -54,6 +57,7 @@ export const ALL_ENTITIES = [
   IssueRelation,
   PrLink,
   Initiative,
+  InitiativeActivity,
   DocumentFolder,
   TeamDocument,
   Notification,

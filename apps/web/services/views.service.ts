@@ -1,22 +1,33 @@
 import { apiClient } from './api-client';
 import { GroupingKey, OrderingKey, DisplayPropertyKey } from '@/store/display-settings-store';
-import type { User } from '@/mock-data/users';
-import { View, ViewFilter } from '@/mock-data/views';
+export type ViewType = 'issue' | 'project';
 
-export type { View, ViewFilter };
+export interface ViewFilter {
+   statusCategories?: string[];
+   statusIds?: string[];
+   labelIds?: string[];
+   priorityIds?: string[];
+   hasProject?: boolean;
+   unassigned?: boolean;
+   assigneeId?: 'me';
+   filters?: any[];
+   [key: string]: any;
+}
 
-/** Used when a view has no owner on record — never attribute it to a real or mock user. */
-const UNKNOWN_OWNER: User = {
-   id: 'unknown',
-   name: 'Unknown',
-   avatarUrl: '',
-   email: '',
-   status: 'offline',
-   role: 'Member',
-   joinedDate: '',
-   teamIds: [],
-   timezone: 'UTC',
-};
+export interface View {
+   id: string;
+   name: string;
+   description: string;
+   icon: string;
+   type: ViewType;
+   teamId?: string;
+   projectId?: string;
+   layout?: 'list' | 'grid';
+   owner?: { id: string; name: string; avatarUrl?: string | null };
+   createdAt: string;
+   updatedAt: string;
+   filter: ViewFilter;
+}
 
 export interface CustomViewFilter extends ViewFilter {
    filters?: any[];
@@ -31,20 +42,7 @@ export interface CustomViewFilter extends ViewFilter {
    displayProperties?: Partial<Record<DisplayPropertyKey, boolean>>;
 }
 
-export interface CustomView {
-   id: string;
-   name: string;
-   description?: string;
-   icon?: string;
-   type?: 'issue' | 'project';
-   teamId?: string | null;
-   projectId?: string | null;
-   layout?: 'list' | 'grid';
-   owner?: User;
-   createdAt?: string;
-   updatedAt?: string;
-   filter?: CustomViewFilter;
-}
+export type CustomView = View & { filter: CustomViewFilter };
 
 export interface CreateViewPayload {
    id?: string;
@@ -81,26 +79,12 @@ export const viewsService = {
       }
       const qs = params.toString() ? `?${params.toString()}` : '';
       const data = await apiClient<any[]>(`/circle/api/views${qs}`);
-      return data.map((v) => ({
-         ...v,
-         owner: v.owner || UNKNOWN_OWNER,
-         description: v.description || '',
-         createdAt: v.createdAt || new Date().toISOString(),
-         updatedAt: v.updatedAt || new Date().toISOString(),
-         filter: v.filter || {},
-      }));
+      return data as View[];
    },
 
    async getViewById(id: string): Promise<View> {
       const v = await apiClient<any>(`/circle/api/views/${id}`);
-      return {
-         ...v,
-         owner: v.owner || UNKNOWN_OWNER,
-         description: v.description || '',
-         createdAt: v.createdAt || new Date().toISOString(),
-         updatedAt: v.updatedAt || new Date().toISOString(),
-         filter: v.filter || {},
-      };
+      return v as View;
    },
 
    async createView(payload: CreateViewPayload): Promise<View> {
@@ -108,14 +92,7 @@ export const viewsService = {
          method: 'POST',
          body: JSON.stringify(payload),
       });
-      return {
-         ...v,
-         owner: v.owner || UNKNOWN_OWNER,
-         description: v.description || '',
-         createdAt: v.createdAt || new Date().toISOString(),
-         updatedAt: v.updatedAt || new Date().toISOString(),
-         filter: v.filter || {},
-      };
+      return v as View;
    },
 
    async updateView(id: string, payload: Partial<CreateViewPayload>): Promise<View> {
@@ -123,14 +100,7 @@ export const viewsService = {
          method: 'PATCH',
          body: JSON.stringify(payload),
       });
-      return {
-         ...v,
-         owner: v.owner || UNKNOWN_OWNER,
-         description: v.description || '',
-         createdAt: v.createdAt || new Date().toISOString(),
-         updatedAt: v.updatedAt || new Date().toISOString(),
-         filter: v.filter || {},
-      };
+      return v as View;
    },
 
    async deleteView(id: string): Promise<{ success: boolean }> {

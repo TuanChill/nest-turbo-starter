@@ -2,18 +2,14 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
-import { getInitiativeProjects, Initiative } from '@/mock-data/initiatives';
-import { health as allHealth } from '@/mock-data/projects';
+import { getInitiativeProjects } from '@/lib/initiative-utils';
+import type { Initiative } from '@/services/initiatives.service';
 import { useTeams } from '@/hooks/queries/use-teams-query';
 import { useProjects } from '@/hooks/queries/use-projects-query';
 import { useMemo, useState } from 'react';
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis } from 'recharts';
 
 type BreakdownTab = 'health' | 'status' | 'teams' | 'leads';
-
-/** Deterministic pseudo-random from a string seed (SSR safe). */
-const seedNumber = (seed: string): number =>
-   seed.split('').reduce((acc, char) => (acc * 31 + char.charCodeAt(0)) % 997, 7);
 
 interface ProgressPoint {
    label: string;
@@ -33,26 +29,21 @@ export function InitiativeProgressPanel({ initiative }: { initiative: Initiative
    );
 
    const series = useMemo<ProgressPoint[]>(() => {
-      const seed = seedNumber(initiative.id);
-      const scope = Math.max(projects.length * 8, 16);
-      const points: ProgressPoint[] = [];
-      for (let index = 0; index < 12; index++) {
-         const progress = index / 11;
-         const wobble = ((seed * (index + 3)) % 7) / 10;
-         const completed = Math.round(scope * progress * (0.55 + wobble / 4));
-         const started = Math.min(
-            scope,
-            completed + Math.round(scope * (0.12 + wobble / 5) * (0.4 + progress))
-         );
-         points.push({
-            label: `W${index + 1}`,
+      const scope = projects.length;
+      const completed = projects.filter(
+         (project) => project.status.category === 'completed' || project.percentComplete >= 100
+      ).length;
+      const started = projects.filter((project) => project.status.category === 'started').length;
+      return [
+         { label: 'Start', completed: 0, started: 0, scope },
+         {
+            label: 'Now',
             completed,
-            started: started - completed,
-            scope: scope - started,
-         });
-      }
-      return points;
-   }, [initiative.id, projects.length]);
+            started,
+            scope: Math.max(0, scope - completed - started),
+         },
+      ];
+   }, [projects]);
 
    const rows = useMemo(() => {
       if (tab === 'teams') {
@@ -93,15 +84,18 @@ export function InitiativeProgressPanel({ initiative }: { initiative: Initiative
          }
          return [...byStatus.entries()].map(([key, row]) => ({ key, ...row, icon: undefined }));
       }
-      return allHealth
-         .map((entry) => ({
-            key: entry.id,
-            label: entry.name,
-            color: entry.color,
-            icon: undefined,
-            count: projects.filter((project) => project.health.id === entry.id).length,
-         }))
-         .filter((row) => row.count > 0);
+      const byHealth = new Map<string, { label: string; color: string; count: number }>();
+      for (const project of projects) {
+         const current = byHealth.get(project.health.id);
+         if (current) current.count += 1;
+         else
+            byHealth.set(project.health.id, {
+               label: project.health.name,
+               color: project.health.color,
+               count: 1,
+            });
+      }
+      return [...byHealth.entries()].map(([key, row]) => ({ key, ...row, icon: undefined }));
    }, [tab, projects, teams]);
 
    return (

@@ -2,6 +2,11 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsArray, IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class CreateInitiativeDto {
+  @ApiPropertyOptional({ example: 'circle-workspace' })
+  @IsString()
+  @IsOptional()
+  workspaceId?: string;
+
   @ApiPropertyOptional({ example: 'component-platform' })
   @IsString()
   @IsOptional()
@@ -12,7 +17,9 @@ export class CreateInitiativeDto {
   @IsNotEmpty()
   name: string;
 
-  @ApiPropertyOptional({ example: 'Deliver the full core component suite with stable APIs and docs.' })
+  @ApiPropertyOptional({
+    example: 'Deliver the full core component suite with stable APIs and docs.',
+  })
   @IsString()
   @IsOptional()
   description?: string;

@@ -1,10 +1,21 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import {
+  IsBoolean,
+  IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUUID,
+} from 'class-validator';
 
 const LABEL_SCOPES = ['issue', 'project', 'both'] as const;
 type LabelScope = (typeof LABEL_SCOPES)[number];
 
 export class CreateLabelDto {
+  @ApiPropertyOptional({ example: 'circle-workspace' })
+  @IsString()
+  @IsOptional()
+  workspaceId?: string;
   @ApiProperty({ example: 'ui' })
   @IsString()
   @IsNotEmpty()
@@ -19,6 +30,16 @@ export class CreateLabelDto {
   @IsString()
   @IsNotEmpty()
   color: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  description?: string;
+
+  @ApiPropertyOptional()
+  @IsUUID()
+  @IsOptional()
+  groupId?: string;
 
   @ApiPropertyOptional({ enum: LABEL_SCOPES, default: 'both' })
   @IsEnum(LABEL_SCOPES)
@@ -37,8 +58,57 @@ export class UpdateLabelDto {
   @IsOptional()
   color?: string;
 
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  description?: string;
+
+  @ApiPropertyOptional()
+  @IsUUID()
+  @IsOptional()
+  groupId?: string;
+
   @ApiPropertyOptional({ enum: LABEL_SCOPES })
   @IsEnum(LABEL_SCOPES)
   @IsOptional()
   scope?: LabelScope;
+}
+
+export class CreateLabelGroupDto {
+  @ApiPropertyOptional({ example: 'circle-workspace' })
+  @IsString()
+  @IsOptional()
+  workspaceId?: string;
+
+  @ApiProperty({ example: 'Priority' })
+  @IsString()
+  @IsNotEmpty()
+  name: string;
+
+  @ApiPropertyOptional({ enum: LABEL_SCOPES, default: 'issue' })
+  @IsEnum(LABEL_SCOPES)
+  @IsOptional()
+  scope?: LabelScope;
+
+  @ApiPropertyOptional({ default: false })
+  @IsBoolean()
+  @IsOptional()
+  mutuallyExclusive?: boolean;
+}
+
+export class UpdateLabelGroupDto {
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  name?: string;
+
+  @ApiPropertyOptional({ enum: LABEL_SCOPES })
+  @IsEnum(LABEL_SCOPES)
+  @IsOptional()
+  scope?: LabelScope;
+
+  @ApiPropertyOptional()
+  @IsBoolean()
+  @IsOptional()
+  mutuallyExclusive?: boolean;
 }

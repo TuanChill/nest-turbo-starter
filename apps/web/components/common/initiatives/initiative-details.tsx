@@ -5,12 +5,11 @@ import { ProjectGroup } from '@/components/common/projects/projects';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
    countCompletedProjects,
-   getInitiativeById,
    getInitiativeProjects,
-   Initiative,
    INITIATIVE_STATUS_META,
-} from '@/mock-data/initiatives';
-import { Project } from '@/mock-data/projects';
+} from '@/lib/initiative-utils';
+import { Initiative } from '@/services/initiatives.service';
+import type { Project } from '@/services/projects.service';
 import { useProjects } from '@/hooks/queries/use-projects-query';
 import { renderProjectIcon } from '@/lib/project-utils';
 import { renderPriorityIcon } from '@/lib/priority-utils';
@@ -158,7 +157,7 @@ function PropertyRow({ label, children }: { label: string; children: React.React
 function Overview({ initiative }: { initiative: Initiative }) {
    const { data: liveProjects = [] } = useProjects();
    const completed = countCompletedProjects(initiative, liveProjects);
-   const total = initiative.projectIds.length;
+   const total = initiative.projectCount;
 
    return (
       <div className="w-full h-full flex overflow-hidden">
@@ -297,16 +296,14 @@ function Overview({ initiative }: { initiative: Initiative }) {
                   </button>
                </div>
                <div className="flex flex-col gap-2 text-xs text-muted-foreground">
-                  <span className="flex items-start gap-2">
-                     <FilePenLine className="size-3.5 mt-px shrink-0" />
-                     {initiative.owner?.name ?? 'someone'} renamed the initiative ·{' '}
-                     {formatTarget(initiative.createdAt)}
-                  </span>
-                  <span className="flex items-start gap-2">
-                     <FileText className="size-3.5 mt-px shrink-0" />
-                     {initiative.owner?.name ?? 'someone'} created the initiative ·{' '}
-                     {formatTarget(initiative.createdAt)}
-                  </span>
+                  {initiative.activity?.slice(0, 3).map((event) => (
+                     <span key={event.id} className="flex items-start gap-2">
+                        <FileText className="size-3.5 mt-px shrink-0" />
+                        {event.actor?.name ?? 'A member'} {event.event} this initiative ·{' '}
+                        {new Date(event.createdAt).toLocaleDateString()}
+                     </span>
+                  ))}
+                  {!initiative.activity?.length && <span>No activity yet.</span>}
                </div>
             </div>
          </aside>
@@ -317,34 +314,28 @@ function Overview({ initiative }: { initiative: Initiative }) {
 /* ------------------------------- activity tab ----------------------------- */
 
 function Activity({ initiative }: { initiative: Initiative }) {
-   const events = [
-      {
-         label: `${initiative.owner?.name ?? 'someone'} created the initiative`,
-         date: formatTarget(initiative.createdAt),
-      },
-      {
-         label: `${initiative.owner?.name ?? 'someone'} changed the status to ${INITIATIVE_STATUS_META[initiative.status].label}`,
-         date: formatTarget(initiative.createdAt),
-      },
-      {
-         label: `${initiative.projectIds.length} projects added to the initiative`,
-         date: formatTarget(initiative.createdAt),
-      },
-   ];
    return (
       <div className="max-w-2xl mx-auto px-8 py-10 flex flex-col gap-4 w-full">
          <h2 className="text-lg font-medium">Activity</h2>
          <div className="flex flex-col">
-            {events.map((event, index) => (
-               <div
-                  key={index}
-                  className="flex items-center gap-3 py-3 border-b border-border/50 text-sm"
-               >
-                  <FileText className="size-4 text-muted-foreground shrink-0" />
-                  <span className="flex-1">{event.label}</span>
-                  <span className="text-xs text-muted-foreground">{event.date}</span>
-               </div>
-            ))}
+            {initiative.activity?.length ? (
+               initiative.activity.map((event) => (
+                  <div
+                     key={event.id}
+                     className="flex items-center gap-3 py-3 border-b border-border/50 text-sm"
+                  >
+                     <FileText className="size-4 text-muted-foreground shrink-0" />
+                     <span className="flex-1">
+                        {event.actor?.name ?? 'A member'} {event.event} this initiative
+                     </span>
+                     <span className="text-xs text-muted-foreground">
+                        {new Date(event.createdAt).toLocaleDateString()}
+                     </span>
+                  </div>
+               ))
+            ) : (
+               <p className="py-4 text-sm text-muted-foreground">No activity yet.</p>
+            )}
          </div>
       </div>
    );
@@ -386,9 +377,7 @@ export default function InitiativeDetails({ initiativeId }: { initiativeId: stri
    const { data: liveProjects = [] } = useProjects();
    const { orgId } = useParams<{ orgId: string }>();
 
-   const initiative = useMemo(() => {
-      return fetchedInitiative || getInitiativeById(initiativeId);
-   }, [fetchedInitiative, initiativeId]);
+   const initiative = useMemo(() => fetchedInitiative, [fetchedInitiative]);
 
    const timelineGroups = useMemo<ProjectGroup[]>(() => {
       if (!initiative) return [];

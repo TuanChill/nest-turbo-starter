@@ -21,7 +21,7 @@ import {
    SelectValue,
 } from '@/components/ui/select';
 import { useCreateCycle, useCycles } from '@/hooks/queries/use-cycles-query';
-import { CycleStatus } from '@/mock-data/cycles';
+import type { CycleStatus } from '@/services/cycles.service';
 import { Loader2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 

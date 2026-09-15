@@ -15,6 +15,7 @@ import {
   IssueLabel,
   IssueRelation,
   Label,
+  LabelGroup,
   Member,
   Notification,
   PrLink,
@@ -94,17 +95,37 @@ export class IssuesService {
     }
   }
 
-  private async validateLabelIds(labelIds: string[]) {
+  private async validateLabelIds(labelIds: string[], teamId: string) {
+    const team = await this.em.findOne(Team, { id: teamId });
+    const uniqueLabelIds = [...new Set(labelIds)];
     const labels = await this.em.find(Label, {
-      id: { $in: labelIds },
+      id: { $in: uniqueLabelIds },
       scope: { $in: ['issue', 'both'] },
+      ...(team?.workspaceId ? { workspaceId: team.workspaceId } : {}),
     });
     const existingIds = new Set(labels.map((label) => label.id));
-    const missingIds = labelIds.filter((labelId) => !existingIds.has(labelId));
+    const missingIds = uniqueLabelIds.filter((labelId) => !existingIds.has(labelId));
     if (missingIds.length > 0) {
       throw new BadRequestException(`Unknown issue label(s): ${missingIds.join(', ')}`);
     }
-    return labelIds;
+    const groupedLabelIds = new Map<string, number>();
+    for (const label of labels) {
+      if (label.groupId)
+        groupedLabelIds.set(label.groupId, (groupedLabelIds.get(label.groupId) ?? 0) + 1);
+    }
+    const exclusiveGroups = await this.em.find(LabelGroup, {
+      id: { $in: [...groupedLabelIds.keys()] },
+      mutuallyExclusive: true,
+    });
+    const invalidGroup = exclusiveGroups.find(
+      (group) => (groupedLabelIds.get(group.id) ?? 0) > 1,
+    );
+    if (invalidGroup) {
+      throw new BadRequestException(
+        `Only one label from the mutually exclusive group "${invalidGroup.name}" can be applied`,
+      );
+    }
+    return uniqueLabelIds;
   }
 
   /** assignee + creator + everyone who has commented, minus the actor causing the event. */
@@ -568,7 +589,7 @@ export class IssuesService {
     this.em.persist(issue);
 
     if (dto.labelIds !== undefined) {
-      const labelIds = await this.validateLabelIds(dto.labelIds);
+      const labelIds = await this.validateLabelIds(dto.labelIds, teamId);
       const ilEntities = labelIds.map((lid) => new IssueLabel(identifier, lid));
       this.em.persist(ilEntities);
     }
@@ -765,7 +786,7 @@ export class IssuesService {
     if (dto.milestone !== undefined) issue.milestone = dto.milestone;
 
     if (dto.labelIds !== undefined) {
-      const labelIds = await this.validateLabelIds(dto.labelIds);
+      const labelIds = await this.validateLabelIds(dto.labelIds, issue.teamId);
       const existing = await this.em.find(IssueLabel, {
         $or: [{ issueId: issue.id }, { issueId: issue.identifier }],
       });

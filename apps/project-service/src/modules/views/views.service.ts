@@ -1,7 +1,7 @@
 import { EntityManager } from '@mikro-orm/core';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateViewDto, UpdateViewDto } from './dto/view.dto';
-import { Member, SavedView, toSafeMember } from '../../data-access';
+import { Member, SavedView, Team, toSafeMember, Workspace } from '../../data-access';
 import { WorkspacesService } from '../workspaces/workspaces.service';
 
 @Injectable()
@@ -16,6 +16,11 @@ export class ViewsService {
     view: SavedView,
     notFoundMessage: string,
   ) {
+    const accessibleWorkspaceIds =
+      await this.workspacesService.getAccessibleWorkspaceIds(memberId);
+    if (!accessibleWorkspaceIds.includes(view.workspaceId)) {
+      throw new NotFoundException(notFoundMessage);
+    }
     if (view.ownerId === memberId) return;
     const accessibleTeamIds = await this.workspacesService.getAccessibleTeamIds(memberId);
     if (!view.teamId || !accessibleTeamIds.includes(view.teamId)) {
@@ -30,10 +35,38 @@ export class ViewsService {
     }
   }
 
+  private async assertTeamInWorkspace(teamId: string, workspaceId: string) {
+    const team = await this.em.findOne(Team, { id: teamId });
+    if (!team || team.workspaceId !== workspaceId) {
+      throw new NotFoundException(`Team ${teamId} not found`);
+    }
+  }
+
+  private async resolveWorkspaceId(memberId: string, requestedWorkspaceId?: string) {
+    const accessibleWorkspaceIds =
+      await this.workspacesService.getAccessibleWorkspaceIds(memberId);
+    if (requestedWorkspaceId) {
+      if (accessibleWorkspaceIds.includes(requestedWorkspaceId))
+        return requestedWorkspaceId;
+      const workspace = await this.em.findOne(Workspace, {
+        $or: [{ id: requestedWorkspaceId }, { slug: requestedWorkspaceId }],
+      });
+      if (!workspace || !accessibleWorkspaceIds.includes(workspace.id)) {
+        throw new NotFoundException(`Workspace ${requestedWorkspaceId} not found`);
+      }
+      return workspace.id;
+    }
+    if (accessibleWorkspaceIds.length === 0) {
+      throw new NotFoundException('No accessible workspace found');
+    }
+    return accessibleWorkspaceIds[0];
+  }
+
   private transformView(view: SavedView, membersMap: Map<string, any>) {
-    const owner = membersMap.get(view.ownerId) || membersMap.get('ln');
+    const owner = membersMap.get(view.ownerId);
     return {
       id: view.id,
+      workspaceId: view.workspaceId,
       name: view.name,
       description: view.description || '',
       icon: view.icon,
@@ -55,8 +88,11 @@ export class ViewsService {
     projectId?: string,
   ) {
     const accessibleTeamIds = await this.workspacesService.getAccessibleTeamIds(memberId);
+    const accessibleWorkspaceIds =
+      await this.workspacesService.getAccessibleWorkspaceIds(memberId);
+    if (accessibleWorkspaceIds.length === 0) return [];
 
-    const where: any = {};
+    const where: any = { workspaceId: { $in: accessibleWorkspaceIds } };
     if (teamId) {
       if (!accessibleTeamIds.includes(teamId)) return [];
       where.teamId = teamId;
@@ -87,8 +123,10 @@ export class ViewsService {
   }
 
   async create(dto: CreateViewDto, ownerId: string) {
+    const workspaceId = await this.resolveWorkspaceId(ownerId, dto.workspaceId);
     if (dto.teamId) {
       await this.assertTeamTargetAccess(ownerId, dto.teamId);
+      await this.assertTeamInWorkspace(dto.teamId, workspaceId);
     }
     let id = dto.id || dto.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
     const existing = await this.em.findOne(SavedView, { id });
@@ -97,6 +135,7 @@ export class ViewsService {
     }
     const view = new SavedView({
       id,
+      workspaceId,
       name: dto.name,
       description: dto.description || '',
       icon: dto.icon || (dto.type === 'project' ? '📦' : '🧊'),
@@ -110,7 +149,7 @@ export class ViewsService {
 
     this.em.persist(view);
     await this.em.flush();
-    return this.findOne(id);
+    return this.findOne(id, ownerId);
   }
 
   async update(id: string, dto: UpdateViewDto, memberId: string) {
@@ -119,6 +158,7 @@ export class ViewsService {
     await this.assertViewAccess(memberId, view, `View ${id} not found`);
     if (dto.teamId !== undefined && dto.teamId !== view.teamId) {
       await this.assertTeamTargetAccess(memberId, dto.teamId);
+      await this.assertTeamInWorkspace(dto.teamId, view.workspaceId);
     }
 
     if (dto.name !== undefined) view.name = dto.name;
@@ -131,7 +171,7 @@ export class ViewsService {
     if (dto.filter !== undefined) view.filter = dto.filter;
 
     await this.em.flush();
-    return this.findOne(id);
+    return this.findOne(id, memberId);
   }
 
   async delete(id: string, memberId: string) {

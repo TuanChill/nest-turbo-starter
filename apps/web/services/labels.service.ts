@@ -4,12 +4,36 @@ export interface LabelItem {
    id: string;
    name: string;
    color: string;
+   workspaceId?: string;
+   description?: string;
+   createdAt?: string;
    scope?: 'issue' | 'project' | 'both';
+   groupId?: string;
+}
+
+export interface LabelGroup {
+   id: string;
+   workspaceId: string;
+   name: string;
+   scope: 'issue' | 'project' | 'both';
+   mutuallyExclusive: boolean;
+   createdAt: string;
 }
 
 export type LabelInterface = LabelItem;
 
 export const labelsService = {
+   async getLabelGroups(scope: 'issue' | 'project' = 'issue'): Promise<LabelGroup[]> {
+      return apiClient<LabelGroup[]>('/circle/api/labels/groups', { params: { scope } });
+   },
+
+   async createLabelGroup(payload: Partial<LabelGroup>): Promise<LabelGroup> {
+      return apiClient<LabelGroup>('/circle/api/labels/groups', {
+         method: 'POST',
+         body: JSON.stringify(payload),
+      });
+   },
+
    async getLabels(scope: 'issue' | 'project' = 'issue'): Promise<LabelItem[]> {
       return apiClient<LabelItem[]>('/circle/api/labels', { params: { scope } });
    },

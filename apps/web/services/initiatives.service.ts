@@ -1,7 +1,44 @@
 import { apiClient } from './api-client';
-import { Initiative } from '@/mock-data/initiatives';
 
-export type { Initiative };
+export type InitiativeStatus = 'active' | 'planned' | 'completed';
+
+export interface Initiative {
+   id: string;
+   workspaceId: string;
+   name: string;
+   description?: string;
+   icon: string;
+   status: InitiativeStatus;
+   priority: { id: string; name: string };
+   owner?: { id: string; name: string; avatarUrl?: string };
+   target?: string;
+   health: { id: string; name: string; color: string; description?: string };
+   projectIds: string[];
+   projectCount: number;
+   completedProjectCount: number;
+   progressPercent: number;
+   activity?: Array<{
+      id: string;
+      event: string;
+      actor?: { id: string; name: string; avatarUrl?: string };
+      metadata?: Record<string, unknown>;
+      createdAt: string;
+   }>;
+   createdAt: string;
+}
+
+export interface InitiativeMutationPayload {
+   workspaceId?: string;
+   name?: string;
+   description?: string;
+   icon?: string;
+   status?: InitiativeStatus;
+   priorityId?: string;
+   ownerId?: string;
+   target?: string;
+   healthId?: string;
+   projectIds?: string[];
+}
 
 export const initiativesService = {
    async getInitiatives(): Promise<Initiative[]> {
@@ -12,17 +49,23 @@ export const initiativesService = {
       return apiClient<Initiative>(`/circle/api/initiatives/${id}`);
    },
 
-   async createInitiative(payload: Partial<Initiative>): Promise<Initiative> {
+   async createInitiative(payload: InitiativeMutationPayload): Promise<Initiative> {
       return apiClient<Initiative>('/circle/api/initiatives', {
          method: 'POST',
          body: JSON.stringify(payload),
       });
    },
 
-   async updateInitiative(id: string, payload: Partial<Initiative>): Promise<Initiative> {
+   async updateInitiative(id: string, payload: InitiativeMutationPayload): Promise<Initiative> {
       return apiClient<Initiative>(`/circle/api/initiatives/${id}`, {
          method: 'PATCH',
          body: JSON.stringify(payload),
+      });
+   },
+
+   async deleteInitiative(id: string): Promise<{ success: boolean }> {
+      return apiClient<{ success: boolean }>(`/circle/api/initiatives/${id}`, {
+         method: 'DELETE',
       });
    },
 };

@@ -17,6 +17,18 @@ export class Label {
   @Property({ type: 'string' })
   color: string;
 
+  @Property({ type: 'string', default: 'circle-workspace' })
+  workspaceId: string;
+
+  @Property({ type: 'text', nullable: true })
+  description?: string;
+
+  @Property({ type: 'uuid', nullable: true })
+  groupId?: string;
+
+  @Property({ type: 'timestamp with time zone', onCreate: () => new Date() })
+  createdAt: Date = new Date();
+
   @Property({ type: 'string', default: 'both' })
   scope: LabelScope = 'both';
 

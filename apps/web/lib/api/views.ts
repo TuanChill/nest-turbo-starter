@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import type { View } from '@/mock-data/views';
+import type { View } from '@/services/views.service';
 
 export type { View };
 export type ViewItem = View;

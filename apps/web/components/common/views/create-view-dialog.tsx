@@ -27,7 +27,7 @@ import { useLabels } from '@/hooks/queries/use-labels-query';
 import { Check, Loader2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { View, ViewType } from '@/mock-data/views';
+import type { View, ViewType } from '@/services/views.service';
 import { StatusCategory } from '@/mock-data/status';
 import { renderPriorityIcon } from '@/lib/priority-utils';
 

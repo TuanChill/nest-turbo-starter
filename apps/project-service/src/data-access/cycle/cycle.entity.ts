@@ -1,7 +1,8 @@
 import { EntityRepositoryType } from '@mikro-orm/core';
-import { Entity, PrimaryKey, Property } from '@mikro-orm/decorators/legacy';
+import { Entity, Filter, PrimaryKey, Property } from '@mikro-orm/decorators/legacy';
 import { CycleRepository } from './cycle.repository';
 
+@Filter({ name: 'softDelete', cond: () => ({ deletedAt: null }), default: true })
 @Entity({ tableName: 'cycles', repository: () => CycleRepository })
 export class Cycle {
   [EntityRepositoryType]?: CycleRepository;
@@ -47,6 +48,9 @@ export class Cycle {
 
   @Property({ type: 'jsonb', nullable: true })
   burnup?: any[]; // CycleBurnupPoint[]
+
+  @Property({ type: 'timestamp with time zone', nullable: true })
+  deletedAt?: Date;
 
   @Property({ type: 'timestamp with time zone', onCreate: () => new Date() })
   createdAt: Date = new Date();

@@ -1,5 +1,5 @@
 import { Priority, priorities } from './priorities';
-import { Health, health, Project, projects } from './projects';
+import { Health, health, Project } from './projects';
 import { User, users } from './users';
 
 export type InitiativeStatus = 'active' | 'planned' | 'completed';
@@ -179,21 +179,15 @@ export function getInitiativeById(id: string): Initiative | undefined {
 }
 
 /**
- * Resolves an initiative's linked projects. `projectIds` set through the
- * initiative's Projects picker reference real backend project ids, so the
- * live project list (from `useProjects()`) must be checked first; the mock
- * catalog is only a fallback for ids that aren't in the live list.
+ * Resolves an initiative's linked projects from the live API result only.
+ * The mock catalog is intentionally not a production fallback.
  */
 export function getInitiativeProjects(
    initiative: Initiative,
    liveProjects: Project[] = []
 ): Project[] {
    return initiative.projectIds
-      .map(
-         (id) =>
-            liveProjects.find((project) => project.id === id) ||
-            projects.find((project) => project.id === id)
-      )
+      .map((id) => liveProjects.find((project) => project.id === id))
       .filter((project): project is Project => Boolean(project));
 }
 

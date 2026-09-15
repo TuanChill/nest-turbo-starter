@@ -2,8 +2,8 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
-import { getInitiativeProjects, Initiative } from '@/mock-data/initiatives';
-import { health as allHealth } from '@/mock-data/projects';
+import { getInitiativeProjects } from '@/lib/initiative-utils';
+import type { Initiative } from '@/services/initiatives.service';
 import { useTeams } from '@/hooks/queries/use-teams-query';
 import { useProjects } from '@/hooks/queries/use-projects-query';
 import { UserRound } from 'lucide-react';
@@ -60,15 +60,20 @@ export function InitiativesSidePanel({ initiatives }: { initiatives: Initiative[
          }
          return [...byTeam.values()].sort((a, b) => b.count - a.count);
       }
-      return allHealth
-         .map((entry) => ({
-            key: entry.id,
-            label: entry.name,
-            color: entry.color,
-            count: initiatives.filter((initiative) => initiative.health.id === entry.id).length,
-         }))
-         .filter((row) => row.count > 0)
-         .sort((a, b) => b.count - a.count);
+      const byHealth = new Map<string, BreakdownRow>();
+      for (const initiative of initiatives) {
+         const current = byHealth.get(initiative.health.id);
+         if (current) current.count += 1;
+         else {
+            byHealth.set(initiative.health.id, {
+               key: initiative.health.id,
+               label: initiative.health.name,
+               color: initiative.health.color,
+               count: 1,
+            });
+         }
+      }
+      return [...byHealth.values()].sort((a, b) => b.count - a.count);
    }, [tab, initiatives, teams, liveProjects]);
 
    return (

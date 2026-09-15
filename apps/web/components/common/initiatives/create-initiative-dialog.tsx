@@ -24,12 +24,12 @@ import {
 import { useCreateInitiative } from '@/hooks/queries/use-initiatives-query';
 import { useProjects } from '@/hooks/queries/use-projects-query';
 import { useMembers } from '@/hooks/queries/use-members-query';
-import { Initiative } from '@/mock-data/initiatives';
 import { Check, Loader2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { renderPriorityIcon } from '@/lib/priority-utils';
+import { useParams } from 'next/navigation';
 
 interface CreateInitiativeDialogProps {
    trigger?: React.ReactNode;
@@ -82,6 +82,7 @@ export function CreateInitiativeDialog({
    const setOpen = isControlled ? setControlledOpen! : setInternalOpen;
 
    const createInitiativeMutation = useCreateInitiative();
+   const { orgId } = useParams<{ orgId: string }>();
    const { data: projects = [] } = useProjects();
    const { data: members = [] } = useMembers();
 
@@ -119,8 +120,9 @@ export function CreateInitiativeDialog({
 
       setIsSubmitting(true);
       try {
-         const payload: Partial<Initiative> & Record<string, unknown> = {
+         const payload = {
             name: trimmedName,
+            workspaceId: orgId,
             description: description.trim() || undefined,
             icon: selectedIcon,
             status,
@@ -130,7 +132,7 @@ export function CreateInitiativeDialog({
             healthId,
             projectIds: selectedProjectIds,
          };
-         await createInitiativeMutation.mutateAsync(payload as unknown as Partial<Initiative>);
+         await createInitiativeMutation.mutateAsync(payload);
 
          toast.success(`Initiative "${trimmedName}" created successfully`);
          setName('');

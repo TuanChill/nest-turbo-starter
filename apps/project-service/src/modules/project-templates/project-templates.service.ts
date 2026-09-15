@@ -11,7 +11,8 @@ import {
   UpdateProjectTemplateDto,
 } from './dto/project-template.dto';
 import {
-  Member,
+  Initiative,
+  Label,
   ProjectMember,
   ProjectTemplate,
   ProjectTemplateConfig,
@@ -220,6 +221,111 @@ export class ProjectTemplatesService {
     return issues.sort((a, b) => depth(a.key) - depth(b.key));
   }
 
+  private async validateInstantiationReferences(
+    config: ProjectTemplateConfig,
+    workspaceId: string,
+  ) {
+    const projectConfig = config.project ?? {};
+    const memberIds = [
+      ...new Set(
+        [projectConfig.leadId, ...(projectConfig.memberIds ?? [])].filter(
+          (value): value is string => Boolean(value),
+        ),
+      ),
+    ];
+    if (memberIds.length > 0) {
+      const memberships = await this.em.find(WorkspaceMember, {
+        workspaceId,
+        memberId: { $in: memberIds },
+      });
+      const memberIdsInWorkspace = new Set(
+        memberships.map((membership) => membership.memberId),
+      );
+      const missingMembers = memberIds.filter(
+        (memberId) => !memberIdsInWorkspace.has(memberId),
+      );
+      if (missingMembers.length > 0) {
+        throw new BadRequestException(
+          `Template members are outside the target workspace: ${missingMembers.join(', ')}`,
+        );
+      }
+    }
+
+    if (projectConfig.initiativeId) {
+      const initiative = await this.em.findOne(Initiative, {
+        id: projectConfig.initiativeId,
+        workspaceId,
+      });
+      if (!initiative) {
+        throw new BadRequestException(
+          `Initiative ${projectConfig.initiativeId} is not available in the target workspace`,
+        );
+      }
+    }
+
+    const projectLabelIds = projectConfig.labelIds ?? [];
+    const issueLabelIds = (config.issues ?? []).flatMap((issue) => issue.labelIds ?? []);
+    const labelIds = [...new Set([...projectLabelIds, ...issueLabelIds])];
+    if (labelIds.length > 0) {
+      const labels = await this.em.find(Label, { id: { $in: labelIds } });
+      const labelsById = new Map(labels.map((label) => [label.id, label]));
+      const invalidProjectLabels = projectLabelIds.filter(
+        (labelId) =>
+          !labelsById.get(labelId) ||
+          !['project', 'both'].includes(labelsById.get(labelId)!.scope),
+      );
+      const invalidIssueLabels = issueLabelIds.filter(
+        (labelId) =>
+          !labelsById.get(labelId) ||
+          !['issue', 'both'].includes(labelsById.get(labelId)!.scope),
+      );
+      if (invalidProjectLabels.length > 0 || invalidIssueLabels.length > 0) {
+        throw new BadRequestException(
+          `Template contains invalid labels for the target fields: ${[...new Set([...invalidProjectLabels, ...invalidIssueLabels])].join(', ')}`,
+        );
+      }
+    }
+
+    const milestoneKeys = new Set(
+      (config.milestones ?? []).map((milestone) => milestone.key),
+    );
+    const issueKeys = new Set((config.issues ?? []).map((issue) => issue.key));
+    const invalidReferences: string[] = [];
+    for (const issue of config.issues ?? []) {
+      if (
+        issue.parentKey &&
+        (!issueKeys.has(issue.parentKey) || issue.parentKey === issue.key)
+      ) {
+        invalidReferences.push(`${issue.key}.parentKey`);
+      }
+      if (issue.milestoneKey && !milestoneKeys.has(issue.milestoneKey)) {
+        invalidReferences.push(`${issue.key}.milestoneKey`);
+      }
+    }
+    const parentGraph = new Map(
+      (config.issues ?? [])
+        .filter((issue) => issue.parentKey)
+        .map((issue) => [issue.key, issue.parentKey!]),
+    );
+    for (const key of issueKeys) {
+      const seen = new Set<string>();
+      let current: string | undefined = key;
+      while (current) {
+        if (seen.has(current)) {
+          invalidReferences.push(`${key}.parentKey cycle`);
+          break;
+        }
+        seen.add(current);
+        current = parentGraph.get(current);
+      }
+    }
+    if (invalidReferences.length > 0) {
+      throw new BadRequestException(
+        `Template contains invalid references: ${[...new Set(invalidReferences)].join(', ')}`,
+      );
+    }
+  }
+
   async instantiate(id: string, dto: InstantiateProjectTemplateDto, memberId: string) {
     const template = await this.findOne(id, memberId);
     await this.assertTeamAccess(dto.teamId, template.workspaceId, memberId);
@@ -228,6 +334,7 @@ export class ProjectTemplatesService {
         'This team template can only be used by its configured team',
       );
     const config = this.normalizeConfig(template.config);
+    await this.validateInstantiationReferences(config, template.workspaceId);
     const projectConfig = config.project ?? {};
     const overrides = dto.overrides ?? {};
     const projectOverrides = overrides as {
@@ -259,11 +366,6 @@ export class ProjectTemplatesService {
         ? (projectOverrides[key] as string[])
         : fallback;
     const memberIds = projectConfig.memberIds ?? [];
-    const members = await this.em.find(Member, { id: { $in: memberIds } });
-    if (members.length !== memberIds.length)
-      throw new BadRequestException(
-        'The template contains a member that no longer exists',
-      );
     const project = await this.em.transactional(async () => {
       const created = await this.projectsService.create(
         {

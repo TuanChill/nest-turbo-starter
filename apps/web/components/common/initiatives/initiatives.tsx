@@ -22,13 +22,13 @@ import { cn } from '@/lib/utils';
 import {
    countCompletedProjects,
    getInitiativeProjects,
-   Initiative,
+   INITIATIVE_HEALTH_META,
    INITIATIVE_STATUS_META,
-   InitiativeStatus,
-} from '@/mock-data/initiatives';
+} from '@/lib/initiative-utils';
+import { Initiative } from '@/services/initiatives.service';
+import type { InitiativeStatus as InitiativeStatusType } from '@/services/initiatives.service';
 import { useInitiatives } from '@/hooks/queries/use-initiatives-query';
 import { priorities } from '@/mock-data/priorities';
-import { health as allHealth } from '@/mock-data/projects';
 import { useMembers } from '@/hooks/queries/use-members-query';
 import { useProjects } from '@/hooks/queries/use-projects-query';
 import { InitiativesFilterType, useInitiativesFilterStore } from '@/store/initiatives-filter-store';
@@ -126,7 +126,7 @@ function InitiativesFilter() {
                   )}
                   {active === 'status' && (
                      <CommandGroup>
-                        {(Object.keys(INITIATIVE_STATUS_META) as InitiativeStatus[]).map(
+                        {(Object.keys(INITIATIVE_STATUS_META) as InitiativeStatusType[]).map(
                            (statusId) => (
                               <CommandItem
                                  key={statusId}
@@ -181,7 +181,7 @@ function InitiativesFilter() {
                   )}
                   {active === 'health' && (
                      <CommandGroup>
-                        {allHealth.map((entry) => (
+                        {INITIATIVE_HEALTH_META.map((entry) => (
                            <CommandItem
                               key={entry.id}
                               onSelect={() => toggleFilter('health', entry.id)}
@@ -444,7 +444,7 @@ export default function Initiatives() {
 
    const groups = useMemo(() => {
       if (grouping !== 'status') return null;
-      return (Object.keys(INITIATIVE_STATUS_META) as InitiativeStatus[])
+      return (Object.keys(INITIATIVE_STATUS_META) as InitiativeStatusType[])
          .map((statusId) => ({
             statusId,
             items: displayed.filter((initiative) => initiative.status === statusId),

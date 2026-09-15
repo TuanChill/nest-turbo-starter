@@ -18,6 +18,9 @@ export class SavedView {
   @Property({ type: 'string', default: '📦' })
   icon: string;
 
+  @Property({ type: 'string', default: 'circle-workspace' })
+  workspaceId: string;
+
   @Property({ type: 'string', default: 'issue' })
   type: 'issue' | 'project';
 

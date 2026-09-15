@@ -48,3 +48,19 @@ export function useUpdateCycle() {
       },
    });
 }
+
+export function useDeleteCycle() {
+   const queryClient = useQueryClient();
+
+   return useMutation({
+      mutationFn: (id: string) => cyclesService.deleteCycle(id),
+      onSuccess: (_, id) => {
+         queryClient.invalidateQueries({ queryKey: cycleKeys.lists() });
+         queryClient.removeQueries({ queryKey: cycleKeys.detail(id) });
+         toast.success('Cycle deleted');
+      },
+      onError: (error: Error) => {
+         toast.error(error.message || 'Failed to delete cycle');
+      },
+   });
+}

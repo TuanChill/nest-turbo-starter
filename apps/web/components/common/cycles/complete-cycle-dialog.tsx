@@ -23,7 +23,7 @@ import { useUpdateCycle } from '@/hooks/queries/use-cycles-query';
 import { useIssues } from '@/hooks/queries/use-issues-query';
 import { useIssuesStore } from '@/store/issues-store';
 import { cycleKeys, issueKeys } from '@/hooks/queries/keys';
-import { Cycle } from '@/mock-data/cycles';
+import type { Cycle } from '@/services/cycles.service';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';

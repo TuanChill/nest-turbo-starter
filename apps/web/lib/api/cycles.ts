@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import { Cycle } from '@/mock-data/cycles';
+import type { Cycle } from '@/services/cycles.service';
 
 export type { Cycle };
 

@@ -1,13 +1,17 @@
 import { EntityRepositoryType } from '@mikro-orm/core';
-import { Entity, PrimaryKey, Property } from '@mikro-orm/decorators/legacy';
+import { Entity, Filter, PrimaryKey, Property } from '@mikro-orm/decorators/legacy';
 import { InitiativeRepository } from './initiative.repository';
 
+@Filter({ name: 'softDelete', cond: () => ({ deletedAt: null }), default: true })
 @Entity({ tableName: 'initiatives', repository: () => InitiativeRepository })
 export class Initiative {
   [EntityRepositoryType]?: InitiativeRepository;
 
   @PrimaryKey({ type: 'string' })
   id: string; // 'component-platform', etc.
+
+  @Property({ type: 'string', default: 'circle-workspace' })
+  workspaceId: string;
 
   @Property({ type: 'string' })
   name: string;
@@ -35,6 +39,9 @@ export class Initiative {
 
   @Property({ type: 'jsonb', default: '[]' })
   projectIds: string[] = [];
+
+  @Property({ type: 'timestamp with time zone', nullable: true })
+  deletedAt?: Date;
 
   @Property({ type: 'timestamp with time zone', onCreate: () => new Date() })
   createdAt: Date = new Date();

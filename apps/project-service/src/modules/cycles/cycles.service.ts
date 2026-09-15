@@ -1,53 +1,9 @@
 import { EntityManager } from '@mikro-orm/core';
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { deriveCycleProgress } from './cycle-progress';
 import { CreateCycleDto, UpdateCycleDto } from './dto/cycle.dto';
 import { Cycle, Issue } from '../../data-access';
 import { WorkspacesService } from '../workspaces/workspaces.service';
-
-interface CycleBurnupPoint {
-  date: string;
-  scope: number;
-  started: number;
-  completed: number;
-  ideal: number;
-}
-
-function generateBurnup(
-  startDateStr: string,
-  days: number,
-  startScope: number,
-  endScope: number,
-  completedTarget: number,
-  startedTarget: number,
-): CycleBurnupPoint[] {
-  const points: CycleBurnupPoint[] = [];
-  const start = new Date(startDateStr);
-
-  for (let i = 0; i <= days; i++) {
-    const t = i / days;
-    const eased = t * t * (3 - 2 * t);
-    const scope = Math.round(
-      startScope + (endScope - startScope) * Math.min(1, t * 1.35),
-    );
-    const completed = Math.round(completedTarget * eased);
-    const started = Math.min(
-      scope - completed,
-      Math.round(startedTarget * (0.4 + 0.6 * Math.sin(t * Math.PI))),
-    );
-    const date = new Date(start);
-    date.setDate(start.getDate() + i);
-
-    points.push({
-      date: date.toISOString().split('T')[0],
-      scope,
-      started: completed + Math.max(0, started),
-      completed,
-      ideal: Math.round(endScope * t),
-    });
-  }
-
-  return points;
-}
 
 @Injectable()
 export class CyclesService {
@@ -58,39 +14,17 @@ export class CyclesService {
 
   private async enrichCycle(cycle: Cycle) {
     const issues = await this.em.find(Issue, { cycleId: cycle.id });
-    const totalScope = issues.length > 0 ? issues.length : cycle.scope;
-    const completedCount =
-      issues.length > 0
-        ? issues.filter((i) => i.statusCategory === 'completed').length
-        : cycle.completed;
-    const startedCount =
-      issues.length > 0
-        ? issues.filter((i) => i.statusCategory === 'started').length
-        : cycle.started;
+    // Scope and progress are derived from the persisted issues. Stored seed counters
+    // must never make an empty cycle look like it contains work.
+    const progress = deriveCycleProgress(issues);
+    const totalScope = progress.scope;
+    const completedCount = progress.completed;
+    const startedCount = progress.started;
 
     const startDateStr = cycle.startDate.toISOString().split('T')[0];
     const endDateStr = cycle.endDate.toISOString().split('T')[0];
 
-    let burnup = cycle.burnup;
-    if (!burnup || burnup.length === 0) {
-      if (cycle.status === 'current' || cycle.status === 'completed') {
-        const days = Math.max(
-          1,
-          Math.round(
-            (new Date(endDateStr).getTime() - new Date(startDateStr).getTime()) /
-              (1000 * 60 * 60 * 24),
-          ),
-        );
-        burnup = generateBurnup(
-          startDateStr,
-          days,
-          Math.max(1, Math.round(totalScope * 0.8)),
-          totalScope,
-          completedCount,
-          startedCount,
-        );
-      }
-    }
+    const burnup = cycle.burnup || [];
 
     const successRate =
       totalScope > 0 ? Math.round((completedCount / totalScope) * 100) : 0;
@@ -108,8 +42,7 @@ export class CyclesService {
       scopeDelta: cycle.scopeDelta,
       started: startedCount,
       completed: completedCount,
-      successRate:
-        cycle.status === 'completed' ? (cycle.successRate ?? successRate) : undefined,
+      successRate: cycle.status === 'completed' ? successRate : undefined,
       burnup,
     };
   }
@@ -154,10 +87,19 @@ export class CyclesService {
     let id = dto.id || String(number);
     const existing = await this.em.findOne(Cycle, { id });
     if (existing) {
-      const all = await this.em.find(Cycle, {});
-      const maxNum = Math.max(...all.map((c) => c.number || 0), 20);
+      const all = await this.em.find(Cycle, { teamId: dto.teamId });
+      const maxNum = Math.max(...all.map((c) => c.number || 0), 0);
       number = maxNum + 1;
       id = String(number);
+    }
+
+    const startDate = new Date(dto.startDate);
+    const endDate = new Date(dto.endDate);
+    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+      throw new BadRequestException('Cycle dates must be valid ISO dates');
+    }
+    if (endDate < startDate) {
+      throw new BadRequestException('Cycle end date must be on or after its start date');
     }
 
     const cycle = new Cycle({
@@ -166,8 +108,8 @@ export class CyclesService {
       name: dto.name || `Cycle ${number}`,
       teamId: dto.teamId,
       status: dto.status,
-      startDate: new Date(dto.startDate),
-      endDate: new Date(dto.endDate),
+      startDate,
+      endDate,
       capacity: dto.capacity || 0,
       scope: 0,
       scopeDelta: 0,
@@ -177,7 +119,7 @@ export class CyclesService {
 
     this.em.persist(cycle);
     await this.em.flush();
-    return this.findOne(cycle.id);
+    return this.findOne(cycle.id, memberId);
   }
 
   async update(id: string, dto: UpdateCycleDto, memberId: string) {
@@ -190,11 +132,36 @@ export class CyclesService {
 
     if (dto.name !== undefined) cycle.name = dto.name;
     if (dto.status !== undefined) cycle.status = dto.status;
-    if (dto.startDate !== undefined) cycle.startDate = new Date(dto.startDate);
-    if (dto.endDate !== undefined) cycle.endDate = new Date(dto.endDate);
+    const nextStartDate =
+      dto.startDate !== undefined ? new Date(dto.startDate) : cycle.startDate;
+    const nextEndDate = dto.endDate !== undefined ? new Date(dto.endDate) : cycle.endDate;
+    if (Number.isNaN(nextStartDate.getTime()) || Number.isNaN(nextEndDate.getTime())) {
+      throw new BadRequestException('Cycle dates must be valid ISO dates');
+    }
+    if (nextEndDate < nextStartDate) {
+      throw new BadRequestException('Cycle end date must be on or after its start date');
+    }
+    cycle.startDate = nextStartDate;
+    cycle.endDate = nextEndDate;
     if (dto.capacity !== undefined) cycle.capacity = dto.capacity;
 
     await this.em.flush();
-    return this.findOne(id);
+    return this.findOne(id, memberId);
+  }
+
+  async delete(id: string, memberId: string) {
+    const cycle = await this.em.findOne(Cycle, { id });
+    if (!cycle) return { success: true };
+    const accessibleTeamIds = await this.workspacesService.getAccessibleTeamIds(memberId);
+    if (!accessibleTeamIds.includes(cycle.teamId)) {
+      throw new NotFoundException(`Cycle ${id} not found`);
+    }
+
+    // Deleting a cycle returns its issues to the team backlog before hiding the cycle.
+    const issues = await this.em.find(Issue, { cycleId: id });
+    for (const issue of issues) issue.cycleId = '';
+    cycle.deletedAt = new Date();
+    await this.em.flush();
+    return { success: true };
   }
 }

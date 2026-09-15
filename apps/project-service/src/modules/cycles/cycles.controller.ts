@@ -1,5 +1,5 @@
 import { User } from '@app/common';
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { CyclesService } from './cycles.service';
 import { CreateCycleDto, UpdateCycleDto } from './dto/cycle.dto';
@@ -36,5 +36,11 @@ export class CyclesController {
     @User('id') memberId: string,
   ) {
     return this.cyclesService.update(id, dto, memberId);
+  }
+
+  @ApiOperation({ summary: 'Delete cycle' })
+  @Delete(':id')
+  delete(@Param('id') id: string, @User('id') memberId: string) {
+    return this.cyclesService.delete(id, memberId);
   }
 }

@@ -15,6 +15,7 @@ import { useCreateLabel, useLabels } from '@/hooks/queries/use-labels-query';
 import { useProjects } from '@/hooks/queries/use-projects-query';
 import { Loader2 } from 'lucide-react';
 import { FormEvent, useMemo, useState } from 'react';
+import { useParams } from 'next/navigation';
 
 const LABEL_COLOR_OPTIONS = [
    'red',
@@ -43,6 +44,7 @@ export default function ProjectLabelsSettings() {
    const { data: projects = [] } = useProjects();
    const { data: labels = [] } = useLabels('project');
    const createLabel = useCreateLabel();
+   const { orgId } = useParams<{ orgId: string }>();
    const [isCreateOpen, setIsCreateOpen] = useState(false);
    const [newLabelName, setNewLabelName] = useState('');
    const [newLabelColor, setNewLabelColor] = useState(LABEL_COLOR_OPTIONS[0]);
@@ -66,6 +68,7 @@ export default function ProjectLabelsSettings() {
       if (!name) return;
       await createLabel.mutateAsync({
          id: `project-${slugify(name)}`,
+         workspaceId: orgId,
          name,
          color: newLabelColor,
          scope: 'project',
