@@ -9,6 +9,9 @@
 # @app/common/@app/core only get compiled once for all 4 services.
 
 FROM node:22.15.0-alpine3.21 AS base
+ENV COREPACK_HOME=/opt/corepack
+RUN mkdir -p "$COREPACK_HOME" \
+    && chmod 755 "$COREPACK_HOME"
 RUN corepack enable && corepack prepare pnpm@10.17.0 --activate
 RUN pnpm config set store-dir /pnpm-store
 ENV TURBO_CACHE_DIR=/turbo-cache

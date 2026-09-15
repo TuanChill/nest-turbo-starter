@@ -36,6 +36,7 @@ jobs:
             df -i / /opt/circle/be /var/lib/docker || true
             docker builder prune -af --filter until=168h
             docker container prune -f
+            docker image prune -af --filter until=168h
             find /tmp -xdev -type f -mtime +1 -delete 2>/dev/null || true
             find /var/log -xdev \( -name '*.gz' -o -name '*.1' -o -name '*.old' \) -type f -delete 2>/dev/null || true
             cd /opt/circle/be
