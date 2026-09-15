@@ -13,6 +13,7 @@ import {
 import {
   Initiative,
   Label,
+  LabelGroup,
   ProjectMember,
   ProjectTemplate,
   ProjectTemplateConfig,
@@ -21,6 +22,7 @@ import {
   WorkspaceMember,
 } from '../../data-access';
 import { IssuesService } from '../issues/issues.service';
+import { assertMutuallyExclusiveLabelSelection } from '../labels/label-rules';
 import { ProjectsService } from '../projects/projects.service';
 import { WorkspacesService } from '../workspaces/workspaces.service';
 
@@ -267,7 +269,10 @@ export class ProjectTemplatesService {
     const issueLabelIds = (config.issues ?? []).flatMap((issue) => issue.labelIds ?? []);
     const labelIds = [...new Set([...projectLabelIds, ...issueLabelIds])];
     if (labelIds.length > 0) {
-      const labels = await this.em.find(Label, { id: { $in: labelIds } });
+      const labels = await this.em.find(Label, {
+        id: { $in: labelIds },
+        workspaceId,
+      });
       const labelsById = new Map(labels.map((label) => [label.id, label]));
       const invalidProjectLabels = projectLabelIds.filter(
         (labelId) =>
@@ -282,6 +287,23 @@ export class ProjectTemplatesService {
       if (invalidProjectLabels.length > 0 || invalidIssueLabels.length > 0) {
         throw new BadRequestException(
           `Template contains invalid labels for the target fields: ${[...new Set([...invalidProjectLabels, ...invalidIssueLabels])].join(', ')}`,
+        );
+      }
+      const groupIds = [...new Set(labels.map((label) => label.groupId).filter(Boolean))];
+      const groups = await this.em.find(LabelGroup, {
+        id: { $in: groupIds },
+        workspaceId,
+      });
+      assertMutuallyExclusiveLabelSelection(
+        projectLabelIds.map((labelId) => labelsById.get(labelId)).filter(Boolean),
+        groups,
+      );
+      for (const issue of config.issues ?? []) {
+        assertMutuallyExclusiveLabelSelection(
+          (issue.labelIds ?? [])
+            .map((labelId) => labelsById.get(labelId))
+            .filter(Boolean),
+          groups,
         );
       }
     }
