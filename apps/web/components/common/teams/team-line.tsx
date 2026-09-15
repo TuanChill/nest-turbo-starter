@@ -2,7 +2,7 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Team } from '@/mock-data/teams';
-import { getCyclesByTeam } from '@/mock-data/cycles';
+import { useCycles } from '@/hooks/queries/use-cycles-query';
 import { useTeamsDisplayStore } from '@/store/teams-display-store';
 import { Box, Check, Play } from 'lucide-react';
 import Link from 'next/link';
@@ -12,23 +12,12 @@ interface TeamLineProps {
    team: Team;
 }
 
-/** Deterministic fake created/updated dates (no created field in mock data). */
-const hashString = (value: string): number => {
-   let hash = 0;
-   for (let i = 0; i < value.length; i++) hash = (hash * 31 + value.charCodeAt(i)) >>> 0;
-   return hash;
-};
-
-const CREATED_DATES = ['Mar 2024', 'Jun 2024', 'Sep 2024', 'Jan 2025', 'May 2025', 'Nov 2025'];
-const UPDATED_DATES = ['Jul 12', 'Jul 20', 'Jul 27', 'Jul 30', 'Aug 1', 'Aug 3'];
-
 export default function TeamLine({ team }: TeamLineProps) {
    const { displayProperties } = useTeamsDisplayStore();
    const { orgId } = useParams<{ orgId: string }>();
-   const cycles = getCyclesByTeam(team.id);
+   const { data: cycles = [] } = useCycles(team.id);
    const uniqueProjects = new Set(team.projects.map((project) => project.id)).size;
    const owner = team.members[0];
-   const hash = hashString(team.id);
 
    return (
       <Link
@@ -106,13 +95,13 @@ export default function TeamLine({ team }: TeamLineProps) {
 
          {displayProperties.created && (
             <div className="hidden xl:block w-[90px] shrink-0 text-xs text-muted-foreground">
-               {CREATED_DATES[hash % CREATED_DATES.length]}
+               {team.createdAt ? new Date(team.createdAt).toLocaleDateString() : '—'}
             </div>
          )}
 
          {displayProperties.updated && (
             <div className="hidden xl:block w-[90px] shrink-0 text-xs text-muted-foreground">
-               {UPDATED_DATES[hash % UPDATED_DATES.length]}
+               {team.updatedAt ? new Date(team.updatedAt).toLocaleDateString() : '—'}
             </div>
          )}
       </Link>

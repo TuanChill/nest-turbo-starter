@@ -23,7 +23,6 @@ import {
    AlertDialogHeader,
    AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { getCyclesByTeam } from '@/mock-data/cycles';
 import { status } from '@/mock-data/status';
 import {
    Bot,
@@ -80,11 +79,13 @@ import {
    useToggleJoinTeam,
 } from '@/hooks/queries/use-teams-query';
 import { Team } from '@/services/teams.service';
+import { useCycles } from '@/hooks/queries/use-cycles-query';
 
 export default function TeamSettings({ teamId }: TeamSettingsProps) {
    const { orgId } = useParams<{ orgId: string }>();
    const router = useRouter();
    const { data: team, isLoading } = useTeam(teamId);
+   const { data: cycles = [] } = useCycles(teamId);
    const updateTeamMutation = useUpdateTeam();
    const deleteTeamMutation = useDeleteTeam();
    const toggleJoinMutation = useToggleJoinTeam();
@@ -130,7 +131,7 @@ export default function TeamSettings({ teamId }: TeamSettingsProps) {
                The requested team does not exist or has been deleted.
             </p>
             <Link
-               href={`/${orgId ?? 'lndev-ui'}/teams`}
+               href={`/${orgId ?? ''}/teams`}
                className="mt-2 text-xs px-3 py-1.5 rounded-md border border-border/80 bg-accent hover:bg-accent/80 transition-colors font-medium text-foreground"
             >
                Back to teams
@@ -138,8 +139,6 @@ export default function TeamSettings({ teamId }: TeamSettingsProps) {
          </div>
       );
    }
-
-   const cycles = getCyclesByTeam(team.id);
 
    const handleSaveGeneral = async (e: React.FormEvent) => {
       e.preventDefault();

@@ -73,8 +73,7 @@ export default function HeaderNav() {
    const { data: issues = [] } = useIssues();
    const { data: teams = [] } = useTeams();
 
-   const team = teams.find((t) => t.id === issue?.teamId) ??
-      teams[0] ?? { id: 'CORE', name: 'Core', icon: '⚡' };
+   const team = teams.find((t) => t.id === issue?.teamId);
 
    const { data: cycles = [] } = useCycles(team?.id);
    const cycle = issue?.cycleId ? cycles.find((c) => c.id === issue.cycleId) : undefined;
@@ -102,7 +101,7 @@ export default function HeaderNav() {
    const issueUrl =
       typeof window !== 'undefined'
          ? window.location.href
-         : `/${orgId ?? 'lndev-ui'}/issue/${issue?.identifier || issueId}`;
+         : `/${orgId ?? ''}/issue/${issue?.identifier || issueId}`;
 
    const branchName = issue
       ? `feature/${issue.identifier.toLowerCase()}-${issue.title
@@ -131,7 +130,7 @@ export default function HeaderNav() {
       try {
          await deleteIssueMutation.mutateAsync(issue.identifier);
          setDeleteDialogOpen(false);
-         router.push(`/${orgId ?? 'lndev-ui'}/team/${team.id}/all`);
+         if (team) router.push(`/${orgId ?? ''}/team/${team.id}/all`);
       } catch {
          // Handled in mutation onError
       }
@@ -153,13 +152,15 @@ export default function HeaderNav() {
 
                {/* Team Link */}
                <Link
-                  href={`/${orgId ?? 'lndev-ui'}/team/${team.id}/overview`}
+                  href={team ? `/${orgId ?? ''}/team/${team.id}/overview` : '#'}
                   className="flex items-center gap-1.5 shrink-0 hover:opacity-80 transition-opacity"
                >
                   <div className="inline-flex size-5 bg-muted/50 items-center justify-center rounded shrink-0 text-xs">
-                     {team.icon}
+                     {team?.icon}
                   </div>
-                  <span className="text-sm font-medium hidden md:inline">{team.name}</span>
+                  <span className="text-sm font-medium hidden md:inline">
+                     {team?.name || 'Team unavailable'}
+                  </span>
                </Link>
 
                {/* Cycle (if assigned) */}
@@ -167,7 +168,7 @@ export default function HeaderNav() {
                   <>
                      <ChevronRight className="size-3.5 text-muted-foreground shrink-0" />
                      <Link
-                        href={`/${orgId ?? 'lndev-ui'}/team/${team.id}/cycles`}
+                        href={team ? `/${orgId ?? ''}/team/${team.id}/cycles` : '#'}
                         className="hidden sm:flex items-center gap-1.5 shrink-0 text-sm text-muted-foreground hover:text-foreground transition-colors"
                      >
                         <CyclePlayIcon className="size-3.5" />
@@ -513,7 +514,7 @@ export default function HeaderNav() {
                >
                   {previousIssue ? (
                      <Link
-                        href={`/${orgId ?? 'lndev-ui'}/issue/${previousIssue.identifier}`}
+                        href={`/${orgId ?? ''}/issue/${previousIssue.identifier}`}
                         aria-label="Previous issue"
                      >
                         <ChevronUp className="size-4" />
@@ -531,7 +532,7 @@ export default function HeaderNav() {
                >
                   {nextIssue ? (
                      <Link
-                        href={`/${orgId ?? 'lndev-ui'}/issue/${nextIssue.identifier}`}
+                        href={`/${orgId ?? ''}/issue/${nextIssue.identifier}`}
                         aria-label="Next issue"
                      >
                         <ChevronDown className="size-4" />

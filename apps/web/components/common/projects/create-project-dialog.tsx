@@ -127,10 +127,10 @@ export function CreateProjectDialog({
    const { data: templates = [] } = useProjectTemplates(resolvedWorkspaceId);
 
    const [name, setName] = React.useState('');
-   const [teamId, setTeamId] = React.useState(defaultTeamId || (teams[0]?.id ?? 'CORE'));
-   const [selectedTeamIds, setSelectedTeamIds] = React.useState<string[]>([
-      defaultTeamId || teams[0]?.id || 'CORE',
-   ]);
+   const [teamId, setTeamId] = React.useState(defaultTeamId ?? '');
+   const [selectedTeamIds, setSelectedTeamIds] = React.useState<string[]>(
+      defaultTeamId ? [defaultTeamId] : []
+   );
    const [selectedIcon, setSelectedIcon] = React.useState('Vault');
    const [leadId, setLeadId] = React.useState('');
    const [statusId, setStatusId] = React.useState('in-progress');
@@ -146,8 +146,15 @@ export function CreateProjectDialog({
 
    // Sync defaultTeamId when changed
    React.useEffect(() => {
-      const nextTeamId = defaultTeamId || teamId || teams[0]?.id;
-      if (!nextTeamId) return;
+      const nextTeamId =
+         defaultTeamId || (teamId && teams.some((team) => team.id === teamId) ? teamId : '');
+      if (!nextTeamId) {
+         setTeamId('');
+         setSelectedTeamIds((previous) =>
+            previous.filter((id) => teams.some((team) => team.id === id))
+         );
+         return;
+      }
       setTeamId(nextTeamId);
       setSelectedTeamIds((previous) => {
          const next = [
@@ -160,11 +167,9 @@ export function CreateProjectDialog({
       });
    }, [defaultTeamId, teams, teamId]);
 
-   // Sync default leadId when members load
+   // Project lead is optional; never assign an arbitrary workspace member.
    React.useEffect(() => {
-      if (members.length > 0 && (!leadId || !members.some((m) => m.id === leadId))) {
-         setLeadId(members[0].id);
-      }
+      if (leadId && !members.some((member) => member.id === leadId)) setLeadId('');
    }, [members, leadId]);
 
    const toggleLabel = (labelId: string) => {

@@ -95,7 +95,7 @@ function TemplateEditor({
       setName(template?.name ?? '');
       setDescription(template?.description ?? '');
       setScope(template?.scope ?? 'workspace');
-      setTeamId(template?.teamId ?? teams[0]?.id ?? '');
+      setTeamId(template?.teamId ?? '');
       setTitle(config.title ?? '');
       setIssueDescription(config.description ?? '');
       setStatusId(config.statusId ?? 'to-do');

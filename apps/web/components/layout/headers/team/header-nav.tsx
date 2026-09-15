@@ -7,9 +7,18 @@ import { useParams } from 'next/navigation';
 
 export default function HeaderNav() {
    const { teamId } = useParams<{ orgId: string; teamId: string }>();
-   const { data: teams = [] } = useTeams();
-   const team = teams.find((t) => t.id === teamId) ??
-      teams[0] ?? { id: 'CORE', name: 'Core', icon: '🛠️' };
+   const { data: teams = [], isLoading } = useTeams();
+   const team = teams.find((t) => t.id === teamId);
+   if (!team) {
+      return (
+         <div className="w-full flex items-center gap-2 border-b py-1.5 px-6 h-10">
+            <SidebarTrigger />
+            <span className="text-sm text-muted-foreground">
+               {isLoading ? 'Loading team…' : 'Team not found'}
+            </span>
+         </div>
+      );
+   }
 
    return (
       <div className="w-full flex justify-between items-center border-b py-1.5 px-6 h-10">

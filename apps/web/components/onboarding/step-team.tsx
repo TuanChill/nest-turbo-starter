@@ -49,7 +49,7 @@ export function StepTeam({
             .toUpperCase()
             .replace(/[^A-Z0-9]/g, '')
             .slice(0, 4);
-         setTeamKey(autoKey || 'ENG');
+         setTeamKey(autoKey);
       }
    };
 
@@ -77,7 +77,7 @@ export function StepTeam({
       }
    };
 
-   const displayKey = (teamKey.trim() || 'ENG').toUpperCase();
+   const displayKey = teamKey.trim().toUpperCase();
 
    return (
       <form onSubmit={handleSubmit} className="space-y-6">

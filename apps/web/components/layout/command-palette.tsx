@@ -123,7 +123,7 @@ export function CommandPalette() {
    const cycles = liveCycles;
    const allLabels = liveLabels;
 
-   const orgId = pathname.split('/')[1] || 'lndev-ui';
+   const orgId = pathname.split('/')[1] || '';
 
    const contextIssue = useMemo<Issue | undefined>(() => {
       const match = pathname.match(/^\/[^/]+\/issue\/([^/]+)/);
@@ -231,7 +231,7 @@ export function CommandPalette() {
       ? `${typeof window !== 'undefined' ? window.location.origin : ''}/${orgId}/issue/${issue.identifier}`
       : '';
    const branchName = issue
-      ? `${users[0]?.id ?? 'me'}/${issue.identifier.toLowerCase()}-${issue.title
+      ? `${issue.identifier.toLowerCase()}-${issue.title
            .toLowerCase()
            .replace(/[^a-z0-9]+/g, '-')
            .replace(/^-|-$/g, '')

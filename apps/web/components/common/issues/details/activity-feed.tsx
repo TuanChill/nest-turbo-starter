@@ -187,7 +187,7 @@ export function ActivityFeed({
          status: 'online' as const,
          joinedDate: new Date().toISOString().slice(0, 10),
          timezone: 'UTC',
-         teamIds: ['CORE'],
+         teamIds: user.teamIds ?? [],
       };
 
       const newComment: ActivityItem = {
@@ -227,6 +227,7 @@ export function ActivityFeed({
    };
 
    const handleReact = async (activityId: string, emoji: string) => {
+      if (!user) return;
       // Optimistic update
       const previousItems = items;
       setItems((prev) =>
@@ -244,7 +245,7 @@ export function ActivityFeed({
       );
 
       try {
-         await addIssueReaction(activityId, emoji, user?.id || 'ln');
+         await addIssueReaction(activityId, emoji, user.id);
       } catch (err) {
          setItems(previousItems);
          console.error('Failed to post reaction:', err);

@@ -444,7 +444,8 @@ export class ProjectsService {
     }
 
     const teams = await this.em.find(Team, { id: { $in: projectTeamIds } });
-    const team = teams.find((candidate) => candidate.id === project.teamId) ?? teams[0];
+    const team = teams.find((candidate) => candidate.id === project.teamId);
+    if (!team) throw new NotFoundException(`Project ${id} not found`);
     const projectLabels = await this.em.find(ProjectLabel, { projectId: id });
     const projectMembers = await this.em.find(ProjectMember, { projectId: id });
     const issues = await this.em.find(Issue, { projectId: id });

@@ -66,7 +66,7 @@ export function ReviewDetail({ reviewId, section }: { reviewId: string; section:
                This review does not exist or has been removed.
             </p>
             <Link
-               href={`/${orgId ?? 'lndev-ui'}/reviews`}
+               href={`/${orgId ?? ''}/reviews`}
                className="mt-2 text-xs px-3 py-1.5 rounded-md border border-border/80 bg-accent hover:bg-accent/80 transition-colors font-medium text-foreground"
             >
                Back to reviews

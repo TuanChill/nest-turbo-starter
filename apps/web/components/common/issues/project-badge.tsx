@@ -8,10 +8,7 @@ export function ProjectBadge({ project }: { project: Project }) {
    const { orgId } = useParams<{ orgId?: string }>();
 
    return (
-      <Link
-         href={`/${orgId ?? 'lndev-ui'}/projects`}
-         className="flex items-center justify-center gap-.5"
-      >
+      <Link href={`/${orgId ?? ''}/projects`} className="flex items-center justify-center gap-.5">
          <Badge
             variant="outline"
             className="gap-1.5 rounded-full text-muted-foreground bg-background"

@@ -16,22 +16,26 @@ export default function Profile() {
    const setUser = useAuthStore((s) => s.setUser);
    const { data: members = [] } = useMembers();
    const updateMember = useUpdateMember();
-   const firstMember = members[0];
-   const me = authUser ||
-      firstMember || {
-         id: 'ln',
-         name: 'LN Dev',
-         email: 'ln@example.com',
-         avatarUrl: 'https://avatar.vercel.sh/ln',
-         username: 'ln',
-         role: 'admin',
-      };
-
-   const [name, setName] = useState(me.name || '');
+   const me = authUser ?? members[0];
+   const [name, setName] = useState(me?.name || '');
 
    useEffect(() => {
-      setName(me.name || '');
-   }, [me.name]);
+      setName(me?.name || '');
+   }, [me?.name]);
+
+   if (!me) {
+      return (
+         <SettingsShell title="Profile">
+            <SettingsSection>
+               <SettingsCard>
+                  <p className="p-4 text-sm text-muted-foreground">
+                     Your profile is unavailable until the authenticated member record loads.
+                  </p>
+               </SettingsCard>
+            </SettingsSection>
+         </SettingsShell>
+      );
+   }
 
    const handleSaveName = () => {
       const trimmed = name.trim();

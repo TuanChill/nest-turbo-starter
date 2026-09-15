@@ -82,7 +82,7 @@ export function InviteMemberDialog({
 
    const handleCopyInviteLink = () => {
       const origin = typeof window !== 'undefined' ? window.location.origin : SITE_URL;
-      const inviteUrl = `${origin}/signup?org=${orgId || 'lndev-ui'}`;
+      const inviteUrl = orgId ? `${origin}/signup?org=${orgId}` : `${origin}/signup`;
       navigator.clipboard.writeText(inviteUrl);
       setCopied(true);
       toast.success('Invite link copied to clipboard');

@@ -32,10 +32,19 @@ import { CompleteCycleDialog } from '@/components/common/cycles/complete-cycle-d
 
 export default function HeaderNav({ cycleView }: { cycleView: CycleView }) {
    const { orgId, teamId } = useParams<{ orgId: string; teamId: string }>();
-   const { data: teams = [] } = useTeams();
-   const team = teams.find((t) => t.id === teamId) ??
-      teams[0] ?? { id: 'CORE', name: 'Core', icon: '🛠️' };
+   const { data: teams = [], isLoading } = useTeams();
+   const team = teams.find((t) => t.id === teamId);
    const { data: cycles = [] } = useCycles(teamId);
+   if (!team) {
+      return (
+         <div className="w-full flex items-center gap-2 border-b py-1.5 px-6 h-10">
+            <SidebarTrigger />
+            <span className="text-sm text-muted-foreground">
+               {isLoading ? 'Loading team…' : 'Team not found'}
+            </span>
+         </div>
+      );
+   }
    const cycle = cycles.find((c) => c.status === (cycleView === 'active' ? 'current' : 'upcoming'));
    const nextCycle = cycles.find((c) => c.status === 'upcoming');
    const cycleName = cycle?.name ?? (cycleView === 'active' ? 'Current cycle' : 'Upcoming cycle');

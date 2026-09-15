@@ -107,7 +107,7 @@ export default function ViewDetails({ viewId }: { viewId: string }) {
                This saved view does not exist or has been deleted.
             </p>
             <Link
-               href={`/${orgId ?? 'lndev-ui'}/views`}
+               href={`/${orgId ?? ''}/views`}
                className="mt-2 text-xs px-3 py-1.5 rounded-md border border-border/80 bg-accent hover:bg-accent/80 transition-colors font-medium text-foreground"
             >
                Back to views

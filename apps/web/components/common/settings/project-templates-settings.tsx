@@ -127,7 +127,7 @@ function TemplateEditor({
       setName(template?.name ?? '');
       setDescription(template?.description ?? '');
       setScope(template?.scope ?? 'workspace');
-      setTeamId(template?.teamId ?? teams[0]?.id ?? '');
+      setTeamId(template?.teamId ?? '');
       setTeamIds(
          project.teamIds ??
             (template?.scope === 'team' && template?.teamId ? [template.teamId] : [])

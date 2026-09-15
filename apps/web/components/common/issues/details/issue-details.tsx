@@ -266,7 +266,7 @@ export default function IssueDetails() {
             title,
             description: subIssueDescription.trim() || undefined,
             parentIssueId: issue.id || issue.identifier,
-            teamId: issue.teamId || 'CORE',
+            teamId: issue.teamId,
             projectId: issue.project?.id,
             cycleId: issue.cycleId,
             statusId: subIssueStatusId,
@@ -391,7 +391,7 @@ export default function IssueDetails() {
                            {subIssues.map((subIssue) => (
                               <Link
                                  key={subIssue.id}
-                                 href={`/${orgId ?? 'lndev-ui'}/issue/${subIssue.identifier}`}
+                                 href={`/${orgId ?? ''}/issue/${subIssue.identifier}`}
                                  className="flex items-center gap-2.5 h-10 px-1 border-b border-border/50 hover:bg-sidebar/50 text-sm min-w-0 group transition-colors"
                               >
                                  {renderStatusIcon(subIssue.status?.id)}
@@ -489,7 +489,7 @@ export default function IssueDetails() {
                            <div className="flex items-center gap-1.5 flex-wrap">
                               {/* Team / Project Badge */}
                               <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-muted/60 text-muted-foreground border border-border/50">
-                                 📈 {issue.teamId || 'CORE'}
+                                 📈 {issue.teamId || 'Unknown team'}
                               </span>
 
                               {/* Priority Dropdown Pill */}

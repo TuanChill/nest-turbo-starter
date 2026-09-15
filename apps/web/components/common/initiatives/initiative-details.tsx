@@ -532,7 +532,7 @@ export default function InitiativeDetails({ initiativeId }: { initiativeId: stri
                This initiative does not exist or has been removed.
             </p>
             <Link
-               href={`/${orgId ?? 'lndev-ui'}/initiatives`}
+               href={`/${orgId ?? ''}/initiatives`}
                className="mt-2 text-xs px-3 py-1.5 rounded-md border border-border/80 bg-accent hover:bg-accent/80 transition-colors font-medium text-foreground"
             >
                Back to initiatives

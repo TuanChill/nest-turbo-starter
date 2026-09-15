@@ -12,6 +12,8 @@ export interface Team {
    members: User[];
    projects: Project[];
    workspaceId?: string;
+   createdAt?: string;
+   updatedAt?: string;
 }
 
 export const teams: Team[] = [

@@ -1,5 +1,5 @@
 import { EntityManager } from '@mikro-orm/core';
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
 import { OnboardingCompleteDto } from './dto/onboarding.dto';
 import {
@@ -121,7 +121,12 @@ export class OnboardingService {
       .toUpperCase()
       .replace(/[^A-Z0-9]/g, '')
       .slice(0, 6);
-    let finalTeamKey = rawTeamKey || 'ENG';
+    if (!rawTeamKey) {
+      throw new BadRequestException(
+        'A team key containing letters or numbers is required',
+      );
+    }
+    let finalTeamKey = rawTeamKey;
 
     let teamCounter = 1;
     // oxlint-disable-next-line no-await-in-loop -- each candidate key depends on the previous one being taken

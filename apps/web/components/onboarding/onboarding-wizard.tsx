@@ -44,14 +44,18 @@ export function OnboardingWizard() {
    const [inviteEmails, setInviteEmails] = React.useState<string[]>([]);
 
    const handleFinish = async () => {
+      if (!workspaceName.trim() || !teamName.trim() || !teamKey.trim()) {
+         toast.error('Workspace name, team name, and team key are required');
+         return;
+      }
       setIsSubmitting(true);
       try {
          const res = await onboardingService.completeOnboarding({
-            workspaceName: workspaceName.trim() || 'My Workspace',
+            workspaceName: workspaceName.trim(),
             workspaceSlug: workspaceSlug.trim() || undefined,
             workspaceIcon,
-            teamName: teamName.trim() || 'Engineering',
-            teamKey: (teamKey.trim() || 'ENG').toUpperCase(),
+            teamName: teamName.trim(),
+            teamKey: teamKey.trim().toUpperCase(),
             teamIcon,
             teamColor,
             inviteEmails: inviteEmails.length > 0 ? inviteEmails : undefined,

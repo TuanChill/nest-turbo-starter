@@ -101,11 +101,9 @@ export function CreateInitiativeDialog({
    const [description, setDescription] = React.useState('');
    const [isSubmitting, setIsSubmitting] = React.useState(false);
 
-   // Sync default ownerId when members load
+   // Initiative ownership is optional; never assign an arbitrary member.
    React.useEffect(() => {
-      if (members.length > 0 && (!ownerId || !members.some((m) => m.id === ownerId))) {
-         setOwnerId(members[0].id);
-      }
+      if (ownerId && !members.some((member) => member.id === ownerId)) setOwnerId('');
    }, [members, ownerId]);
 
    const toggleProject = (projectId: string) => {

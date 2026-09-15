@@ -127,6 +127,8 @@ export class TeamsService {
         joined: isJoined,
         workspaceId: team.workspaceId,
         description: team.description,
+        createdAt: team.createdAt?.toISOString(),
+        updatedAt: team.updatedAt?.toISOString(),
         members: teamUsers,
         projects: teamProjects,
       };
@@ -158,6 +160,8 @@ export class TeamsService {
       joined: isJoined,
       workspaceId: team.workspaceId,
       description: team.description,
+      createdAt: team.createdAt?.toISOString(),
+      updatedAt: team.updatedAt?.toISOString(),
       members: members.map((m) => this.toPublicMember(m)),
       projects,
     };
