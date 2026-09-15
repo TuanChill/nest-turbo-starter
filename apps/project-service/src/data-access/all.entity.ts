@@ -1,6 +1,7 @@
 import { Cycle } from './cycle/cycle.entity';
 import { DocumentFolder, TeamDocument } from './document/document.entity';
 import { InitiativeActivity } from './initiative/initiative-activity.entity';
+import { InitiativeUpdate } from './initiative/initiative-update.entity';
 import { Initiative } from './initiative/initiative.entity';
 import { IssueActivity } from './issue/issue-activity.entity';
 import { IssueRelation, PrLink } from './issue/issue-relation.entity';
@@ -60,6 +61,7 @@ export const ALL_ENTITIES = [
   PrLink,
   Initiative,
   InitiativeActivity,
+  InitiativeUpdate,
   DocumentFolder,
   TeamDocument,
   Notification,
