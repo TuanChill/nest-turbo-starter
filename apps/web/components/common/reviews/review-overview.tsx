@@ -8,7 +8,6 @@ import {
    ChevronRight,
    FileCode2,
    GitCommitHorizontal,
-   Paperclip,
    Plus,
    Send,
    UserPlus,
@@ -168,7 +167,6 @@ export function ReviewOverview({ review }: { review: Review }) {
                <div className="flex items-center gap-2 rounded-lg border px-3 py-2.5 text-sm text-muted-foreground">
                   <span className="size-5 rounded-full bg-muted inline-block shrink-0" />
                   <span className="flex-1">Leave a reply...</span>
-                  <Paperclip className="size-4" />
                   <Send className="size-4" />
                </div>
 

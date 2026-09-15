@@ -4,7 +4,7 @@ import {
   getWinstonConfig,
   HttpLoggerMiddleware,
 } from '@app/common';
-import { BaseRepository } from '@app/core';
+import { AwsS3Module, BaseRepository } from '@app/core';
 import { MikroOrmModule } from '@mikro-orm/nestjs';
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigType } from '@nestjs/config';
@@ -28,6 +28,7 @@ import { ProjectsModule } from './projects/projects.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { SeedModule } from './seed/seed.module';
 import { TeamsModule } from './teams/teams.module';
+import { UploadsModule } from './uploads/uploads.module';
 import { ViewsModule } from './views/views.module';
 import { WorkspacesModule } from './workspaces/workspaces.module';
 import { appConfiguration, dbConfiguration } from '../config';
@@ -76,6 +77,8 @@ import { appConfiguration, dbConfiguration } from '../config';
     ReviewsModule,
     AgentModule,
     SeedModule,
+    AwsS3Module,
+    UploadsModule,
   ],
   controllers: [AppController],
   providers: [

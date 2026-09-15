@@ -18,7 +18,7 @@ import {
 import type { ProjectUpdate } from '@/mock-data/project-details';
 import { useAuthStore } from '@/store/auth-store';
 import { format, parseISO } from 'date-fns';
-import { Paperclip, Sparkles } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { ProjectSidePanel } from './project-side-panel';
 
@@ -275,13 +275,6 @@ export default function ProjectActivity({ projectId }: ProjectActivityProps) {
                         Write with Agent
                      </Button>
                      <div className="flex items-center gap-2">
-                        <Button
-                           variant="ghost"
-                           size="icon"
-                           className="size-7 text-muted-foreground"
-                        >
-                           <Paperclip className="size-4" />
-                        </Button>
                         <Button
                            size="xs"
                            onClick={handlePost}

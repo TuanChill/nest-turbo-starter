@@ -1,7 +1,7 @@
 import { s3Configuration, StorageType } from '@app/common';
-import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 
 @Injectable()
@@ -34,11 +34,28 @@ export class AwsS3Service {
     });
   }
 
+  isConfigured() {
+    return Boolean(
+      this.bucket &&
+        this.s3Url &&
+        this.s3Config.awsS3Region &&
+        (!this.s3Config.awsS3CredentialsRequired ||
+          (this.s3Config.awsS3AccessKeyId && this.s3Config.awsS3SecretAccessKey)),
+    );
+  }
+
+  private assertConfigured() {
+    if (!this.isConfigured()) {
+      throw new ServiceUnavailableException('File storage is not configured');
+    }
+  }
+
   async getPresignedUploadUrl(
     fileName: string,
     contentType: string,
     bucketFolder?: string,
-  ): Promise<{ uploadUrl: string; fileUrl: string }> {
+  ): Promise<{ uploadUrl: string; fileUrl: string; fileKey: string }> {
+    this.assertConfigured();
     const fileKey = bucketFolder
       ? `${bucketFolder.replace(/^\/|\/$/g, '')}/${fileName}`
       : fileName;
@@ -56,7 +73,7 @@ export class AwsS3Service {
     const baseUrl = this.s3Url.replace(/\/+$/, '');
     const fileUrl = `${baseUrl}/${encodeURI(fileKey)}`;
 
-    return { uploadUrl, fileUrl };
+    return { uploadUrl, fileUrl, fileKey };
   }
 
   async uploadFile(
@@ -65,6 +82,7 @@ export class AwsS3Service {
     body: Buffer,
     bucketFolder?: string,
   ): Promise<{ fileKey: string }> {
+    this.assertConfigured();
     const fileKey = bucketFolder ? `${bucketFolder}/${fileName}` : `${fileName}`;
 
     const command = new PutObjectCommand({
@@ -76,5 +94,15 @@ export class AwsS3Service {
     await this.s3Client.send(command);
 
     return { fileKey };
+  }
+
+  async assertObjectExists(fileKey: string) {
+    this.assertConfigured();
+    await this.s3Client.send(
+      new HeadObjectCommand({
+        Bucket: this.bucket,
+        Key: fileKey,
+      }),
+    );
   }
 }

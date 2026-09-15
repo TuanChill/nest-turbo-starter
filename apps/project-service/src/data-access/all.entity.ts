@@ -1,3 +1,4 @@
+import { FileAttachment } from './attachment/file-attachment.entity';
 import { CycleHistory } from './cycle/cycle-history.entity';
 import { Cycle } from './cycle/cycle.entity';
 import { DocumentFolder, TeamDocument } from './document/document.entity';
@@ -34,6 +35,7 @@ export * from './team';
 export * from './label';
 export * from './project';
 export * from './cycle';
+export * from './attachment';
 export * from './issue';
 export * from './initiative';
 export * from './document';
@@ -60,6 +62,7 @@ export const ALL_ENTITIES = [
   ProjectUpdate,
   Cycle,
   CycleHistory,
+  FileAttachment,
   Issue,
   IssueSubscription,
   IssueTemplate,

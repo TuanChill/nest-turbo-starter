@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Check, MoreHorizontal, Paperclip, Plus, Tag, UserPlus } from 'lucide-react';
+import { Check, MoreHorizontal, Plus, Tag, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import { renderStatusIcon } from '@/lib/status-utils';
 import Link from 'next/link';
@@ -614,15 +614,8 @@ export default function IssueDetails() {
                               </button>
                            </div>
 
-                           {/* Right Buttons: Attachment, Cancel, Create */}
+                           {/* Right Buttons: Cancel, Create */}
                            <div className="flex items-center gap-2">
-                              <button
-                                 type="button"
-                                 className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
-                                 title="Attach files"
-                              >
-                                 <Paperclip className="size-4" />
-                              </button>
                               <Button
                                  type="button"
                                  size="sm"
