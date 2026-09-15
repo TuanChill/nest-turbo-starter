@@ -2,6 +2,7 @@ import { EntityManager } from '@mikro-orm/core';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
 import { CreateMemberDto, UpdateMemberDto } from './dto/member.dto';
+import { filterVisibleTeamIds } from './member-scope';
 import { Member, Team, TeamMember, Workspace, WorkspaceMember } from '../../data-access';
 import { SesMailerService } from '../email/ses-mailer.service';
 import { WorkspacesService } from '../workspaces/workspaces.service';
@@ -26,8 +27,24 @@ export class MembersService {
     return workspace.id;
   }
 
+  private async getVisibleTeamIds(
+    requesterId: string,
+    workspaceId?: string,
+  ): Promise<Set<string>> {
+    if (workspaceId) {
+      const resolvedWorkspaceId = await this.resolveWorkspaceId(requesterId, workspaceId);
+      const teams = await this.em.find(Team, { workspaceId: resolvedWorkspaceId });
+      return new Set(teams.map((team) => team.id));
+    }
+
+    return new Set(await this.workspacesService.getAccessibleTeamIds(requesterId));
+  }
+
   async findAll(memberId?: string, workspaceId?: string): Promise<any[]> {
     let members: Member[];
+    const visibleTeamIds = memberId
+      ? await this.getVisibleTeamIds(memberId, workspaceId)
+      : new Set<string>();
     if (workspaceId) {
       const resolvedWorkspaceId = await this.resolveWorkspaceId(memberId, workspaceId);
       const workspaceMembers = await this.em.find(WorkspaceMember, {
@@ -47,7 +64,9 @@ export class MembersService {
     } else {
       members = await this.em.find(Member, {});
     }
-    const teamMembers = await this.em.find(TeamMember, {});
+    const teamMembers = await this.em.find(TeamMember, {
+      teamId: { $in: [...visibleTeamIds] },
+    });
 
     return members.map((member) => {
       const teamIds = teamMembers
@@ -85,6 +104,7 @@ export class MembersService {
       throw new NotFoundException(`Member ${id} not found`);
     }
 
+    const visibleTeamIds = await this.getVisibleTeamIds(requesterId);
     const teamMembers = await this.em.find(TeamMember, { memberId: id });
     return {
       id: member.id,
@@ -94,7 +114,7 @@ export class MembersService {
       status: member.status,
       role: member.role,
       timezone: member.timezone,
-      teamIds: teamMembers.map((tm) => tm.teamId),
+      teamIds: filterVisibleTeamIds(teamMembers, visibleTeamIds),
       joinedDate: member.joinedDate
         ? member.joinedDate.toISOString().split('T')[0]
         : null,
@@ -196,7 +216,8 @@ export class MembersService {
 
   async getMemberTeams(id: string, requesterId: string): Promise<any[]> {
     await this.findOne(id, requesterId);
+    const visibleTeamIds = await this.getVisibleTeamIds(requesterId);
     const teamMembers = await this.em.find(TeamMember, { memberId: id });
-    return teamMembers.map((tm) => tm.teamId);
+    return filterVisibleTeamIds(teamMembers, visibleTeamIds);
   }
 }

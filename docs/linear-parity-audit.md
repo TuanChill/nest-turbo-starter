@@ -34,6 +34,7 @@ Reference set: [Linear Docs](https://linear.app/docs), [Projects](https://linear
 - Issue creation now rejects unknown status/priority IDs and validates cycle and parent-issue team membership before persistence.
 - The public seed endpoint now returns not-found in production. My Issues counts and lists use only authenticated-user/server issue data; they no longer fall back to the first mock user or local mock records. Template queries also wait for a verified workspace ID during legacy-route redirects.
 - Deployment locking now waits for an active deploy to finish for up to ten minutes so a queued release does not fail immediately on a held remote lock.
+- Member responses now filter returned team IDs to teams visible to the requester, preventing cross-workspace team metadata from leaking through an otherwise valid member lookup. The production Agent route now returns an explicit not-configured error instead of canned workspace data; the UI surfaces that API error.
 
 ## Verification evidence (2026-09-15)
 
