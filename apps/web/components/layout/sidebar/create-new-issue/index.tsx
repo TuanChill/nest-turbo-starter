@@ -28,6 +28,7 @@ import { DialogTitle } from '@radix-ui/react-dialog';
 import { useCreateIssue } from '@/hooks/queries/use-issues-query';
 import { useProjects } from '@/hooks/queries/use-projects-query';
 import { useCycles } from '@/hooks/queries/use-cycles-query';
+import { useWorkspaces } from '@/hooks/queries/use-workspaces-query';
 import { useQueryClient } from '@tanstack/react-query';
 import { issueKeys, projectKeys } from '@/hooks/queries/keys';
 import { usePathname } from 'next/navigation';
@@ -56,9 +57,13 @@ export function CreateNewIssue() {
    const { data: projects = [] } = useProjects();
    const { data: teams = [] } = useTeams();
    const { data: members = [] } = useMembers();
+   const { data: workspaces = [] } = useWorkspaces();
    const queryClient = useQueryClient();
    const pathname = usePathname();
    const { orgId } = useParams<{ orgId: string }>();
+   const resolvedWorkspaceId = workspaces.find(
+      (workspace) => workspace.id === orgId || workspace.slug === orgId
+   )?.id;
 
    // Route-aware context detection
    const routeProjectMatch = pathname.match(/\/project\/([^/]+)/);
@@ -71,7 +76,7 @@ export function CreateNewIssue() {
    const activeProject = defaultProject || routeProject || undefined;
    const activeTeamId = activeProject?.teamId || defaultTeamId || routeTeamId || teams[0]?.id;
    const activeTeam = teams.find((t) => t.id === activeTeamId);
-   const { data: issueTemplates = [] } = useIssueTemplates(orgId, activeTeamId);
+   const { data: issueTemplates = [] } = useIssueTemplates(resolvedWorkspaceId, activeTeamId);
 
    // Creating an issue from within a cycle's page (/cycle/active or
    // /cycle/upcoming) should scope it to that cycle, same as the project

@@ -26,6 +26,7 @@ import { useTeams } from '@/hooks/queries/use-teams-query';
 import { useMembers } from '@/hooks/queries/use-members-query';
 import { useInitiatives } from '@/hooks/queries/use-initiatives-query';
 import { useLabels } from '@/hooks/queries/use-labels-query';
+import { useWorkspaces } from '@/hooks/queries/use-workspaces-query';
 import {
    useCreateProjectFromTemplate,
    useProjectTemplates,
@@ -115,11 +116,15 @@ export function CreateProjectDialog({
    const createProjectMutation = useCreateProject();
    const createFromTemplateMutation = useCreateProjectFromTemplate();
    const { orgId } = useParams<{ orgId: string }>();
+   const { data: workspaces = [] } = useWorkspaces();
+   const resolvedWorkspaceId = workspaces.find(
+      (workspace) => workspace.id === orgId || workspace.slug === orgId
+   )?.id;
    const { data: teams = [] } = useTeams();
    const { data: members = [] } = useMembers();
    const { data: initiatives = [] } = useInitiatives();
    const { data: labels = [] } = useLabels('project');
-   const { data: templates = [] } = useProjectTemplates(orgId);
+   const { data: templates = [] } = useProjectTemplates(resolvedWorkspaceId);
 
    const [name, setName] = React.useState('');
    const [teamId, setTeamId] = React.useState(defaultTeamId || (teams[0]?.id ?? 'CORE'));
