@@ -12,7 +12,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useIssuesStore } from '@/store/issues-store';
 import { useCreateLabel, useLabels } from '@/hooks/queries/use-labels-query';
-import { LabelInterface, labels as mockLabels } from '@/mock-data/labels';
+import { LabelInterface } from '@/mock-data/labels';
 import { CheckIcon, Loader2, Plus, TagIcon } from 'lucide-react';
 import { useId, useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -43,7 +43,9 @@ export function LabelSelector({
    const { data: labels = [] } = useLabels(scope);
    const createLabelMutation = useCreateLabel();
 
-   const allLabels = labels.length > 0 ? labels : mockLabels;
+   // Never fall back to mock IDs here: an empty API response is a valid
+   // workspace state, and sending a mock label ID would fail server validation.
+   const allLabels = labels;
    const normalizedSearch = search.trim().toLocaleLowerCase();
    const canCreate =
       allowCreate &&
