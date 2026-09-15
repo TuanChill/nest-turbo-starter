@@ -139,19 +139,41 @@ export class IssuesService {
     }
   }
 
+  private async getMemberIdsForTeam(teamId: string) {
+    const [team, teamMembers] = await Promise.all([
+      this.em.findOne(Team, { id: teamId }),
+      this.em.find(TeamMember, { teamId }),
+    ]);
+    const memberIds = new Set(teamMembers.map((membership) => membership.memberId));
+    if (team?.workspaceId) {
+      const workspaceMembers = await this.em.find(WorkspaceMember, {
+        workspaceId: team.workspaceId,
+      });
+      for (const membership of workspaceMembers) memberIds.add(membership.memberId);
+    }
+    return memberIds;
+  }
+
   /** assignee + creator + everyone who has commented, minus the actor causing the event. */
   private async resolveRecipients(
     issue: Issue,
     excludeActorId: string,
   ): Promise<string[]> {
+    const allowedMemberIds = await this.getMemberIdsForTeam(issue.teamId);
     const recipients = new Set<string>();
-    if (issue.assigneeId) recipients.add(issue.assigneeId);
-    if (issue.creatorId) recipients.add(issue.creatorId);
+    if (issue.assigneeId && allowedMemberIds.has(issue.assigneeId)) {
+      recipients.add(issue.assigneeId);
+    }
+    if (issue.creatorId && allowedMemberIds.has(issue.creatorId)) {
+      recipients.add(issue.creatorId);
+    }
     const comments = await this.em.find(IssueActivity, {
       issueIdentifier: issue.identifier,
       kind: 'comment',
     });
-    for (const c of comments) recipients.add(c.actorId);
+    for (const c of comments) {
+      if (allowedMemberIds.has(c.actorId)) recipients.add(c.actorId);
+    }
     recipients.delete(excludeActorId);
     return Array.from(recipients);
   }
@@ -938,7 +960,9 @@ export class IssuesService {
 
     // @mention parsing: `@<memberId>` resolved against real members. A mention takes
     // priority over the generic 'comment' notification for that same recipient (no dupes).
-    const members = await this.em.find(Member, {});
+    const memberIds = await this.getMemberIdsForTeam(issue.teamId);
+    memberIds.add(actorId);
+    const members = await this.em.find(Member, { id: { $in: [...memberIds] } });
     const membersMap = new Map(members.map((m) => [m.id, toSafeMember(m)]));
     const mentionedIds = new Set<string>();
     for (const match of textContent.matchAll(/@([a-z0-9_.-]+)/g)) {
