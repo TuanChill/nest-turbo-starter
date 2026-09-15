@@ -6,7 +6,7 @@ import type { ColumnOption, FiltersState } from '@/components/data-table-filter/
 import { multiOptionFilterFn, optionFilterFn } from '@/components/data-table-filter/lib/filter-fns';
 import { cycleStatusLabel } from '@/lib/cycle-utils';
 import type { Cycle } from '@/services/cycles.service';
-import { Issue } from '@/mock-data/issues';
+import type { Issue } from '@/mock-data/issues';
 import { priorities } from '@/mock-data/priorities';
 import { status, StatusCategory } from '@/mock-data/status';
 import type { Project } from '@/mock-data/projects';

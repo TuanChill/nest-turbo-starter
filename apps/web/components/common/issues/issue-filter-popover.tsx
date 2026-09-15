@@ -15,8 +15,8 @@ import { useFilterStore } from '@/store/filter-store';
 import { issueFilterColumns } from './issue-filter-columns';
 import { status } from '@/mock-data/status';
 import { priorities } from '@/mock-data/priorities';
-import { labels } from '@/mock-data/labels';
 import { useMembers } from '@/hooks/queries/use-members-query';
+import { useLabels } from '@/hooks/queries/use-labels-query';
 import {
    Calendar,
    CheckCircle2,
@@ -39,6 +39,7 @@ export function IssueFilterPopover() {
    const [search, setSearch] = useState('');
    const { filters, setFilters, getActiveFiltersCount } = useFilterStore();
    const { data: users = [] } = useMembers();
+   const { data: liveLabels = [] } = useLabels('issue');
    const activeCount = getActiveFiltersCount();
 
    // Global shortcut 'F' to open filters
@@ -307,7 +308,7 @@ export function IssueFilterPopover() {
                   {/* Sub-menu: Labels */}
                   {activeCategory === 'labels' && (
                      <CommandGroup heading="Labels">
-                        {labels.map((item) => {
+                        {liveLabels.map((item) => {
                            const active = isValueActive('labels', item.id);
                            return (
                               <CommandItem
