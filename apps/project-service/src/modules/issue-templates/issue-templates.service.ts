@@ -51,7 +51,7 @@ export class IssueTemplatesService {
   private async assertTeamAccess(teamId: string, workspaceId: string, memberId: string) {
     const accessible = await this.workspacesService.getAccessibleTeamIds(memberId);
     const team = await this.em.findOne(Team, { id: teamId });
-    if (!team || (team.workspaceId && team.workspaceId !== workspaceId))
+    if (!team || team.workspaceId !== workspaceId)
       throw new BadRequestException(
         'The selected team does not belong to this workspace',
       );

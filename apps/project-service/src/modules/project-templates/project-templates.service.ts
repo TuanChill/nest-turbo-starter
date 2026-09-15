@@ -59,7 +59,7 @@ export class ProjectTemplatesService {
     if (!accessible.includes(teamId))
       throw new NotFoundException(`Team ${teamId} not found`);
     const team = await this.em.findOne(Team, { id: teamId });
-    if (!team || (team.workspaceId && team.workspaceId !== workspaceId))
+    if (!team || team.workspaceId !== workspaceId)
       throw new BadRequestException(
         'The selected team does not belong to this workspace',
       );
