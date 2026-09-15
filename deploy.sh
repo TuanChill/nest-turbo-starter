@@ -31,6 +31,9 @@ fi
 
 export DOCKER_BUILDKIT=1
 export COMPOSE_DOCKER_CLI_BUILD=1
+# The production host currently runs Docker 20.10 without buildx. Serializing
+# Compose builds avoids the daemon's concurrent BuildKit connection deadlock.
+export COMPOSE_PARALLEL_LIMIT=1
 
 echo "Validating Compose configuration..."
 "${COMPOSE[@]}" config >/dev/null
