@@ -1,6 +1,4 @@
 import {
-   Bot,
-   GitPullRequestArrow,
    Inbox,
    FolderKanban,
    ContactRound,
