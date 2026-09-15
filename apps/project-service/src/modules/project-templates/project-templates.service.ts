@@ -230,6 +230,34 @@ export class ProjectTemplatesService {
     const config = this.normalizeConfig(template.config);
     const projectConfig = config.project ?? {};
     const overrides = dto.overrides ?? {};
+    const projectOverrides = overrides as {
+      summary?: unknown;
+      description?: unknown;
+      resources?: unknown;
+      icon?: unknown;
+      statusId?: unknown;
+      statusCategory?: unknown;
+      priorityId?: unknown;
+      healthId?: unknown;
+      percentComplete?: unknown;
+      leadId?: unknown;
+      initiativeId?: unknown;
+      labelIds?: unknown;
+      startDate?: unknown;
+      targetDate?: unknown;
+    };
+    const overrideString = (key: keyof typeof projectOverrides, fallback?: string) =>
+      typeof projectOverrides[key] === 'string' ? projectOverrides[key] : fallback;
+    const overrideNumber = (key: keyof typeof projectOverrides, fallback?: number) =>
+      typeof projectOverrides[key] === 'number' ? projectOverrides[key] : fallback;
+    const overrideStringArray = (
+      key: keyof typeof projectOverrides,
+      fallback?: string[],
+    ) =>
+      Array.isArray(projectOverrides[key]) &&
+      projectOverrides[key].every((value) => typeof value === 'string')
+        ? (projectOverrides[key] as string[])
+        : fallback;
     const memberIds = projectConfig.memberIds ?? [];
     const members = await this.em.find(Member, { id: { $in: memberIds } });
     if (members.length !== memberIds.length)
@@ -242,21 +270,29 @@ export class ProjectTemplatesService {
           name: dto.name.trim(),
           teamId: dto.teamId,
           summary:
-            typeof overrides.summary === 'string'
-              ? overrides.summary
+            typeof projectOverrides.summary === 'string'
+              ? projectOverrides.summary
               : projectConfig.summary,
-          description: Array.isArray(overrides.description)
-            ? overrides.description
+          description: Array.isArray(projectOverrides.description)
+            ? projectOverrides.description
             : projectConfig.description,
-          resources: projectConfig.resources,
-          icon: projectConfig.icon,
-          statusId: projectConfig.statusId,
-          statusCategory: projectConfig.statusCategory,
-          priorityId: projectConfig.priorityId,
-          healthId: projectConfig.healthId,
-          leadId: projectConfig.leadId,
-          initiativeId: projectConfig.initiativeId,
-          labelIds: projectConfig.labelIds,
+          resources: Array.isArray(projectOverrides.resources)
+            ? projectOverrides.resources
+            : projectConfig.resources,
+          icon: overrideString('icon', projectConfig.icon),
+          statusId: overrideString('statusId', projectConfig.statusId),
+          statusCategory: overrideString('statusCategory', projectConfig.statusCategory),
+          priorityId: overrideString('priorityId', projectConfig.priorityId),
+          healthId: overrideString('healthId', projectConfig.healthId),
+          percentComplete: overrideNumber(
+            'percentComplete',
+            projectConfig.percentComplete,
+          ),
+          leadId: overrideString('leadId', projectConfig.leadId),
+          initiativeId: overrideString('initiativeId', projectConfig.initiativeId),
+          labelIds: overrideStringArray('labelIds', projectConfig.labelIds),
+          startDate: overrideString('startDate', projectConfig.startDate),
+          targetDate: overrideString('targetDate', projectConfig.targetDate),
         },
         memberId,
       );

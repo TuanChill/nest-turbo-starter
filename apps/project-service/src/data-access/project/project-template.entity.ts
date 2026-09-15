@@ -13,10 +13,13 @@ export interface ProjectTemplateConfig {
     statusCategory?: string;
     priorityId?: string;
     healthId?: string;
+    percentComplete?: number;
     leadId?: string;
     initiativeId?: string;
     labelIds?: string[];
     memberIds?: string[];
+    startDate?: string;
+    targetDate?: string;
   };
   milestones?: Array<{
     key: string;
