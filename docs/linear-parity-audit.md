@@ -55,6 +55,7 @@ Reference set: [Linear Docs](https://linear.app/docs), [Projects](https://linear
 - Issue filter label options now come from the authenticated workspace label API; the previous bundled mock label catalog was removed from that production path.
 - Issue and project mutation paths now reject unknown status/priority/health values, mismatched status categories, invalid project progress, invalid dates, and reversed project date ranges before persistence; focused property-rule tests cover the contract.
 - Saved-view detail now applies persisted team/project scope and advanced filters to live API results, restores persisted issue display settings, and no longer exposes an inert issue-detail subscription or attachment/reaction action.
+- The editor disables StarterKit's built-in link/underline extensions when registering the configured versions, removing the duplicate-extension warning observed in the authenticated production issue-detail smoke.
 - Workspace navigation no longer invents a `circle-workspace` route when the authenticated workspace parameter is absent; the affected sidebar surfaces render no workspace links until a real route context exists.
 - Label list and group queries now accept and enforce the active workspace, preventing a member’s other accessible workspaces from appearing in the current workspace’s label pickers.
 - Label hooks now wait for the authenticated workspace list to resolve the route slug, preventing legacy or foreign route labels from being queried during hydration.

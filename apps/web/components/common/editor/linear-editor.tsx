@@ -110,6 +110,11 @@ export function LinearEditor({
    const editor = useEditor({
       extensions: [
          StarterKit.configure({
+            // StarterKit 3.x includes both extensions; configure them here so
+            // the custom instances below are the only registered link/underline
+            // extensions and Tiptap does not emit duplicate-name warnings.
+            link: false,
+            underline: false,
             heading: {
                levels: [1, 2, 3, 4],
             },
