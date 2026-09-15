@@ -2,22 +2,23 @@
 
 import { LinearEditor } from '@/components/common/editor/linear-editor';
 import { contentBlocksToMarkdown } from '@/lib/content-blocks-to-markdown';
+import { ActivityFeed } from '@/components/common/issues/details/activity-feed';
 import { IssuePropertiesPanel } from '@/components/common/issues/details/issue-properties-panel';
 import { LabelBadge } from '@/components/common/issues/label-badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { getNotificationIcon } from '@/lib/notification-utils';
 import { renderStatusIcon } from '@/lib/status-utils';
 import { renderPriorityIcon } from '@/lib/priority-utils';
-import { getIssueDetail } from '@/mock-data/issue-details';
 import { InboxItem } from '@/mock-data/inbox';
-import { useIssues } from '@/hooks/queries/use-issues-query';
+import { useIssueDetail, useIssues } from '@/hooks/queries/use-issues-query';
+import { useMembers } from '@/hooks/queries/use-members-query';
 import { useNotificationsStore } from '@/store/notifications-store';
-import { ArrowUpRight, Check, Paperclip, Send } from 'lucide-react';
+import { ArrowUpRight, Check } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { NotificationBox } from './icons/motification-box';
+import QueryErrorState from '@/components/common/query-error-state';
 
 interface IssuePreviewProps {
    notification?: InboxItem;
@@ -33,6 +34,13 @@ export default function IssuePreview({ notification, onMarkAsRead }: IssuePrevie
    const { orgId } = useParams<{ orgId: string }>();
    const { getUnreadCount } = useNotificationsStore();
    const { data: issues = [] } = useIssues();
+   const notificationIdentifier = notification?.identifier ?? '';
+   const {
+      data: detail,
+      isError: isDetailError,
+      error: detailError,
+   } = useIssueDetail(notificationIdentifier, Boolean(notificationIdentifier));
+   const { data: members = [] } = useMembers();
 
    if (!notification) {
       const unreadCount = getUnreadCount();
@@ -53,7 +61,6 @@ export default function IssuePreview({ notification, onMarkAsRead }: IssuePrevie
    // Live issue from the store (falls back to the notification snapshot).
    const issue = issues.find((candidate) => candidate.identifier === notification.identifier);
    const displayIssue = issue ?? notification;
-   const detail = getIssueDetail(displayIssue);
 
    return (
       <div className="flex flex-col h-full overflow-hidden">
@@ -149,33 +156,28 @@ export default function IssuePreview({ notification, onMarkAsRead }: IssuePrevie
                         value={
                            displayIssue.description && displayIssue.description.trim()
                               ? displayIssue.description
-                              : contentBlocksToMarkdown(detail.description)
+                              : detail?.description
+                                ? contentBlocksToMarkdown(detail.description)
+                                : ''
                         }
                         editable={false}
                         className="px-0 py-0"
                      />
                   </div>
 
-                  {/* Comment composer */}
-                  <div className="relative w-full flex flex-col mt-10">
-                     <Textarea
-                        className="w-full rounded-lg border px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent pb-14 resize-none"
-                        placeholder="Leave a comment..."
-                        rows={3}
+                  {isDetailError ? (
+                     <QueryErrorState subject="issue activity" error={detailError} />
+                  ) : (
+                     <ActivityFeed
+                        activity={detail?.activity ?? []}
+                        issueIdentifier={displayIssue.identifier}
+                        members={members}
                      />
-                     <div className="absolute right-3 bottom-3 flex items-center gap-3">
-                        <Button size="icon" variant="ghost">
-                           <Paperclip className="w-4 h-4" />
-                        </Button>
-                        <Button size="icon" variant="secondary">
-                           <Send className="w-4 h-4" />
-                        </Button>
-                     </div>
-                  </div>
+                  )}
                </div>
             </div>
 
-            {issue && (
+            {issue && detail && (
                <aside className="hidden xl:block w-64 shrink-0 border-l overflow-y-auto bg-container px-4 py-5">
                   <IssuePropertiesPanel issue={issue} detail={detail} />
                </aside>
