@@ -35,6 +35,8 @@ export default function HeaderNav({ cycleView }: { cycleView: CycleView }) {
    const { data: teams = [], isLoading } = useTeams();
    const team = teams.find((t) => t.id === teamId);
    const { data: cycles = [] } = useCycles(teamId);
+   const [isCompleteOpen, setIsCompleteOpen] = useState(false);
+   const deleteCycleMutation = useDeleteCycle();
    if (!team) {
       return (
          <div className="w-full flex items-center gap-2 border-b py-1.5 px-6 h-10">
@@ -48,8 +50,6 @@ export default function HeaderNav({ cycleView }: { cycleView: CycleView }) {
    const cycle = cycles.find((c) => c.status === (cycleView === 'active' ? 'current' : 'upcoming'));
    const nextCycle = cycles.find((c) => c.status === 'upcoming');
    const cycleName = cycle?.name ?? (cycleView === 'active' ? 'Current cycle' : 'Upcoming cycle');
-   const [isCompleteOpen, setIsCompleteOpen] = useState(false);
-   const deleteCycleMutation = useDeleteCycle();
 
    const handleCopyLink = () => {
       const url = `${window.location.origin}/${orgId}/team/${team.id}/cycle/${cycleView}`;
