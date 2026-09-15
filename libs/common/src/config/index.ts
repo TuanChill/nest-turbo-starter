@@ -15,3 +15,4 @@ export * from './grpc.config';
 export * from './tcp.config';
 export * from './app-common.config';
 export * from './smtp.config';
+export * from './cors.config';

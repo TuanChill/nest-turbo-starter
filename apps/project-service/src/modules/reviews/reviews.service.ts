@@ -1,14 +1,24 @@
 import { EntityManager } from '@mikro-orm/core';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateReviewDto, UpdateReviewDto } from './dto/review.dto';
-import { Member, Review, toSafeMember } from '../../data-access';
+import {
+  Member,
+  Review,
+  toSafeMember,
+  Workspace,
+  WorkspaceMember,
+} from '../../data-access';
+import { WorkspacesService } from '../workspaces/workspaces.service';
 
 @Injectable()
 export class ReviewsService {
-  constructor(private readonly em: EntityManager) {}
+  constructor(
+    private readonly em: EntityManager,
+    private readonly workspacesService: WorkspacesService,
+  ) {}
 
   private transformReview(review: Review, membersMap: Map<string, any>, userId?: string) {
-    const author = membersMap.get(review.authorId) || membersMap.get('ln');
+    const author = membersMap.get(review.authorId) ?? null;
     const files = review.fileStats || [];
     const additions = files.reduce((acc: number, f: any) => acc + (f.additions || 0), 0);
     const deletions = files.reduce((acc: number, f: any) => acc + (f.deletions || 0), 0);
@@ -43,13 +53,22 @@ export class ReviewsService {
   }
 
   async findAll(status?: 'open' | 'merged' | 'closed', userId?: string) {
+    if (!userId) return [];
+    const accessibleWorkspaceIds =
+      await this.workspacesService.getAccessibleWorkspaceIds(userId);
+    if (accessibleWorkspaceIds.length === 0) return [];
     const where: any = {};
     if (status) where.status = status;
+    where.workspaceId = { $in: accessibleWorkspaceIds };
 
     const reviews = await this.em.find(Review, where, {
       orderBy: { createdAt: 'DESC' },
     });
-    const members = await this.em.find(Member, {});
+    const memberships = await this.em.find(WorkspaceMember, {
+      workspaceId: { $in: accessibleWorkspaceIds },
+    });
+    const memberIds = [...new Set(memberships.map((membership) => membership.memberId))];
+    const members = await this.em.find(Member, { id: { $in: memberIds } });
     const membersMap = new Map(members.map((m) => [m.id, toSafeMember(m)]));
 
     return reviews.map((r) => this.transformReview(r, membersMap, userId));
@@ -58,18 +77,44 @@ export class ReviewsService {
   async findOne(id: string, userId?: string) {
     const review = await this.em.findOne(Review, { id });
     if (!review) throw new NotFoundException(`Review ${id} not found`);
+    if (!userId) throw new NotFoundException(`Review ${id} not found`);
+    const accessibleWorkspaceIds =
+      await this.workspacesService.getAccessibleWorkspaceIds(userId);
+    if (!review.workspaceId || !accessibleWorkspaceIds.includes(review.workspaceId)) {
+      throw new NotFoundException(`Review ${id} not found`);
+    }
 
-    const members = await this.em.find(Member, {});
+    const memberships = await this.em.find(WorkspaceMember, {
+      workspaceId: review.workspaceId,
+    });
+    const memberIds = [...new Set(memberships.map((membership) => membership.memberId))];
+    const members = await this.em.find(Member, { id: { $in: memberIds } });
     const membersMap = new Map(members.map((m) => [m.id, toSafeMember(m)]));
 
     return this.transformReview(review, membersMap, userId);
   }
 
   async create(dto: CreateReviewDto, authorId: string) {
+    const accessibleWorkspaceIds =
+      await this.workspacesService.getAccessibleWorkspaceIds(authorId);
+    if (accessibleWorkspaceIds.length === 0) {
+      throw new NotFoundException('No accessible workspace found');
+    }
+    let workspaceId = accessibleWorkspaceIds[0];
+    if (dto.workspaceId) {
+      const workspace = await this.em.findOne(Workspace, {
+        $or: [{ id: dto.workspaceId }, { slug: dto.workspaceId }],
+      });
+      if (!workspace || !accessibleWorkspaceIds.includes(workspace.id)) {
+        throw new NotFoundException(`Workspace ${dto.workspaceId} not found`);
+      }
+      workspaceId = workspace.id;
+    }
     const id = dto.id || `rev-${Date.now()}`;
     const review = new Review({
       id,
       title: dto.title,
+      workspaceId,
       authorId,
       status: dto.status || 'open',
       resolves: dto.resolves,
@@ -87,9 +132,14 @@ export class ReviewsService {
     return this.findOne(id, authorId);
   }
 
-  async update(id: string, dto: UpdateReviewDto) {
+  async update(id: string, dto: UpdateReviewDto, userId: string) {
     const review = await this.em.findOne(Review, { id });
     if (!review) throw new NotFoundException(`Review ${id} not found`);
+    const accessibleWorkspaceIds =
+      await this.workspacesService.getAccessibleWorkspaceIds(userId);
+    if (!review.workspaceId || !accessibleWorkspaceIds.includes(review.workspaceId)) {
+      throw new NotFoundException(`Review ${id} not found`);
+    }
 
     if (dto.title !== undefined) review.title = dto.title;
     if (dto.status !== undefined) review.status = dto.status;
@@ -97,6 +147,6 @@ export class ReviewsService {
     if (dto.branch !== undefined) review.branch = dto.branch;
 
     await this.em.flush();
-    return this.findOne(id);
+    return this.findOne(id, userId);
   }
 }

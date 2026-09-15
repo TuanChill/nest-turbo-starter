@@ -5,7 +5,15 @@ import {
   CreateFolderDto,
   UpdateDocumentDto,
 } from './dto/document.dto';
-import { DocumentFolder, Member, TeamDocument, toSafeMember } from '../../data-access';
+import {
+  DocumentFolder,
+  Member,
+  Team,
+  TeamDocument,
+  TeamMember,
+  toSafeMember,
+  WorkspaceMember,
+} from '../../data-access';
 import { WorkspacesService } from '../workspaces/workspaces.service';
 
 @Injectable()
@@ -27,7 +35,23 @@ export class DocumentsService {
 
     const folders = await this.em.find(DocumentFolder, where);
     const documents = await this.em.find(TeamDocument, {});
-    const members = await this.em.find(Member, {});
+    const teams = await this.em.find(Team, {
+      id: { $in: [...new Set(folders.map((folder) => folder.teamId))] },
+    });
+    const workspaceIds = teams.map((team) => team.workspaceId).filter(Boolean);
+    const [teamMembers, workspaceMembers] = await Promise.all([
+      this.em.find(TeamMember, { teamId: { $in: accessibleTeamIds } }),
+      workspaceIds.length
+        ? this.em.find(WorkspaceMember, {
+            workspaceId: { $in: [...new Set(workspaceIds)] },
+          })
+        : Promise.resolve([]),
+    ]);
+    const visibleMemberIds = new Set([
+      ...teamMembers.map((membership) => membership.memberId),
+      ...workspaceMembers.map((membership) => membership.memberId),
+    ]);
+    const members = await this.em.find(Member, { id: { $in: [...visibleMemberIds] } });
     const membersMap = new Map(members.map((m) => [m.id, toSafeMember(m)]));
 
     return folders.map((folder) => {
@@ -37,7 +61,7 @@ export class DocumentsService {
           id: doc.id,
           name: doc.name,
           icon: doc.icon,
-          creator: membersMap.get(doc.creatorId) || membersMap.get('ln'),
+          creator: membersMap.get(doc.creatorId) ?? null,
           createdAt: doc.createdAt.toISOString().split('T')[0],
           updatedAt: doc.updatedAt.toISOString().split('T')[0],
           pinned: doc.pinned,
@@ -73,7 +97,23 @@ export class DocumentsService {
       await this.assertDocumentAccess(memberId, doc.folderId, `Document ${id} not found`);
     }
 
-    const creator = await this.em.findOne(Member, { id: doc.creatorId });
+    const folder = await this.em.findOne(DocumentFolder, { id: doc.folderId });
+    const team = folder ? await this.em.findOne(Team, { id: folder.teamId }) : null;
+    const [teamMembership, workspaceMembership] = await Promise.all([
+      team
+        ? this.em.findOne(TeamMember, { teamId: team.id, memberId: doc.creatorId })
+        : null,
+      team?.workspaceId
+        ? this.em.findOne(WorkspaceMember, {
+            workspaceId: team.workspaceId,
+            memberId: doc.creatorId,
+          })
+        : null,
+    ]);
+    const creator =
+      teamMembership || workspaceMembership
+        ? await this.em.findOne(Member, { id: doc.creatorId })
+        : null;
 
     return {
       id: doc.id,
@@ -128,7 +168,7 @@ export class DocumentsService {
 
     this.em.persist(doc);
     await this.em.flush();
-    return this.findOne(id);
+    return this.findOne(id, creatorId);
   }
 
   async updateDocument(id: string, dto: UpdateDocumentDto, memberId: string) {
@@ -150,7 +190,7 @@ export class DocumentsService {
     if (dto.content !== undefined) doc.content = dto.content;
 
     await this.em.flush();
-    return this.findOne(id);
+    return this.findOne(id, memberId);
   }
 
   async deleteDocument(id: string, memberId: string) {

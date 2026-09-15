@@ -21,8 +21,8 @@ export class ReviewsController {
 
   @ApiOperation({ summary: 'Get PR review by ID' })
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.reviewsService.findOne(id);
+  findOne(@Param('id') id: string, @User('id') userId: string) {
+    return this.reviewsService.findOne(id, userId);
   }
 
   @ApiOperation({ summary: 'Create PR review' })
@@ -33,7 +33,11 @@ export class ReviewsController {
 
   @ApiOperation({ summary: 'Update PR review' })
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateReviewDto) {
-    return this.reviewsService.update(id, dto);
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateReviewDto,
+    @User('id') userId: string,
+  ) {
+    return this.reviewsService.update(id, dto, userId);
   }
 }

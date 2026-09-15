@@ -693,7 +693,42 @@ export class IssuesService {
         throw new NotFoundException('No accessible team to create this issue in');
       }
     }
+
+    if (dto.statusId && !ALL_STATUSES[dto.statusId]) {
+      throw new BadRequestException(`Unknown issue status ${dto.statusId}`);
+    }
+    if (dto.priorityId && !ALL_PRIORITIES[dto.priorityId]) {
+      throw new BadRequestException(`Unknown issue priority ${dto.priorityId}`);
+    }
     await this.validateAssigneeId(dto.assigneeId, teamId);
+
+    if (dto.cycleId) {
+      const cycle = await this.em.findOne(Cycle, { id: dto.cycleId });
+      if (!cycle || cycle.teamId !== teamId) {
+        throw new BadRequestException('Cycle and issue must belong to the same team');
+      }
+      await this.assertTeamAccess(
+        actorId,
+        cycle.teamId,
+        `Cycle ${dto.cycleId} not found`,
+      );
+    }
+
+    if (dto.parentIssueId) {
+      const parent = await this.em.findOne(Issue, {
+        $or: [{ identifier: dto.parentIssueId }, { id: dto.parentIssueId }],
+      });
+      if (!parent || parent.teamId !== teamId) {
+        throw new BadRequestException(
+          'Parent issue must be another issue in the same team',
+        );
+      }
+      await this.assertTeamAccess(
+        actorId,
+        parent.teamId,
+        `Issue ${dto.parentIssueId} not found`,
+      );
+    }
 
     const prefix =
       team?.id?.toUpperCase() ||

@@ -8,6 +8,11 @@ export class CreateReviewDto {
   @IsOptional()
   id?: string;
 
+  @ApiPropertyOptional({ example: 'my-workspace' })
+  @IsString()
+  @IsOptional()
+  workspaceId?: string;
+
   @ApiProperty({ example: 'fix: rework Dialog focus trap for nested portals' })
   @IsString()
   @IsNotEmpty()

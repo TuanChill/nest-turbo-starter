@@ -1,4 +1,5 @@
 import {
+  getAllowedCorsOrigins,
   getAppCommonConfig,
   getWinstonConfig,
   logBootstrapInfo,
@@ -25,7 +26,10 @@ async function bootstrap() {
   const reflector = app.get(Reflector);
 
   app.use(helmet());
-  app.enableCors();
+  app.enableCors({
+    origin: getAllowedCorsOrigins(),
+    credentials: true,
+  });
   app.use(requestId());
   // app.use(
   //   rateLimit({

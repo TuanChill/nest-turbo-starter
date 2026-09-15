@@ -1,4 +1,5 @@
 import {
+  getAllowedCorsOrigins,
   getAppCommonConfig,
   getWinstonConfig,
   logBootstrapInfo,
@@ -26,14 +27,8 @@ async function bootstrap() {
   const reflector = app.get(Reflector);
 
   app.use(helmet());
-  const allowedOrigins = [
-    process.env.FRONTEND_URL,
-    'https://pm.capylabs.io',
-    'http://localhost:3000',
-  ].filter((origin): origin is string => Boolean(origin));
-
   app.enableCors({
-    origin: allowedOrigins,
+    origin: getAllowedCorsOrigins(),
     credentials: true,
   });
 
