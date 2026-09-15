@@ -7,6 +7,7 @@ import {
    useIssues,
    useCreateIssue,
    useUpdateIssue,
+   useToggleIssueSubscription,
 } from '@/hooks/queries/use-issues-query';
 import { useMembers } from '@/hooks/queries/use-members-query';
 import { useLabels } from '@/hooks/queries/use-labels-query';
@@ -21,7 +22,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Check, MoreHorizontal, Paperclip, Plus, SmilePlus, Tag, UserPlus } from 'lucide-react';
+import { Check, MoreHorizontal, Paperclip, Plus, Tag, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import { renderStatusIcon } from '@/lib/status-utils';
 import Link from 'next/link';
@@ -127,6 +128,7 @@ export default function IssueDetails() {
 
    const createIssueMutation = useCreateIssue();
    const updateIssueMutation = useUpdateIssue();
+   const subscriptionMutation = useToggleIssueSubscription();
 
    // Title inline edit state
    const [isEditingTitle, setIsEditingTitle] = React.useState(false);
@@ -357,15 +359,6 @@ export default function IssueDetails() {
                </div>
 
                {/* Quick actions */}
-               <div className="flex items-center gap-3 mt-6 text-muted-foreground">
-                  <button className="hover:text-foreground" aria-label="Add reaction">
-                     <SmilePlus className="size-4" />
-                  </button>
-                  <button className="hover:text-foreground" aria-label="Attach file">
-                     <Paperclip className="size-4" />
-                  </button>
-               </div>
-
                {/* Sub-issues Section */}
                <div className="mt-8">
                   {subIssues.length > 0 ? (
@@ -664,6 +657,14 @@ export default function IssueDetails() {
                   activity={detail.activity}
                   issueIdentifier={issue.identifier}
                   members={members}
+                  isSubscribed={Boolean(issue.isSubscribed)}
+                  isSubscriptionPending={subscriptionMutation.isPending}
+                  onToggleSubscription={() =>
+                     subscriptionMutation.mutate({
+                        identifier: issue.identifier,
+                        subscribed: !issue.isSubscribed,
+                     })
+                  }
                />
             </div>
          </div>

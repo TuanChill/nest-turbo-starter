@@ -98,10 +98,16 @@ export function ActivityFeed({
    activity,
    issueIdentifier,
    members = [],
+   isSubscribed = false,
+   isSubscriptionPending = false,
+   onToggleSubscription,
 }: {
    activity: ActivityItem[];
    issueIdentifier?: string;
    members?: Member[];
+   isSubscribed?: boolean;
+   isSubscriptionPending?: boolean;
+   onToggleSubscription?: () => void;
 }) {
    const [items, setItems] = useState<ActivityItem[]>(activity);
    const [draft, setDraft] = useState('');
@@ -237,8 +243,14 @@ export function ActivityFeed({
       <div className="mt-10">
          <div className="flex items-center justify-between mb-2">
             <h2 className="text-base font-semibold">Activity</h2>
-            <button className="text-xs text-muted-foreground hover:text-foreground">
-               Subscribe
+            <button
+               type="button"
+               onClick={onToggleSubscription}
+               disabled={!onToggleSubscription || isSubscriptionPending}
+               aria-pressed={isSubscribed}
+               className="text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
+            >
+               {isSubscriptionPending ? 'Saving...' : isSubscribed ? 'Unsubscribe' : 'Subscribe'}
             </button>
          </div>
          {submitError && <p className="mb-2 text-xs text-destructive">{submitError}</p>}

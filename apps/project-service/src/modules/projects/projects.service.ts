@@ -7,6 +7,7 @@ import {
   CreateProjectUpdateDto,
   UpdateProjectDto,
 } from './dto/project.dto';
+import { getProjectPropertyValidationError } from './project-rules';
 import { isProjectScopeVisible, projectIssueWhere } from './project-scope';
 import {
   Initiative,
@@ -619,6 +620,18 @@ export class ProjectsService {
   }
 
   async create(dto: CreateProjectDto, memberId: string) {
+    const startDate = dto.startDate ? new Date(dto.startDate) : undefined;
+    const targetDate = dto.targetDate ? new Date(dto.targetDate) : undefined;
+    const createPropertyError = getProjectPropertyValidationError({
+      statusId: dto.statusId || 'in-progress',
+      statusCategory: dto.statusCategory || 'started',
+      priorityId: dto.priorityId || 'no-priority',
+      healthId: dto.healthId || 'on-track',
+      percentComplete: dto.percentComplete ?? 0,
+      startDate,
+      targetDate,
+    });
+    if (createPropertyError) throw new BadRequestException(createPropertyError);
     const projectTeamIds = await this.validateProjectTeamIds(
       dto.teamIds ?? [],
       dto.teamId,
@@ -644,8 +657,8 @@ export class ProjectsService {
       healthId: dto.healthId || 'on-track',
       percentComplete: dto.percentComplete || 0,
       icon: dto.icon || 'Cuboid',
-      startDate: dto.startDate ? new Date(dto.startDate) : undefined,
-      targetDate: dto.targetDate ? new Date(dto.targetDate) : undefined,
+      startDate,
+      targetDate,
       initiativeId: dto.initiativeId,
       summary: dto.summary,
       description: dto.description || [],
@@ -691,6 +704,20 @@ export class ProjectsService {
     }
 
     const nextTeamId = dto.teamId ?? project.teamId;
+    const nextStartDate =
+      dto.startDate !== undefined ? new Date(dto.startDate) : project.startDate;
+    const nextTargetDate =
+      dto.targetDate !== undefined ? new Date(dto.targetDate) : project.targetDate;
+    const updatePropertyError = getProjectPropertyValidationError({
+      statusId: dto.statusId,
+      statusCategory: dto.statusCategory,
+      priorityId: dto.priorityId,
+      healthId: dto.healthId,
+      percentComplete: dto.percentComplete,
+      startDate: nextStartDate,
+      targetDate: nextTargetDate,
+    });
+    if (updatePropertyError) throw new BadRequestException(updatePropertyError);
     const nextProjectTeamIds = await this.validateProjectTeamIds(
       dto.teamIds !== undefined
         ? dto.teamIds
@@ -720,8 +747,8 @@ export class ProjectsService {
     }
     if (dto.percentComplete !== undefined) project.percentComplete = dto.percentComplete;
     if (dto.icon !== undefined) project.icon = dto.icon;
-    if (dto.startDate !== undefined) project.startDate = new Date(dto.startDate);
-    if (dto.targetDate !== undefined) project.targetDate = new Date(dto.targetDate);
+    if (dto.startDate !== undefined) project.startDate = nextStartDate;
+    if (dto.targetDate !== undefined) project.targetDate = nextTargetDate;
     if (dto.initiativeId !== undefined) project.initiativeId = dto.initiativeId;
     if (dto.summary !== undefined) project.summary = dto.summary;
     if (dto.description !== undefined) project.description = dto.description;

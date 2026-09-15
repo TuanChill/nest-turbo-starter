@@ -9,6 +9,7 @@ import {
   CreateIssueDto,
   UpdateIssueDto,
 } from './dto/issue.dto';
+import { getIssuePropertyValidationError } from './issue-rules';
 import { isRelationInIssueTeam } from './relation-scope';
 import {
   Cycle,
@@ -769,12 +770,14 @@ export class IssuesService {
     }
     if (!team) throw new NotFoundException(`Team ${teamId} not found`);
 
-    if (dto.statusId && !ALL_STATUSES[dto.statusId]) {
-      throw new BadRequestException(`Unknown issue status ${dto.statusId}`);
-    }
-    if (dto.priorityId && !ALL_PRIORITIES[dto.priorityId]) {
-      throw new BadRequestException(`Unknown issue priority ${dto.priorityId}`);
-    }
+    const createPropertyError = getIssuePropertyValidationError({
+      statusId: dto.statusId,
+      statusCategory: dto.statusCategory,
+      priorityId: dto.priorityId,
+      knownStatuses: ALL_STATUSES,
+      knownPriorities: ALL_PRIORITIES,
+    });
+    if (createPropertyError) throw new BadRequestException(createPropertyError);
     await this.validateAssigneeId(dto.assigneeId, teamId);
 
     if (dto.cycleId) {
@@ -891,6 +894,15 @@ export class IssuesService {
       issue.teamId,
       `Issue ${identifierOrId} not found`,
     );
+
+    const updatePropertyError = getIssuePropertyValidationError({
+      statusId: dto.statusId,
+      statusCategory: dto.statusCategory,
+      priorityId: dto.priorityId,
+      knownStatuses: ALL_STATUSES,
+      knownPriorities: ALL_PRIORITIES,
+    });
+    if (updatePropertyError) throw new BadRequestException(updatePropertyError);
 
     let actorName: string | undefined;
     const getActorName = async () => {

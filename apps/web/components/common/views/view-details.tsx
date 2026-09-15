@@ -2,17 +2,20 @@
 
 import { GroupedIssuesView } from '@/components/common/issues/grouped-issues-view';
 import { InsightsPanel } from '@/components/common/issues/insights-panel';
+import { applyIssueFilters } from '@/components/common/issues/issue-filter-columns';
 import ProjectsList from '@/components/common/projects/projects-list';
 import { ProjectGroup } from '@/components/common/projects/projects';
 import { status as allStatus } from '@/lib/workflow-status';
 import { filterIssuesForView, filterProjectsForView } from '@/lib/view-filters';
-import type { View } from '@/services/views.service';
+import type { CustomViewFilter, View } from '@/services/views.service';
 import { useAuthStore } from '@/store/auth-store';
+import { useDisplaySettingsStore } from '@/store/display-settings-store';
 import { useRightPanelStore } from '@/store/right-panel-store';
+import { useViewStore } from '@/store/view-store';
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 
 function ViewSkeleton() {
    return (
@@ -37,12 +40,16 @@ function ViewSkeleton() {
 
 function IssueViewBody({ view }: { view: View }) {
    const { openPanel } = useRightPanelStore();
-   const { data: allIssues = [] } = useIssues();
+   const { data: allIssues = [] } = useIssues({
+      teamId: view.teamId,
+      projectId: view.projectId,
+   });
    const currentUserId = useAuthStore((s) => s.user?.id);
-   const issues = useMemo(
-      () => filterIssuesForView(view, allIssues, currentUserId),
-      [view, allIssues, currentUserId]
-   );
+   const filter = view.filter as CustomViewFilter;
+   const issues = useMemo(() => {
+      const scoped = filterIssuesForView(view, allIssues, currentUserId);
+      return Array.isArray(filter.filters) ? applyIssueFilters(scoped, filter.filters) : scoped;
+   }, [view, allIssues, currentUserId, filter.filters]);
 
    return (
       <div className="w-full h-full flex flex-col overflow-hidden">
@@ -71,7 +78,9 @@ function IssueViewBody({ view }: { view: View }) {
 function ProjectViewBody({ view }: { view: View }) {
    const { data: allProjects = [] } = useProjects();
    const groups = useMemo<ProjectGroup[]>(() => {
-      const projects = filterProjectsForView(view, allProjects);
+      const projects = filterProjectsForView(view, allProjects).filter(
+         (project) => !view.projectId || project.id === view.projectId
+      );
       const byStatus = new Map<string, ProjectGroup>();
       for (const project of projects) {
          const key = project.status.id;
@@ -84,6 +93,20 @@ function ProjectViewBody({ view }: { view: View }) {
    }, [view, allProjects]);
 
    return <ProjectsList groups={groups} />;
+}
+
+function PersistedViewSettings({ view }: { view: View }) {
+   const { setViewType } = useViewStore();
+   const { setDisplaySettings } = useDisplaySettingsStore();
+
+   useEffect(() => {
+      if (view.layout) setViewType(view.layout);
+      if (view.filter) {
+         setDisplaySettings(view.filter as Parameters<typeof setDisplaySettings>[0]);
+      }
+   }, [setDisplaySettings, setViewType, view.filter, view.layout]);
+
+   return null;
 }
 
 import { useIssues } from '@/hooks/queries/use-issues-query';
@@ -116,5 +139,10 @@ export default function ViewDetails({ viewId }: { viewId: string }) {
       );
    }
 
-   return view.type === 'issue' ? <IssueViewBody view={view} /> : <ProjectViewBody view={view} />;
+   return (
+      <>
+         <PersistedViewSettings view={view} />
+         {view.type === 'issue' ? <IssueViewBody view={view} /> : <ProjectViewBody view={view} />}
+      </>
+   );
 }
