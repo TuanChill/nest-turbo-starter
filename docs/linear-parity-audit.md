@@ -52,6 +52,7 @@ Reference set: [Linear Docs](https://linear.app/docs), [Projects](https://linear
 - Cycle progress now records one persisted snapshot per cycle/day, merges legacy persisted burn-up points, and exposes historical snapshots through the authenticated cycle history endpoint; completed-cycle graphs no longer depend on a mutable JSON-only counter.
 - Cycle creation now allocates team-local numbers from server state and globally collision-safe IDs, so a stale client number or another team’s legacy numeric cycle ID cannot fail creation or leak across teams.
 - Issue filter label options now come from the authenticated workspace label API; the previous bundled mock label catalog was removed from that production path.
+- Workspace navigation no longer invents a `circle-workspace` route when the authenticated workspace parameter is absent; the affected sidebar surfaces render no workspace links until a real route context exists.
 
 ## Verification evidence (2026-09-15)
 
