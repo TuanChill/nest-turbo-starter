@@ -3,22 +3,31 @@ import { labelsService, LabelGroup, LabelItem } from '@/services/labels.service'
 import { labelKeys } from './keys';
 import { toast } from 'sonner';
 import { useParams } from 'next/navigation';
+import { useWorkspaces } from './use-workspaces-query';
 
 export function useLabels(scope: 'issue' | 'project' = 'issue') {
    const { orgId } = useParams<{ orgId?: string }>();
+   const { data: workspaces = [], isFetched: workspacesFetched } = useWorkspaces();
+   const workspaceId = workspaces.find(
+      (workspace) => workspace.slug === orgId || workspace.id === orgId
+   )?.id;
    return useQuery({
-      queryKey: labelKeys.list(scope, orgId),
-      queryFn: () => labelsService.getLabels(scope, orgId),
-      enabled: Boolean(orgId),
+      queryKey: labelKeys.list(scope, workspaceId),
+      queryFn: () => labelsService.getLabels(scope, workspaceId),
+      enabled: workspacesFetched && Boolean(workspaceId),
    });
 }
 
 export function useLabelGroups(scope: 'issue' | 'project' = 'issue') {
    const { orgId } = useParams<{ orgId?: string }>();
+   const { data: workspaces = [], isFetched: workspacesFetched } = useWorkspaces();
+   const workspaceId = workspaces.find(
+      (workspace) => workspace.slug === orgId || workspace.id === orgId
+   )?.id;
    return useQuery({
-      queryKey: [...labelKeys.lists(), 'groups', scope, orgId],
-      queryFn: () => labelsService.getLabelGroups(scope, orgId),
-      enabled: Boolean(orgId),
+      queryKey: [...labelKeys.lists(), 'groups', scope, workspaceId],
+      queryFn: () => labelsService.getLabelGroups(scope, workspaceId),
+      enabled: workspacesFetched && Boolean(workspaceId),
    });
 }
 

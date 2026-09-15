@@ -54,6 +54,7 @@ Reference set: [Linear Docs](https://linear.app/docs), [Projects](https://linear
 - Issue filter label options now come from the authenticated workspace label API; the previous bundled mock label catalog was removed from that production path.
 - Workspace navigation no longer invents a `circle-workspace` route when the authenticated workspace parameter is absent; the affected sidebar surfaces render no workspace links until a real route context exists.
 - Label list and group queries now accept and enforce the active workspace, preventing a member’s other accessible workspaces from appearing in the current workspace’s label pickers.
+- Label hooks now wait for the authenticated workspace list to resolve the route slug, preventing legacy or foreign route labels from being queried during hydration.
 - Team creation now requires an explicit accessible workspace and rejects unscoped teams; corrupt teams without a workspace are excluded from template team filters rather than being matched through an arbitrary workspace.
 
 ## Verification evidence (2026-09-15)
