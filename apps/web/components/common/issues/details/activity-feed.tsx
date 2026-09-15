@@ -104,6 +104,8 @@ export function ActivityFeed({
 }) {
    const [items, setItems] = useState<ActivityItem[]>(activity);
    const [draft, setDraft] = useState('');
+   const [isSubmitting, setIsSubmitting] = useState(false);
+   const skipNextActivitySyncRef = useRef(false);
    const { user } = useAuthStore();
    const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -122,10 +124,20 @@ export function ActivityFeed({
    }, [mentionQuery, members]);
 
    useEffect(() => {
-      if (activity) {
-         setItems(activity);
+      if (!activity || isSubmitting) return;
+
+      if (skipNextActivitySyncRef.current) {
+         skipNextActivitySyncRef.current = false;
+         return;
       }
-   }, [activity]);
+
+      // Activity is refetched after issue mutations. Do not replace the local
+      // feed while the composer is focused or contains unsent text: that
+      // update can reset the subtree and make typing lose its caret.
+      const composerIsActive = Boolean(draft) || textareaRef.current === document.activeElement;
+      if (composerIsActive) return;
+      setItems(activity);
+   }, [activity, draft, isSubmitting]);
 
    const handleDraftChange = (value: string, cursorPos: number) => {
       setDraft(value);
@@ -163,6 +175,8 @@ export function ActivityFeed({
    const submitComment = async () => {
       const text = draft.trim();
       if (!text || !user) return;
+      const previousItems = items;
+      setIsSubmitting(true);
 
       const actor = {
          id: user.id,
@@ -197,16 +211,24 @@ export function ActivityFeed({
                commentBlocks: [{ type: 'paragraph', text }],
             });
             if (updated?.activity) {
+               skipNextActivitySyncRef.current = true;
                setItems(updated.activity);
             }
          } catch (err) {
+            setItems(previousItems);
+            setDraft(text);
             console.error(`Failed to post comment on ${issueIdentifier}:`, err);
+         } finally {
+            setIsSubmitting(false);
          }
+      } else {
+         setIsSubmitting(false);
       }
    };
 
    const handleReact = async (activityId: string, emoji: string) => {
       // Optimistic update
+      const previousItems = items;
       setItems((prev) =>
          prev.map((item) => {
             if (item.id !== activityId || item.kind !== 'comment') return item;
@@ -224,6 +246,7 @@ export function ActivityFeed({
       try {
          await addIssueReaction(activityId, emoji, user?.id || 'ln');
       } catch (err) {
+         setItems(previousItems);
          console.error('Failed to post reaction:', err);
       }
    };
