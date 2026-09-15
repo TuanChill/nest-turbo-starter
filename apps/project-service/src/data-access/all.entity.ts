@@ -6,6 +6,7 @@ import { InitiativeUpdate } from './initiative/initiative-update.entity';
 import { Initiative } from './initiative/initiative.entity';
 import { IssueActivity } from './issue/issue-activity.entity';
 import { IssueRelation, PrLink } from './issue/issue-relation.entity';
+import { IssueSubscription } from './issue/issue-subscription.entity';
 import { IssueTemplate } from './issue/issue-template.entity';
 import { Issue } from './issue/issue.entity';
 import { LabelGroup } from './label/label-group.entity';
@@ -59,6 +60,7 @@ export const ALL_ENTITIES = [
   Cycle,
   CycleHistory,
   Issue,
+  IssueSubscription,
   IssueTemplate,
   IssueActivity,
   IssueRelation,

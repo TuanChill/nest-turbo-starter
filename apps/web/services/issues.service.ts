@@ -97,6 +97,26 @@ export const issuesService = {
       });
    },
 
+   async getSubscription(identifier: string): Promise<{ identifier: string; subscribed: boolean }> {
+      return apiClient<{ identifier: string; subscribed: boolean }>(
+         `/issues/${identifier}/subscription`
+      );
+   },
+
+   async subscribe(identifier: string): Promise<{ identifier: string; subscribed: boolean }> {
+      return apiClient<{ identifier: string; subscribed: boolean }>(
+         `/issues/${identifier}/subscription`,
+         { method: 'POST' }
+      );
+   },
+
+   async unsubscribe(identifier: string): Promise<{ identifier: string; subscribed: boolean }> {
+      return apiClient<{ identifier: string; subscribed: boolean }>(
+         `/issues/${identifier}/subscription`,
+         { method: 'DELETE' }
+      );
+   },
+
    async addComment(
       identifier: string,
       data: { actorId: string; textContent?: string; commentBlocks?: ContentBlock[] }

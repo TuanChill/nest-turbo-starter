@@ -32,6 +32,8 @@ import {
    CheckCircle2,
    Clock,
    Clipboard,
+   Bell,
+   BellOff,
 } from 'lucide-react';
 import React, { useState } from 'react';
 import { useIssuesStore } from '@/store/issues-store';
@@ -42,7 +44,7 @@ import { useMembers } from '@/hooks/queries/use-members-query';
 import { useLabels } from '@/hooks/queries/use-labels-query';
 import { useProjects } from '@/hooks/queries/use-projects-query';
 import { useCycles } from '@/hooks/queries/use-cycles-query';
-import { useDeleteIssue } from '@/hooks/queries/use-issues-query';
+import { useDeleteIssue, useToggleIssueSubscription } from '@/hooks/queries/use-issues-query';
 import { CyclePlayIcon } from '@/components/common/cycles/cycle-line';
 import type { User as UserModel } from '@/mock-data/users';
 import { toast } from 'sonner';
@@ -65,6 +67,7 @@ export function IssueContextMenu({ issue }: IssueContextMenuProps) {
    const { data: projects = [] } = useProjects();
    const { data: cycles = [] } = useCycles(issue?.teamId);
    const deleteIssueMutation = useDeleteIssue();
+   const subscriptionMutation = useToggleIssueSubscription();
    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
    const handleStatusChange = (statusId: string) => {
@@ -143,6 +146,14 @@ export function IssueContextMenu({ issue }: IssueContextMenuProps) {
       if (!issue) return;
       navigator.clipboard.writeText(issue.title);
       toast.success('Copied to clipboard');
+   };
+
+   const handleSubscriptionToggle = () => {
+      if (!issue) return;
+      subscriptionMutation.mutate({
+         identifier: issue.identifier,
+         subscribed: !issue.isSubscribed,
+      });
    };
 
    const handleDelete = async () => {
@@ -295,6 +306,14 @@ export function IssueContextMenu({ issue }: IssueContextMenuProps) {
 
             <ContextMenuItem onClick={handleCopy}>
                <Clipboard className="size-4" /> Copy
+            </ContextMenuItem>
+
+            <ContextMenuItem
+               onClick={handleSubscriptionToggle}
+               disabled={subscriptionMutation.isPending}
+            >
+               {issue?.isSubscribed ? <BellOff className="size-4" /> : <Bell className="size-4" />}
+               {issue?.isSubscribed ? 'Unsubscribe' : 'Subscribe'}
             </ContextMenuItem>
 
             <ContextMenuItem variant="destructive" onClick={() => setDeleteDialogOpen(true)}>

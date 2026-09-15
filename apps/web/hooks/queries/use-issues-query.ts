@@ -104,6 +104,23 @@ export function useDeleteIssue() {
    });
 }
 
+export function useToggleIssueSubscription() {
+   const queryClient = useQueryClient();
+
+   return useMutation({
+      mutationFn: ({ identifier, subscribed }: { identifier: string; subscribed: boolean }) =>
+         subscribed ? issuesService.subscribe(identifier) : issuesService.unsubscribe(identifier),
+      onSuccess: (result) => {
+         queryClient.invalidateQueries({ queryKey: issueKeys.lists() });
+         queryClient.invalidateQueries({ queryKey: issueKeys.detail(result.identifier) });
+         toast.success(result.subscribed ? 'Subscribed to issue' : 'Unsubscribed from issue');
+      },
+      onError: (error: Error) => {
+         toast.error(error.message || 'Could not update issue subscription');
+      },
+   });
+}
+
 export function useAddIssueComment() {
    const queryClient = useQueryClient();
 

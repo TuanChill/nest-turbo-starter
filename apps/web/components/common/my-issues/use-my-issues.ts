@@ -22,8 +22,7 @@ const isCreatedByMe = (issue: Issue, currentUserId: string): boolean => {
    return issue.creatorId === currentUserId;
 };
 
-const isSubscribed = (issue: Issue, currentUserId: string): boolean =>
-   issue.assignee?.id === currentUserId || isCreatedByMe(issue, currentUserId);
+const isSubscribed = (issue: Issue): boolean => issue.isSubscribed === true;
 
 /** Issues shown by each My issues tab. */
 export function scopeMyIssues(
@@ -39,12 +38,12 @@ export function scopeMyIssues(
       case 'created':
          return issues.filter((issue) => isCreatedByMe(issue, currentUserId));
       case 'subscribed':
-         return issues.filter((issue) => isSubscribed(issue, currentUserId));
+         return issues.filter((issue) => isSubscribed(issue));
       case 'activity':
       default:
-         // "Activity" = everything I touch, most recent first.
+         // Activity is the persisted subscription stream, most recent first.
          return issues
-            .filter((issue) => isSubscribed(issue, currentUserId))
+            .filter((issue) => isSubscribed(issue))
             .slice()
             .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
    }

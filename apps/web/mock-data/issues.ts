@@ -26,6 +26,8 @@ export interface Issue {
    dueDate?: string;
    /** Member id of the user who created this issue. */
    creatorId?: string;
+   /** Whether the authenticated member has a persisted subscription. */
+   isSubscribed?: boolean;
 }
 
 /* -------------------------------------------------------------------------- */

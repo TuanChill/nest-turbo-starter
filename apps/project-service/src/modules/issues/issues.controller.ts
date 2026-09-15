@@ -83,6 +83,26 @@ export class IssuesController {
     return this.issuesService.findDetail(identifier, memberId, workspaceId);
   }
 
+  @ApiOperation({
+    summary: 'Get the authenticated member subscription state for an issue',
+  })
+  @Get(':identifier/subscription')
+  getSubscription(@Param('identifier') identifier: string, @User('id') memberId: string) {
+    return this.issuesService.getSubscription(identifier, memberId);
+  }
+
+  @ApiOperation({ summary: 'Subscribe the authenticated member to an issue' })
+  @Post(':identifier/subscription')
+  subscribe(@Param('identifier') identifier: string, @User('id') memberId: string) {
+    return this.issuesService.subscribe(identifier, memberId);
+  }
+
+  @ApiOperation({ summary: 'Unsubscribe the authenticated member from an issue' })
+  @Delete(':identifier/subscription')
+  unsubscribe(@Param('identifier') identifier: string, @User('id') memberId: string) {
+    return this.issuesService.unsubscribe(identifier, memberId);
+  }
+
   @ApiOperation({ summary: 'Create new issue' })
   @Post()
   create(@Body() dto: CreateIssueDto, @User('id') actorId: string) {

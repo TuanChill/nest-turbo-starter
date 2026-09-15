@@ -16,6 +16,7 @@ import {
   IssueActivity,
   IssueLabel,
   IssueRelation,
+  IssueSubscription,
   Label,
   LabelGroup,
   Member,
@@ -222,6 +223,13 @@ export class IssuesService {
     for (const c of comments) {
       if (allowedMemberIds.has(c.actorId)) recipients.add(c.actorId);
     }
+    const subscriptions = await this.em.find(IssueSubscription, {
+      issueIdentifier: issue.identifier,
+      memberId: { $in: [...allowedMemberIds] },
+    });
+    for (const subscription of subscriptions) {
+      recipients.add(subscription.memberId);
+    }
     recipients.delete(excludeActorId);
     return Array.from(recipients);
   }
@@ -252,6 +260,16 @@ export class IssuesService {
     }
   }
 
+  private async ensureSubscription(issueIdentifier: string, memberId: string) {
+    const existing = await this.em.findOne(IssueSubscription, {
+      issueIdentifier,
+      memberId,
+    });
+    if (!existing) {
+      this.em.persist(new IssueSubscription({ issueIdentifier, memberId }));
+    }
+  }
+
   private transformIssue(
     issue: Issue,
     membersMap: Map<string, any>,
@@ -259,6 +277,7 @@ export class IssuesService {
     projectsMap: Map<string, any>,
     issueLabels: IssueLabel[],
     subissuesMap: Map<string, string[]>,
+    subscribedIssueIdentifiers: Set<string> = new Set(),
   ) {
     const assignee = issue.assigneeId ? (membersMap.get(issue.assigneeId) ?? null) : null;
     const labelIds = issueLabels
@@ -298,6 +317,7 @@ export class IssuesService {
       subissues: subissues.length > 0 ? subissues : undefined,
       rank: issue.rank,
       dueDate: issue.dueDate ? issue.dueDate.toISOString().split('T')[0] : undefined,
+      isSubscribed: subscribedIssueIdentifiers.has(issue.identifier),
     };
   }
 
@@ -374,6 +394,13 @@ export class IssuesService {
     });
 
     const issueIds = issues.flatMap((issue) => [issue.id, issue.identifier]);
+    const subscriptions = await this.em.find(IssueSubscription, {
+      memberId,
+      issueIdentifier: { $in: issues.map((issue) => issue.identifier) },
+    });
+    const subscribedIssueIdentifiers = new Set(
+      subscriptions.map((subscription) => subscription.issueIdentifier),
+    );
     const teams = await this.em.find(Team, {
       id: { $in: [...new Set(issues.map((issue) => issue.teamId))] },
     });
@@ -470,6 +497,7 @@ export class IssuesService {
         projectsMap,
         issueLabels,
         subissuesMap,
+        subscribedIssueIdentifiers,
       ),
     );
   }
@@ -534,6 +562,13 @@ export class IssuesService {
       subissuesMap.set(issue.identifier, identifiers);
     }
 
+    const subscription = memberId
+      ? await this.em.findOne(IssueSubscription, {
+          issueIdentifier: issue.identifier,
+          memberId,
+        })
+      : null;
+
     return this.transformIssue(
       issue,
       membersMap,
@@ -541,6 +576,7 @@ export class IssuesService {
       projectsMap,
       issueLabels,
       subissuesMap,
+      new Set(subscription ? [issue.identifier] : []),
     );
   }
 
@@ -822,6 +858,8 @@ export class IssuesService {
     });
 
     this.em.persist(issue);
+    await this.ensureSubscription(identifier, actorId);
+    if (dto.assigneeId) await this.ensureSubscription(identifier, dto.assigneeId);
 
     if (dto.labelIds !== undefined) {
       const labelIds = await this.validateLabelIds(dto.labelIds, teamId);
@@ -840,7 +878,7 @@ export class IssuesService {
     this.em.persist(activity);
     await this.em.flush();
 
-    return this.findOne(identifier);
+    return this.findOne(identifier, actorId);
   }
 
   async update(identifierOrId: string, dto: UpdateIssueDto, actorId: string) {
@@ -1001,6 +1039,7 @@ export class IssuesService {
       this.em.persist(act);
 
       if (dto.assigneeId && dto.assigneeId !== previousAssigneeId) {
+        await this.ensureSubscription(issue.identifier, dto.assigneeId);
         const name = await getActorName();
         this.notifyMany(
           issue.identifier,
@@ -1035,7 +1074,7 @@ export class IssuesService {
     }
 
     await this.em.flush();
-    return this.findOne(issue.identifier);
+    return this.findOne(issue.identifier, actorId);
   }
 
   async updateRank(identifierOrId: string, rank: string, memberId: string) {
@@ -1068,6 +1107,59 @@ export class IssuesService {
       await this.em.flush();
     }
     return { success: true };
+  }
+
+  async getSubscription(identifierOrId: string, memberId: string) {
+    const issue = await this.em.findOne(Issue, {
+      $or: [{ identifier: identifierOrId }, { id: identifierOrId }],
+    });
+    if (!issue) throw new NotFoundException(`Issue ${identifierOrId} not found`);
+    await this.assertTeamAccess(
+      memberId,
+      issue.teamId,
+      `Issue ${identifierOrId} not found`,
+    );
+    const subscription = await this.em.findOne(IssueSubscription, {
+      issueIdentifier: issue.identifier,
+      memberId,
+    });
+    return { identifier: issue.identifier, subscribed: Boolean(subscription) };
+  }
+
+  async subscribe(identifierOrId: string, memberId: string) {
+    const issue = await this.em.findOne(Issue, {
+      $or: [{ identifier: identifierOrId }, { id: identifierOrId }],
+    });
+    if (!issue) throw new NotFoundException(`Issue ${identifierOrId} not found`);
+    await this.assertTeamAccess(
+      memberId,
+      issue.teamId,
+      `Issue ${identifierOrId} not found`,
+    );
+    await this.ensureSubscription(issue.identifier, memberId);
+    await this.em.flush();
+    return { identifier: issue.identifier, subscribed: true };
+  }
+
+  async unsubscribe(identifierOrId: string, memberId: string) {
+    const issue = await this.em.findOne(Issue, {
+      $or: [{ identifier: identifierOrId }, { id: identifierOrId }],
+    });
+    if (!issue) throw new NotFoundException(`Issue ${identifierOrId} not found`);
+    await this.assertTeamAccess(
+      memberId,
+      issue.teamId,
+      `Issue ${identifierOrId} not found`,
+    );
+    const subscription = await this.em.findOne(IssueSubscription, {
+      issueIdentifier: issue.identifier,
+      memberId,
+    });
+    if (subscription) {
+      this.em.remove(subscription);
+      await this.em.flush();
+    }
+    return { identifier: issue.identifier, subscribed: false };
   }
 
   async addComment(identifierOrId: string, dto: CreateCommentDto, actorId: string) {
@@ -1118,6 +1210,12 @@ export class IssuesService {
 
     const actor = membersMap.get(actorId);
     const actorName = actor?.name || actorId;
+    await this.ensureSubscription(issue.identifier, actorId);
+    await Promise.all(
+      [...mentionedIds].map((mentionedId) =>
+        this.ensureSubscription(issue.identifier, mentionedId),
+      ),
+    );
     const commentRecipients = await this.resolveRecipients(issue, actorId);
 
     this.notifyMany(
@@ -1136,7 +1234,7 @@ export class IssuesService {
     );
 
     await this.em.flush();
-    return this.findDetail(issue.identifier);
+    return this.findDetail(issue.identifier, actorId);
   }
 
   async addReaction(activityId: string, dto: AddReactionDto, memberId: string) {
