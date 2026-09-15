@@ -7,12 +7,12 @@ import { multiOptionFilterFn, optionFilterFn } from '@/components/data-table-fil
 import { cycleStatusLabel } from '@/lib/cycle-utils';
 import type { Cycle } from '@/services/cycles.service';
 import { Issue } from '@/mock-data/issues';
-import { labels } from '@/mock-data/labels';
 import { priorities } from '@/mock-data/priorities';
 import { status, StatusCategory } from '@/mock-data/status';
 import type { Project } from '@/mock-data/projects';
 import { renderProjectIcon } from '@/lib/project-utils';
 import type { Member } from '@/services/members.service';
+import type { LabelItem } from '@/services/labels.service';
 import {
    BarChart3,
    CircleCheck,
@@ -54,11 +54,13 @@ const priorityOptions: ColumnOption[] = priorities.map((priority) => ({
    icon: <priority.icon className="size-4 text-muted-foreground" />,
 }));
 
-const labelOptions: ColumnOption[] = labels.map((label) => ({
-   value: label.id,
-   label: label.name,
-   icon: <span className="size-2.5 rounded-full" style={{ backgroundColor: label.color }} />,
-}));
+function buildLabelOptions(labels: LabelItem[]): ColumnOption[] {
+   return labels.map((label) => ({
+      value: label.id,
+      label: label.name,
+      icon: <span className="size-2.5 rounded-full" style={{ backgroundColor: label.color }} />,
+   }));
+}
 
 function buildAssigneeOptions(members: Member[]): ColumnOption[] {
    return [
@@ -118,7 +120,8 @@ const dtf = createColumnConfigHelper<Issue>();
 export function buildIssueFilterColumns(
    members: Member[] = [],
    projects: Project[] = [],
-   cycles: Cycle[] = []
+   cycles: Cycle[] = [],
+   labels: LabelItem[] = []
 ) {
    return [
       dtf
@@ -159,7 +162,7 @@ export function buildIssueFilterColumns(
          .accessor((issue: Issue) => issue.labels.map((label) => label.id))
          .displayName('Labels')
          .icon(Tag)
-         .options(labelOptions)
+         .options(buildLabelOptions(labels))
          .build(),
       dtf
          .option()

@@ -8,6 +8,7 @@ import { useIssuesStore } from '@/store/issues-store';
 import { useMembers } from '@/hooks/queries/use-members-query';
 import { useProjects } from '@/hooks/queries/use-projects-query';
 import { useCycles } from '@/hooks/queries/use-cycles-query';
+import { useLabels } from '@/hooks/queries/use-labels-query';
 import { buildIssueFilterColumns } from './issue-filter-columns';
 
 /**
@@ -26,10 +27,11 @@ export function IssueFilterBar() {
    const { data: members = [] } = useMembers();
    const { data: projects = [] } = useProjects();
    const { data: cycles = [] } = useCycles();
+   const { data: labels = [] } = useLabels('issue');
 
    const columnsConfig = useMemo(
-      () => buildIssueFilterColumns(members, projects, cycles),
-      [members, projects, cycles]
+      () => buildIssueFilterColumns(members, projects, cycles, labels),
+      [members, projects, cycles, labels]
    );
 
    const { columns, actions, strategy } = useDataTableFilters({
