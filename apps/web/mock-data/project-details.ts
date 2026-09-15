@@ -1,5 +1,6 @@
 import { ContentBlock } from './issue-details';
 import { User, users } from './users';
+import type { ProjectUpdateHealth } from '@/lib/project-health';
 
 /* -------------------------------------------------------------------------- */
 /*                                 Interfaces                                 */
@@ -12,19 +13,7 @@ export interface ProjectMilestone {
    completed: boolean;
 }
 
-export type ProjectUpdateHealth = 'on-track' | 'at-risk' | 'off-track';
-
-export const projectUpdateHealthLabel: Record<ProjectUpdateHealth, string> = {
-   'on-track': 'On track',
-   'at-risk': 'At risk',
-   'off-track': 'Off track',
-};
-
-export const projectUpdateHealthColor: Record<ProjectUpdateHealth, string> = {
-   'on-track': '#4cb782',
-   'at-risk': '#f2c94c',
-   'off-track': '#eb5757',
-};
+export type { ProjectUpdateHealth } from '@/lib/project-health';
 
 /** A posted project update (the "Activity" tab timeline). */
 export interface ProjectUpdate {

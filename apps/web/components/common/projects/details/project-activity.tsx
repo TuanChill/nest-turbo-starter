@@ -11,10 +11,10 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import {
-   ProjectUpdateHealth,
    projectUpdateHealthColor,
    projectUpdateHealthLabel,
-} from '@/mock-data/project-details';
+   type ProjectUpdateHealth,
+} from '@/lib/project-health';
 import type { ProjectUpdate } from '@/mock-data/project-details';
 import { useAuthStore } from '@/store/auth-store';
 import { format, parseISO } from 'date-fns';

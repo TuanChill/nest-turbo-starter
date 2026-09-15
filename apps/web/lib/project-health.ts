@@ -1,5 +1,7 @@
 export type ProjectHealthId = 'no-update' | 'off-track' | 'on-track' | 'at-risk';
 
+export type ProjectUpdateHealth = Exclude<ProjectHealthId, 'no-update'>;
+
 export interface ProjectHealth {
    id: ProjectHealthId;
    name: string;
@@ -34,3 +36,15 @@ export const projectHealth: ProjectHealth[] = [
       description: 'The project is at risk and may be delayed.',
    },
 ];
+
+export const projectUpdateHealthLabel: Record<ProjectUpdateHealth, string> = {
+   'on-track': 'On track',
+   'at-risk': 'At risk',
+   'off-track': 'Off track',
+};
+
+export const projectUpdateHealthColor: Record<ProjectUpdateHealth, string> = {
+   'on-track': '#4cb782',
+   'at-risk': '#f2c94c',
+   'off-track': '#eb5757',
+};
