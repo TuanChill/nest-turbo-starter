@@ -32,6 +32,17 @@ jobs:
             # that fetch succeeds, so this bootstrap cleanup must live here.
             docker builder prune -af --filter until=168h
             docker image prune -af --filter until=168h
+            docker container prune -f
             cd /opt/circle/be
-            git gc --prune=now
+            origin_url="$(git config --get remote.origin.url)"
+            if ! git gc --prune=now; then
+              # A full host can prevent Git from writing its temporary pack
+              # files. Rebuild only the disposable checkout metadata; .env,
+              # Docker volumes, and application files remain untouched.
+              rm -rf .git
+              git init
+              git remote add origin "$origin_url"
+              git fetch --depth=1 origin main
+              git reset --hard "${{ github.event.workflow_run.head_sha }}"
+            fi
             bash /opt/circle/be/deploy.sh "${{ github.event.workflow_run.head_sha }}"
