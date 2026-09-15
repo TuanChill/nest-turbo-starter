@@ -730,8 +730,9 @@ export class IssuesService {
       if (!targetTeam) throw new NotFoundException(`Team ${dto.teamId} not found`);
     }
 
-    if (dto.projectId !== undefined && dto.projectId) {
-      const targetProject = await this.em.findOne(Project, { id: dto.projectId });
+    const nextProjectId = dto.projectId !== undefined ? dto.projectId : issue.projectId;
+    if (nextProjectId) {
+      const targetProject = await this.em.findOne(Project, { id: nextProjectId });
       if (!targetProject?.teamId || targetProject.teamId !== nextTeamId) {
         throw new BadRequestException('Project and issue must belong to the same team');
       }
@@ -742,8 +743,9 @@ export class IssuesService {
       );
     }
 
-    if (dto.cycleId !== undefined && dto.cycleId) {
-      const targetCycle = await this.em.findOne(Cycle, { id: dto.cycleId });
+    const nextCycleId = dto.cycleId !== undefined ? dto.cycleId : issue.cycleId;
+    if (nextCycleId) {
+      const targetCycle = await this.em.findOne(Cycle, { id: nextCycleId });
       if (!targetCycle || targetCycle.teamId !== nextTeamId) {
         throw new BadRequestException('Cycle and issue must belong to the same team');
       }
@@ -754,9 +756,11 @@ export class IssuesService {
       );
     }
 
-    if (dto.parentIssueId !== undefined && dto.parentIssueId) {
+    const nextParentIssueId =
+      dto.parentIssueId !== undefined ? dto.parentIssueId : issue.parentIssueId;
+    if (nextParentIssueId) {
       const parent = await this.em.findOne(Issue, {
-        $or: [{ identifier: dto.parentIssueId }, { id: dto.parentIssueId }],
+        $or: [{ identifier: nextParentIssueId }, { id: nextParentIssueId }],
       });
       if (!parent || parent.teamId !== nextTeamId || parent.id === issue.id) {
         throw new BadRequestException(
@@ -877,7 +881,7 @@ export class IssuesService {
     if (dto.milestone !== undefined) issue.milestone = dto.milestone;
 
     if (dto.labelIds !== undefined) {
-      const labelIds = await this.validateLabelIds(dto.labelIds, issue.teamId);
+      const labelIds = await this.validateLabelIds(dto.labelIds, nextTeamId);
       const existing = await this.em.find(IssueLabel, {
         $or: [{ issueId: issue.id }, { issueId: issue.identifier }],
       });
