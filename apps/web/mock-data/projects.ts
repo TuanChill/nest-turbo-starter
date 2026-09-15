@@ -26,6 +26,7 @@ import { RemixiconComponentType } from '@remixicon/react';
 import { User, users } from './users';
 import { LabelInterface, labels } from './labels';
 import { Priority, priorities } from './priorities';
+import type { ContentBlock } from './issue-details';
 export interface Project {
    id: string;
    name: string;
@@ -40,6 +41,8 @@ export interface Project {
    lead: User;
    priority: Priority;
    health: Health;
+   /** Rich project overview content, stored as structured blocks by the API. */
+   description?: ContentBlock[];
    /** Owning team (see mock-data/teams.ts). */
    teamId: string;
    labels: LabelInterface[];

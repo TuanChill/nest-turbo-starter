@@ -21,7 +21,7 @@ export function contentBlocksToMarkdown(blocks?: ContentBlock[] | string | null)
 
       switch (block.type) {
          case 'heading': {
-            const prefix = block.level === 2 ? '##' : '#';
+            const prefix = '#'.repeat(block.level ?? 1);
             lines.push(`${prefix} ${block.text}`);
             break;
          }

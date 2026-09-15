@@ -1,6 +1,5 @@
 'use client';
 
-import { ContentBlocks } from '@/components/common/issues/details/content-blocks';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useTeams } from '@/hooks/queries/use-teams-query';
 import { format, parseISO } from 'date-fns';
@@ -8,7 +7,7 @@ import { renderProjectIcon } from '@/lib/project-utils';
 import { ArrowRight, ChevronDown, FileText, PenLine, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DocumentOutline, getOutlineItems } from './document-outline';
 import { ProjectSidePanel } from './project-side-panel';
 import { StatusSelector } from '../status-selector';
@@ -18,6 +17,9 @@ import { DatePicker } from '../date-picker';
 import { LabelSelector } from '@/components/layout/sidebar/create-new-issue/label-selector';
 import type { Project } from '@/mock-data/projects';
 import type { LabelInterface } from '@/mock-data/labels';
+import { LinearEditor } from '@/components/common/editor/linear-editor';
+import { contentBlocksToMarkdown } from '@/lib/content-blocks-to-markdown';
+import { markdownToContentBlocks } from '@/lib/markdown-to-content-blocks';
 
 interface ProjectOverviewProps {
    projectId: string;
@@ -73,6 +75,43 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
    );
 
    const updateProjectMutation = useUpdateProject();
+   const [descriptionOverride, setDescriptionOverride] = useState<string | null>(null);
+   const serverDescriptionMarkdown = useMemo(
+      () => contentBlocksToMarkdown(detail?.description).trim(),
+      [detail?.description]
+   );
+   const descriptionMarkdown = descriptionOverride ?? serverDescriptionMarkdown;
+
+   useEffect(() => {
+      if (descriptionOverride !== null && descriptionOverride === serverDescriptionMarkdown) {
+         setDescriptionOverride(null);
+      }
+   }, [descriptionOverride, serverDescriptionMarkdown]);
+
+   const handleSaveDescription = useCallback(
+      (newMarkdown: string) => {
+         if (!project) return;
+         const trimmed = newMarkdown.trim();
+         if (trimmed === serverDescriptionMarkdown) return;
+
+         setDescriptionOverride(trimmed);
+         updateProjectMutation.mutate(
+            {
+               id: project.id,
+               payload: {
+                  description: markdownToContentBlocks(trimmed),
+               } as Partial<Project>,
+            },
+            {
+               onError: () => {
+                  setDescriptionOverride(null);
+               },
+            }
+         );
+      },
+      [project, serverDescriptionMarkdown, updateProjectMutation]
+   );
+
    const handleStatusChange = (statusId: string) => {
       if (!project) return;
       updateProjectMutation.mutate({
@@ -254,9 +293,13 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
                         Description
                         <ChevronDown className="size-3.5" />
                      </div>
-                     <div className="text-[15px] leading-relaxed">
-                        <ContentBlocks blocks={detail.description} />
-                     </div>
+                     <LinearEditor
+                        value={descriptionMarkdown}
+                        onSave={handleSaveDescription}
+                        mode="click-to-edit"
+                        placeholder="Add project description or type '/' for commands..."
+                        className="px-2 py-1 -mx-2 rounded hover:bg-accent/20 transition-colors"
+                     />
                   </div>
                </div>
             </div>

@@ -166,7 +166,23 @@ export function ContentBlocks({
          {normalizedBlocks.map((block, index) => {
             switch (block.type) {
                case 'heading':
-                  return block.level === 2 ? (
+                  return block.level === 4 ? (
+                     <h5
+                        key={index}
+                        id={`doc-h-${index}`}
+                        className="text-sm font-semibold mt-4 mb-1 scroll-mt-24"
+                     >
+                        {block.text}
+                     </h5>
+                  ) : block.level === 3 ? (
+                     <h4
+                        key={index}
+                        id={`doc-h-${index}`}
+                        className="text-sm font-semibold mt-4 mb-1.5 scroll-mt-24"
+                     >
+                        {block.text}
+                     </h4>
+                  ) : block.level === 2 ? (
                      <h3
                         key={index}
                         id={`doc-h-${index}`}
