@@ -18,6 +18,7 @@ import { CyclesModule } from './cycles/cycles.module';
 import { DocumentsModule } from './documents/documents.module';
 import { InboxModule } from './inbox/inbox.module';
 import { InitiativesModule } from './initiatives/initiatives.module';
+import { IssueTemplatesModule } from './issue-templates/issue-templates.module';
 import { IssuesModule } from './issues/issues.module';
 import { LabelsModule } from './labels/labels.module';
 import { MembersModule } from './members/members.module';
@@ -67,6 +68,7 @@ import { appConfiguration, dbConfiguration } from '../config';
     ProjectTemplatesModule,
     CyclesModule,
     IssuesModule,
+    IssueTemplatesModule,
     InitiativesModule,
     DocumentsModule,
     InboxModule,

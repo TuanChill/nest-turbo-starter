@@ -39,11 +39,9 @@ interface SettingsNavItem {
 
 /**
  * Placeholder settings pages have no real content yet — hide from nav until built, keep routes intact.
- * `issue-templates` isn't in PLACEHOLDER_SECTIONS (it has its own component) but is hardcoded fake data too.
  */
 const HIDDEN_SETTINGS_SECTIONS = new Set([
    ...Object.keys(PLACEHOLDER_SECTIONS).filter((section) => section !== 'project-templates'),
-   'issue-templates',
 ]);
 
 interface SettingsNavGroup {

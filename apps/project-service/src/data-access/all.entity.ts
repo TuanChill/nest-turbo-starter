@@ -3,6 +3,7 @@ import { DocumentFolder, TeamDocument } from './document/document.entity';
 import { Initiative } from './initiative/initiative.entity';
 import { IssueActivity } from './issue/issue-activity.entity';
 import { IssueRelation, PrLink } from './issue/issue-relation.entity';
+import { IssueTemplate } from './issue/issue-template.entity';
 import { Issue } from './issue/issue.entity';
 import { IssueLabel, Label, ProjectLabel } from './label/label.entity';
 import { Member } from './member/member.entity';
@@ -48,6 +49,7 @@ export const ALL_ENTITIES = [
   ProjectUpdate,
   Cycle,
   Issue,
+  IssueTemplate,
   IssueActivity,
   IssueRelation,
   PrLink,

@@ -7,22 +7,22 @@ import { LinearEditor } from '@/components/common/editor/linear-editor';
 import { Heart } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { useTeams } from '@/hooks/queries/use-teams-query';
+import { useIssueTemplates } from '@/hooks/queries/use-issue-templates-query';
+import { useMembers } from '@/hooks/queries/use-members-query';
 import { Label } from '@/components/ui/label';
 import { useState, useEffect, useCallback } from 'react';
 import { Issue } from '@/mock-data/issues';
+import type { User } from '@/mock-data/users';
 import { priorities } from '@/mock-data/priorities';
 import { status } from '@/mock-data/status';
-import { useIssuesStore } from '@/store/issues-store';
 import { useCreateIssueStore } from '@/store/create-issue-store';
 import { toast } from 'sonner';
-import { v4 as uuidv4 } from 'uuid';
 import { StatusSelector } from './status-selector';
 import { PrioritySelector } from './priority-selector';
 import { AssigneeSelector } from './assignee-selector';
 import { ProjectSelector } from './project-selector';
 import { CycleSelector } from './cycle-selector';
 import { LabelSelector } from './label-selector';
-import { ranks } from '@/mock-data/issues';
 import { DialogTitle } from '@radix-ui/react-dialog';
 
 import { useCreateIssue } from '@/hooks/queries/use-issues-query';
@@ -31,6 +31,14 @@ import { useCycles } from '@/hooks/queries/use-cycles-query';
 import { useQueryClient } from '@tanstack/react-query';
 import { issueKeys, projectKeys } from '@/hooks/queries/keys';
 import { usePathname } from 'next/navigation';
+import { useParams } from 'next/navigation';
+import {
+   Select,
+   SelectContent,
+   SelectItem,
+   SelectTrigger,
+   SelectValue,
+} from '@/components/ui/select';
 
 export function CreateNewIssue() {
    const [createMore, setCreateMore] = useState<boolean>(false);
@@ -44,12 +52,13 @@ export function CreateNewIssue() {
       openModal,
       closeModal,
    } = useCreateIssueStore();
-   const { addIssue, getAllIssues } = useIssuesStore();
    const createIssueMutation = useCreateIssue();
    const { data: projects = [] } = useProjects();
    const { data: teams = [] } = useTeams();
+   const { data: members = [] } = useMembers();
    const queryClient = useQueryClient();
    const pathname = usePathname();
+   const { orgId } = useParams<{ orgId: string }>();
 
    // Route-aware context detection
    const routeProjectMatch = pathname.match(/\/project\/([^/]+)/);
@@ -62,6 +71,7 @@ export function CreateNewIssue() {
    const activeProject = defaultProject || routeProject || undefined;
    const activeTeamId = activeProject?.teamId || defaultTeamId || routeTeamId || teams[0]?.id;
    const activeTeam = teams.find((t) => t.id === activeTeamId);
+   const { data: issueTemplates = [] } = useIssueTemplates(orgId, activeTeamId);
 
    // Creating an issue from within a cycle's page (/cycle/active or
    // /cycle/upcoming) should scope it to that cycle, same as the project
@@ -76,24 +86,10 @@ export function CreateNewIssue() {
 
    const activeCycle = defaultCycle || routeCycle || undefined;
 
-   const generateUniqueIdentifier = useCallback(() => {
-      const identifiers = getAllIssues().map((issue) => issue.identifier);
-      let identifier = Math.floor(Math.random() * 999)
-         .toString()
-         .padStart(3, '0');
-      while (identifiers.includes(`LNUI-${identifier}`)) {
-         identifier = Math.floor(Math.random() * 999)
-            .toString()
-            .padStart(3, '0');
-      }
-      return identifier;
-   }, [getAllIssues]);
-
    const createDefaultData = useCallback(() => {
-      const identifier = generateUniqueIdentifier();
       return {
-         id: uuidv4(),
-         identifier: `LNUI-${identifier}`,
+         id: 'draft',
+         identifier: '',
          title: '',
          description: '',
          status: defaultStatus || status.find((s) => s.id === 'to-do')!,
@@ -104,15 +100,63 @@ export function CreateNewIssue() {
          cycleId: activeCycle?.id || '',
          project: activeProject,
          subissues: [],
-         rank: ranks[ranks.length - 1],
+         rank: '',
       };
-   }, [defaultStatus, activeProject, activeCycle, generateUniqueIdentifier]);
+   }, [defaultStatus, activeProject, activeCycle]);
 
    const [addIssueForm, setAddIssueForm] = useState<Issue>(createDefaultData());
+   const [selectedTemplateId, setSelectedTemplateId] = useState('none');
 
    useEffect(() => {
       setAddIssueForm(createDefaultData());
+      setSelectedTemplateId('none');
    }, [createDefaultData]);
+
+   const applyIssueTemplate = (templateId: string) => {
+      setSelectedTemplateId(templateId);
+      if (templateId === 'none') return;
+      const template = issueTemplates.find((item) => item.id === templateId);
+      if (!template) return;
+      const config = template.config;
+      const templateStatus = status.find((item) => item.id === config.statusId);
+      const templatePriority = priorities.find((item) => item.id === config.priorityId);
+      setAddIssueForm((current) => ({
+         ...current,
+         title: config.title || current.title,
+         description: config.description ?? current.description,
+         status: templateStatus || current.status,
+         priority: templatePriority || current.priority,
+         assignee: (() => {
+            const templateAssignee = members.find((member) => member.id === config.assigneeId);
+            if (!templateAssignee) return current.assignee;
+            const normalizedStatus: User['status'] = ['online', 'away'].includes(
+               templateAssignee.status
+            )
+               ? (templateAssignee.status as User['status'])
+               : 'offline';
+            const normalizedRole: User['role'] = ['Admin', 'Guest', 'Application'].includes(
+               templateAssignee.role
+            )
+               ? (templateAssignee.role as User['role'])
+               : 'Member';
+            return {
+               id: templateAssignee.id,
+               name: templateAssignee.name,
+               avatarUrl: templateAssignee.avatarUrl || '',
+               email: templateAssignee.email,
+               status: normalizedStatus,
+               role: normalizedRole,
+               joinedDate: templateAssignee.joinedDate || '',
+               teamIds: templateAssignee.teamIds || [],
+               timezone: templateAssignee.timezone,
+            };
+         })(),
+         cycleId: config.cycleId ?? current.cycleId,
+         project: config.projectId
+            ? projects.find((project) => project.id === config.projectId) || current.project
+            : current.project,
+      }));
+   };
 
    const createIssue = async () => {
       if (!addIssueForm.title?.trim()) {
@@ -122,32 +166,21 @@ export function CreateNewIssue() {
 
       setIsSubmitting(true);
       try {
-         // Persist to backend to obtain canonical unique sequential identifier
-         let createdIssue = addIssueForm;
-         try {
-            const res = await createIssueMutation.mutateAsync({
-               title: addIssueForm.title.trim(),
-               description: addIssueForm.description,
-               statusId: addIssueForm.status?.id,
-               statusCategory: addIssueForm.status?.category,
-               priorityId: addIssueForm.priority?.id,
-               assigneeId: addIssueForm.assignee?.id,
-               teamId:
-                  addIssueForm.project?.teamId || activeProject?.teamId || activeTeamId || 'ENG',
-               projectId: addIssueForm.project?.id || activeProject?.id,
-               cycleId: addIssueForm.cycleId,
-               labelIds: addIssueForm.labels?.map((l) => l.id),
-               rank: addIssueForm.rank,
-            });
-            if (res) {
-               createdIssue = res;
-            }
-         } catch (backendErr) {
-            console.warn('Backend create issue skipped / using local store:', backendErr);
-         }
-
-         // Update local zustand store
-         addIssue(createdIssue);
+         // Backend is the only source of truth; never create a local/mock issue
+         // when the canonical mutation fails.
+         await createIssueMutation.mutateAsync({
+            title: addIssueForm.title.trim(),
+            description: addIssueForm.description,
+            statusId: addIssueForm.status?.id,
+            statusCategory: addIssueForm.status?.category,
+            priorityId: addIssueForm.priority?.id,
+            assigneeId: addIssueForm.assignee?.id,
+            teamId: addIssueForm.project?.teamId || activeProject?.teamId || activeTeamId || 'ENG',
+            projectId: addIssueForm.project?.id || activeProject?.id,
+            cycleId: addIssueForm.cycleId,
+            labelIds: addIssueForm.labels?.map((l) => l.id),
+            rank: addIssueForm.rank,
+         });
 
          // Refetch and invalidate issues across all components
          await queryClient.invalidateQueries({ queryKey: issueKeys.all });
@@ -183,6 +216,21 @@ export function CreateNewIssue() {
             </DialogHeader>
 
             <div className="px-4 pb-0 space-y-3 w-full">
+               {issueTemplates.length > 0 && (
+                  <Select value={selectedTemplateId} onValueChange={applyIssueTemplate}>
+                     <SelectTrigger className="w-52 h-8">
+                        <SelectValue placeholder="Issue template" />
+                     </SelectTrigger>
+                     <SelectContent>
+                        <SelectItem value="none">Blank issue</SelectItem>
+                        {issueTemplates.map((template) => (
+                           <SelectItem key={template.id} value={template.id}>
+                              {template.name}
+                           </SelectItem>
+                        ))}
+                     </SelectContent>
+                  </Select>
+               )}
                <Input
                   className="border-none w-full shadow-none outline-none text-2xl font-medium px-0 h-auto focus-visible:ring-0 overflow-hidden text-ellipsis whitespace-normal break-words"
                   placeholder="Issue title"

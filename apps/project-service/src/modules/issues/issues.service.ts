@@ -9,6 +9,7 @@ import {
   UpdateIssueDto,
 } from './dto/issue.dto';
 import {
+  Cycle,
   Issue,
   IssueActivity,
   IssueLabel,
@@ -406,7 +407,11 @@ export class IssuesService {
     }
 
     const activityFeed = activities.map((act) => {
-      const actor = membersMap.get(act.actorId) || membersMap.get('ln');
+      const actor = membersMap.get(act.actorId) || {
+        id: act.actorId,
+        name: act.actorId,
+        avatarUrl: null,
+      };
       const timeAgo = formatTimeAgo(act.createdAt);
 
       if (act.kind === 'comment') {
@@ -475,20 +480,24 @@ export class IssuesService {
 
     if (projectId) {
       const proj = await this.em.findOne(Project, { id: projectId });
-      if (proj && proj.teamId && accessibleTeamIds.includes(proj.teamId)) {
-        teamId = proj.teamId;
-      } else {
-        // Project doesn't exist, or belongs to a team the actor can't access — don't
-        // trust it as a write target (would leak a foreign project onto this issue).
-        projectId = undefined;
+      if (!proj?.teamId || !accessibleTeamIds.includes(proj.teamId)) {
+        throw new NotFoundException(`Project ${projectId} not found`);
       }
+      if (teamId && teamId !== proj.teamId) {
+        throw new BadRequestException('Project and team must belong to the same team');
+      }
+      teamId = proj.teamId;
     }
 
-    // Fallback to caller's own team if teamId does not exist or is not accessible
+    // An omitted team is resolved to the caller's first accessible team. An
+    // explicit team is always validated and never silently redirected.
     let team =
       teamId && accessibleTeamIds.includes(teamId)
         ? await this.em.findOne(Team, { id: teamId })
         : null;
+    if (teamId && !team) {
+      throw new NotFoundException(`Team ${teamId} not found`);
+    }
     if (!team) {
       const fallbackTeam =
         accessibleTeamIds.length > 0
@@ -598,6 +607,57 @@ export class IssuesService {
       return actorName;
     };
 
+    const nextTeamId = dto.teamId ?? issue.teamId;
+    if (dto.teamId !== undefined && dto.teamId !== issue.teamId) {
+      await this.assertTeamAccess(
+        actorId,
+        dto.teamId,
+        `Issue ${identifierOrId} not found`,
+      );
+      const targetTeam = await this.em.findOne(Team, { id: dto.teamId });
+      if (!targetTeam) throw new NotFoundException(`Team ${dto.teamId} not found`);
+    }
+
+    if (dto.projectId !== undefined && dto.projectId) {
+      const targetProject = await this.em.findOne(Project, { id: dto.projectId });
+      if (!targetProject?.teamId || targetProject.teamId !== nextTeamId) {
+        throw new BadRequestException('Project and issue must belong to the same team');
+      }
+      await this.assertTeamAccess(
+        actorId,
+        targetProject.teamId,
+        `Issue ${identifierOrId} not found`,
+      );
+    }
+
+    if (dto.cycleId !== undefined && dto.cycleId) {
+      const targetCycle = await this.em.findOne(Cycle, { id: dto.cycleId });
+      if (!targetCycle || targetCycle.teamId !== nextTeamId) {
+        throw new BadRequestException('Cycle and issue must belong to the same team');
+      }
+      await this.assertTeamAccess(
+        actorId,
+        targetCycle.teamId,
+        `Issue ${identifierOrId} not found`,
+      );
+    }
+
+    if (dto.parentIssueId !== undefined && dto.parentIssueId) {
+      const parent = await this.em.findOne(Issue, {
+        $or: [{ identifier: dto.parentIssueId }, { id: dto.parentIssueId }],
+      });
+      if (!parent || parent.teamId !== nextTeamId || parent.id === issue.id) {
+        throw new BadRequestException(
+          'Parent issue must be another issue in the same team',
+        );
+      }
+      await this.assertTeamAccess(
+        actorId,
+        parent.teamId,
+        `Issue ${identifierOrId} not found`,
+      );
+    }
+
     if (dto.title !== undefined && dto.title !== issue.title) {
       issue.title = dto.title;
       this.em.persist(
@@ -695,25 +755,6 @@ export class IssuesService {
         );
       }
     }
-    if (dto.projectId !== undefined && dto.projectId !== issue.projectId) {
-      const targetProject = dto.projectId
-        ? await this.em.findOne(Project, { id: dto.projectId })
-        : null;
-      if (targetProject?.teamId) {
-        await this.assertTeamAccess(
-          actorId,
-          targetProject.teamId,
-          `Issue ${identifierOrId} not found`,
-        );
-      }
-    }
-    if (dto.teamId !== undefined && dto.teamId !== issue.teamId) {
-      await this.assertTeamAccess(
-        actorId,
-        dto.teamId,
-        `Issue ${identifierOrId} not found`,
-      );
-    }
     if (dto.teamId !== undefined) issue.teamId = dto.teamId;
     if (dto.projectId !== undefined) issue.projectId = dto.projectId;
     if (dto.cycleId !== undefined) issue.cycleId = dto.cycleId;
@@ -767,7 +808,7 @@ export class IssuesService {
         issue.teamId,
         `Issue ${identifierOrId} not found`,
       );
-      this.em.remove(issue);
+      issue.deletedAt = new Date();
       await this.em.flush();
     }
     return { success: true };
@@ -855,7 +896,11 @@ export class IssuesService {
     const reactions = act.reactions || [];
     const found = reactions.find((r: any) => r.emoji === dto.emoji);
     if (found) {
-      found.count += 1;
+      const userIds = Array.isArray(found.userIds) ? found.userIds : [];
+      if (!userIds.includes(memberId)) {
+        found.userIds = [...userIds, memberId];
+        found.count = found.userIds.length;
+      }
     } else {
       reactions.push({
         emoji: dto.emoji,
@@ -879,9 +924,22 @@ export class IssuesService {
       `Issue ${identifierOrId} not found`,
     );
 
+    const target = await this.em.findOne(Issue, {
+      $or: [{ identifier: dto.targetIdentifier }, { id: dto.targetIdentifier }],
+    });
+    if (!target || target.teamId !== issue.teamId || target.id === issue.id) {
+      throw new BadRequestException('Related issue must exist in the same team');
+    }
+    const existing = await this.em.findOne(IssueRelation, {
+      sourceIdentifier: issue.identifier,
+      targetIdentifier: target.identifier,
+      relationType: dto.relationType,
+    });
+    if (existing) return this.findDetail(issue.identifier);
+
     const relation = new IssueRelation({
       sourceIdentifier: issue.identifier,
-      targetIdentifier: dto.targetIdentifier,
+      targetIdentifier: target.identifier,
       relationType: dto.relationType,
     });
 

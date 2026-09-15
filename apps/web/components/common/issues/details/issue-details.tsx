@@ -1,7 +1,6 @@
 'use client';
 
 import * as React from 'react';
-import { getIssueDetail } from '@/mock-data/issue-details';
 import {
    useIssue,
    useIssueDetail,
@@ -116,7 +115,12 @@ function IssueDetailsSkeleton() {
 export default function IssueDetails() {
    const { orgId, issueId } = useParams<{ orgId: string; issueId: string }>();
    const { data: issue, isLoading: isIssueLoading } = useIssue(issueId);
-   const { data: detailData, isLoading: isDetailLoading } = useIssueDetail(issueId);
+   const {
+      data: detailData,
+      isLoading: isDetailLoading,
+      isError: isDetailError,
+      error: detailError,
+   } = useIssueDetail(issueId);
    const { data: allIssues = [] } = useIssues();
    const { data: members = [] } = useMembers();
    const { data: labels = [] } = useLabels();
@@ -154,10 +158,7 @@ export default function IssueDetails() {
       }
    }, [isAddingSubIssue]);
 
-   const detail = React.useMemo(
-      () => detailData || (issue ? getIssueDetail(issue) : null),
-      [detailData, issue]
-   );
+   const detail = detailData ?? null;
 
    const initialDescriptionMarkdown = React.useMemo(() => {
       if (descriptionOverride !== null) return descriptionOverride;
@@ -204,6 +205,17 @@ export default function IssueDetails() {
 
    if (isLoading) {
       return <IssueDetailsSkeleton />;
+   }
+
+   if (isDetailError) {
+      return (
+         <div className="flex flex-col items-center justify-center h-full gap-3 text-sm text-muted-foreground">
+            <p className="text-base font-medium text-foreground">Unable to load issue activity</p>
+            <p className="text-xs">
+               {detailError instanceof Error ? detailError.message : 'Please try again.'}
+            </p>
+         </div>
+      );
    }
 
    if (!issue || !detail) {

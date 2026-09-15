@@ -2,23 +2,35 @@ import { EntityManager } from '@mikro-orm/core';
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateLabelDto, UpdateLabelDto } from './dto/label.dto';
 import { IssueLabel, Label, LabelScope, ProjectLabel } from '../../data-access';
+import { WorkspacesService } from '../workspaces/workspaces.service';
 
 @Injectable()
 export class LabelsService {
-  constructor(private readonly em: EntityManager) {}
+  constructor(
+    private readonly em: EntityManager,
+    private readonly workspacesService: WorkspacesService,
+  ) {}
 
-  async findAll(scope?: Exclude<LabelScope, 'both'>) {
+  private async assertWorkspaceMember(memberId: string) {
+    const teamIds = await this.workspacesService.getAccessibleTeamIds(memberId);
+    if (teamIds.length === 0) throw new NotFoundException('Workspace not found');
+  }
+
+  async findAll(memberId: string, scope?: Exclude<LabelScope, 'both'>) {
+    await this.assertWorkspaceMember(memberId);
     if (!scope) return this.em.find(Label, {});
     return this.em.find(Label, { scope: { $in: [scope, 'both'] } });
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, memberId: string) {
+    await this.assertWorkspaceMember(memberId);
     const label = await this.em.findOne(Label, { id });
     if (!label) throw new NotFoundException(`Label ${id} not found`);
     return label;
   }
 
-  async create(dto: CreateLabelDto) {
+  async create(dto: CreateLabelDto, memberId: string) {
+    await this.assertWorkspaceMember(memberId);
     const name = dto.name.trim();
     const scope = dto.scope ?? 'both';
     const labels = await this.em.find(Label, {});
@@ -37,7 +49,8 @@ export class LabelsService {
     return label;
   }
 
-  async update(id: string, dto: UpdateLabelDto) {
+  async update(id: string, dto: UpdateLabelDto, memberId: string) {
+    await this.assertWorkspaceMember(memberId);
     const label = await this.em.findOne(Label, { id });
     if (!label) throw new NotFoundException(`Label ${id} not found`);
 
@@ -58,7 +71,8 @@ export class LabelsService {
     return label;
   }
 
-  async delete(id: string) {
+  async delete(id: string, memberId: string) {
+    await this.assertWorkspaceMember(memberId);
     const label = await this.em.findOne(Label, { id });
     if (label) {
       const [issueLinks, projectLinks] = await Promise.all([

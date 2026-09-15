@@ -4,6 +4,7 @@ export * from './use-projects-query';
 export * from './use-teams-query';
 export * from './use-initiatives-query';
 export * from './use-project-templates-query';
+export * from './use-issue-templates-query';
 export * from './use-views-query';
 export * from './use-documents-query';
 export * from './use-members-query';
