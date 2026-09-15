@@ -123,6 +123,9 @@ export function CreateProjectDialog({
 
    const [name, setName] = React.useState('');
    const [teamId, setTeamId] = React.useState(defaultTeamId || (teams[0]?.id ?? 'CORE'));
+   const [selectedTeamIds, setSelectedTeamIds] = React.useState<string[]>([
+      defaultTeamId || teams[0]?.id || 'CORE',
+   ]);
    const [selectedIcon, setSelectedIcon] = React.useState('Vault');
    const [leadId, setLeadId] = React.useState('');
    const [statusId, setStatusId] = React.useState('in-progress');
@@ -138,8 +141,18 @@ export function CreateProjectDialog({
 
    // Sync defaultTeamId when changed
    React.useEffect(() => {
-      if (defaultTeamId) setTeamId(defaultTeamId);
-      else if (teams.length > 0 && !teamId) setTeamId(teams[0].id);
+      const nextTeamId = defaultTeamId || teamId || teams[0]?.id;
+      if (!nextTeamId) return;
+      setTeamId(nextTeamId);
+      setSelectedTeamIds((previous) => {
+         const next = [
+            nextTeamId,
+            ...previous.filter((id) => id !== nextTeamId && teams.some((team) => team.id === id)),
+         ];
+         return previous.length === next.length && previous.every((id, index) => id === next[index])
+            ? previous
+            : next;
+      });
    }, [defaultTeamId, teams, teamId]);
 
    // Sync default leadId when members load
@@ -161,7 +174,13 @@ export function CreateProjectDialog({
       const template = templates.find((item) => item.id === templateId);
       if (!template) return;
       const config = template.config.project ?? {};
-      if (template.scope === 'team' && template.teamId) setTeamId(template.teamId);
+      if (template.scope === 'team' && template.teamId) {
+         setTeamId(template.teamId);
+         setSelectedTeamIds([template.teamId]);
+      } else if (config.teamIds?.length) {
+         setTeamId(config.teamIds[0]);
+         setSelectedTeamIds(config.teamIds);
+      }
       if (config.statusId) setStatusId(config.statusId);
       if (config.priorityId) setPriorityId(config.priorityId);
       if (config.healthId) setHealthId(config.healthId);
@@ -190,6 +209,7 @@ export function CreateProjectDialog({
          const payload: Record<string, unknown> = {
             name: trimmedName,
             teamId,
+            teamIds: selectedTeamIds.length > 0 ? selectedTeamIds : [teamId],
             leadId: leadId || undefined,
             statusId: selectedStatus.id,
             statusCategory: selectedStatus.category,
@@ -324,7 +344,17 @@ export function CreateProjectDialog({
                         <Label htmlFor="proj-team" className="text-xs font-medium">
                            Team <span className="text-destructive">*</span>
                         </Label>
-                        <Select value={teamId} onValueChange={setTeamId} disabled={isSubmitting}>
+                        <Select
+                           value={teamId}
+                           onValueChange={(nextTeamId) => {
+                              setTeamId(nextTeamId);
+                              setSelectedTeamIds((previous) => [
+                                 nextTeamId,
+                                 ...previous.filter((id) => id !== nextTeamId),
+                              ]);
+                           }}
+                           disabled={isSubmitting}
+                        >
                            <SelectTrigger id="proj-team" className="h-9 text-xs">
                               <SelectValue placeholder="Select team" />
                            </SelectTrigger>
@@ -339,6 +369,46 @@ export function CreateProjectDialog({
                               ))}
                            </SelectContent>
                         </Select>
+                     </div>
+
+                     <div className="col-span-2 space-y-1.5">
+                        <div className="flex items-center justify-between">
+                           <Label className="text-xs font-medium">Additional teams</Label>
+                           <span className="text-[11px] text-muted-foreground">
+                              {selectedTeamIds.length} selected
+                           </span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 max-h-24 overflow-y-auto">
+                           {teams
+                              .filter((team) => team.id !== teamId)
+                              .map((team) => {
+                                 const selected = selectedTeamIds.includes(team.id);
+                                 return (
+                                    <button
+                                       key={team.id}
+                                       type="button"
+                                       disabled={isSubmitting}
+                                       onClick={() =>
+                                          setSelectedTeamIds((previous) =>
+                                             selected
+                                                ? previous.filter((id) => id !== team.id)
+                                                : [...previous, team.id]
+                                          )
+                                       }
+                                       className={cn(
+                                          'flex items-center gap-2 rounded-md border px-2 py-1.5 text-left text-xs transition-colors',
+                                          selected
+                                             ? 'border-primary bg-primary/10'
+                                             : 'border-border/50 hover:bg-accent/50'
+                                       )}
+                                    >
+                                       <span>{team.icon}</span>
+                                       <span className="truncate flex-1">{team.name}</span>
+                                       {selected && <Check className="size-3.5 text-primary" />}
+                                    </button>
+                                 );
+                              })}
+                        </div>
                      </div>
 
                      {/* Lead selector */}

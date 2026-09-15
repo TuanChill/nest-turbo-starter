@@ -265,6 +265,23 @@ export class ProjectTemplatesService {
       }
     }
 
+    const templateTeamIds = [...new Set(projectConfig.teamIds ?? [])];
+    if (templateTeamIds.length > 0) {
+      const teams = await this.em.find(Team, {
+        id: { $in: templateTeamIds },
+        workspaceId,
+      });
+      const availableTeamIds = new Set(teams.map((team) => team.id));
+      const missingTeamIds = templateTeamIds.filter(
+        (teamId) => !availableTeamIds.has(teamId),
+      );
+      if (missingTeamIds.length > 0) {
+        throw new BadRequestException(
+          `Template teams are outside the target workspace: ${missingTeamIds.join(', ')}`,
+        );
+      }
+    }
+
     const projectLabelIds = projectConfig.labelIds ?? [];
     const issueLabelIds = (config.issues ?? []).flatMap((issue) => issue.labelIds ?? []);
     const labelIds = [...new Set([...projectLabelIds, ...issueLabelIds])];
@@ -374,6 +391,7 @@ export class ProjectTemplatesService {
       labelIds?: unknown;
       startDate?: unknown;
       targetDate?: unknown;
+      teamIds?: unknown;
     };
     const overrideString = (key: keyof typeof projectOverrides, fallback?: string) =>
       typeof projectOverrides[key] === 'string' ? projectOverrides[key] : fallback;
@@ -393,6 +411,7 @@ export class ProjectTemplatesService {
         {
           name: dto.name.trim(),
           teamId: dto.teamId,
+          teamIds: overrideStringArray('teamIds', projectConfig.teamIds),
           summary:
             typeof projectOverrides.summary === 'string'
               ? projectOverrides.summary

@@ -26,6 +26,16 @@ export class CreateProjectDto {
   @IsNotEmpty()
   teamId: string;
 
+  @ApiPropertyOptional({
+    type: [String],
+    description: 'Teams sharing this project; teamId is kept as the primary team',
+  })
+  @IsArray()
+  @ArrayUnique()
+  @IsString({ each: true })
+  @IsOptional()
+  teamIds?: string[];
+
   @ApiPropertyOptional({ example: 'mason' })
   @IsString()
   @IsOptional()
@@ -121,6 +131,17 @@ export class UpdateProjectDto {
   @IsString()
   @IsOptional()
   teamId?: string;
+
+  @ApiPropertyOptional({
+    type: [String],
+    description:
+      'Replace the teams sharing this project; teamId remains the primary team',
+  })
+  @IsArray()
+  @ArrayUnique()
+  @IsString({ each: true })
+  @IsOptional()
+  teamIds?: string[];
 
   @ApiPropertyOptional()
   @IsString()

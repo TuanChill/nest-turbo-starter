@@ -45,6 +45,8 @@ export interface Project {
    description?: ContentBlock[];
    /** Owning team (see mock-data/teams.ts). */
    teamId: string;
+   /** All teams sharing the project; teamId remains the primary team. */
+   teamIds?: string[];
    labels: LabelInterface[];
    initiative?: string;
    /** Days since the last health update (undefined = no update yet). */

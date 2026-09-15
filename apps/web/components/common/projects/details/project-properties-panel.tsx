@@ -22,6 +22,13 @@ import { AddMilestonePopover } from '../add-milestone-popover';
 import { ArrowRight, Calendar, Check, Compass, Slack, UserPlus } from 'lucide-react';
 import { useMemo } from 'react';
 import { LabelSelector } from '@/components/layout/sidebar/create-new-issue/label-selector';
+import {
+   DropdownMenu,
+   DropdownMenuCheckboxItem,
+   DropdownMenuContent,
+   DropdownMenuLabel,
+   DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface ProjectPropertiesPanelProps {
    project: Project;
@@ -123,7 +130,7 @@ export function ProjectPropertiesPanel({ project, detail, issues }: ProjectPrope
    const completed = issues.filter(isCompleted).length;
 
    const { data: teams = [] } = useTeams();
-   const team = teams.find((candidate) => candidate.id === project.teamId);
+   const projectTeamIds = project.teamIds ?? [project.teamId];
 
    const updateProjectMutation = useUpdateProject();
    const { mutate: toggleMilestone } = useToggleMilestone();
@@ -157,6 +164,16 @@ export function ProjectPropertiesPanel({ project, detail, issues }: ProjectPrope
       updateProjectMutation.mutate({
          id: project.id,
          payload: { labelIds: newLabels.map((label) => label.id) } as unknown as Partial<Project>,
+      });
+   };
+   const handleTeamsChange = (teamId: string, checked: boolean) => {
+      if (teamId === project.teamId && !checked) return;
+      const nextTeamIds = checked
+         ? [...new Set([...projectTeamIds, teamId])]
+         : projectTeamIds.filter((id) => id !== teamId);
+      updateProjectMutation.mutate({
+         id: project.id,
+         payload: { teamIds: nextTeamIds } as unknown as Partial<Project>,
       });
    };
 
@@ -290,9 +307,51 @@ export function ProjectPropertiesPanel({ project, detail, issues }: ProjectPrope
                   />
                </PropertyRow>
                <PropertyRow label="Teams">
-                  <span className="inline-flex items-center gap-1.5">
-                     {team?.icon} {team?.name ?? project.teamId}
-                  </span>
+                  <DropdownMenu>
+                     <DropdownMenuTrigger asChild>
+                        <button
+                           type="button"
+                           className="inline-flex items-center gap-1.5 rounded px-1.5 py-1 text-left hover:bg-accent/50"
+                        >
+                           <span className="flex items-center gap-1.5 min-w-0">
+                              {projectTeamIds.slice(0, 2).map((id) => {
+                                 const projectTeam = teams.find((candidate) => candidate.id === id);
+                                 return (
+                                    <span key={id} className="inline-flex items-center gap-1">
+                                       {projectTeam?.icon}
+                                       <span className="max-w-20 truncate">
+                                          {projectTeam?.name ?? id}
+                                       </span>
+                                    </span>
+                                 );
+                              })}
+                              {projectTeamIds.length > 2 && (
+                                 <span className="text-muted-foreground">
+                                    +{projectTeamIds.length - 2}
+                                 </span>
+                              )}
+                           </span>
+                        </button>
+                     </DropdownMenuTrigger>
+                     <DropdownMenuContent align="end" className="w-64">
+                        <DropdownMenuLabel>Select project teams</DropdownMenuLabel>
+                        {teams.map((candidate) => (
+                           <DropdownMenuCheckboxItem
+                              key={candidate.id}
+                              checked={projectTeamIds.includes(candidate.id)}
+                              disabled={
+                                 candidate.id === project.teamId || updateProjectMutation.isPending
+                              }
+                              onCheckedChange={(checked) =>
+                                 handleTeamsChange(candidate.id, checked === true)
+                              }
+                           >
+                              <span className="mr-2">{candidate.icon}</span>
+                              {candidate.name}
+                           </DropdownMenuCheckboxItem>
+                        ))}
+                     </DropdownMenuContent>
+                  </DropdownMenu>
                </PropertyRow>
                <PropertyRow label="Slack">
                   <button className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors">

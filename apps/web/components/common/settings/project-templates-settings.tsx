@@ -32,6 +32,7 @@ import { useTeams } from '@/hooks/queries/use-teams-query';
 import type { ProjectTemplate, ProjectTemplateConfig } from '@/services/project-templates.service';
 import { useParams } from 'next/navigation';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { Check } from 'lucide-react';
 
 const statuses = [
    ['backlog', 'Backlog'],
@@ -68,13 +69,15 @@ function makeConfig(
    priorityId: string,
    leadId: string,
    initiativeId: string,
-   memberIds: string[]
+   memberIds: string[],
+   teamIds: string[]
 ): ProjectTemplateConfig {
    return {
       project: {
          statusId,
          statusCategory: categoryFor(statusId),
          priorityId,
+         teamIds,
          leadId: leadId || undefined,
          initiativeId: initiativeId === 'none' ? undefined : initiativeId,
          memberIds,
@@ -110,6 +113,7 @@ function TemplateEditor({
    const [description, setDescription] = useState('');
    const [scope, setScope] = useState<'workspace' | 'team'>('workspace');
    const [teamId, setTeamId] = useState('');
+   const [teamIds, setTeamIds] = useState<string[]>([]);
    const [statusId, setStatusId] = useState('in-progress');
    const [priorityId, setPriorityId] = useState('no-priority');
    const [leadId, setLeadId] = useState('');
@@ -124,6 +128,10 @@ function TemplateEditor({
       setDescription(template?.description ?? '');
       setScope(template?.scope ?? 'workspace');
       setTeamId(template?.teamId ?? teams[0]?.id ?? '');
+      setTeamIds(
+         project.teamIds ??
+            (template?.scope === 'team' && template?.teamId ? [template.teamId] : [])
+      );
       setStatusId(project.statusId ?? 'in-progress');
       setPriorityId(project.priorityId ?? 'no-priority');
       setLeadId(project.leadId ?? '');
@@ -151,7 +159,8 @@ function TemplateEditor({
             priorityId,
             leadId,
             initiativeId,
-            memberIds
+            memberIds,
+            scope === 'team' ? [teamId] : teamIds
          ),
       };
       if (template) await onUpdate(template.id, payload);
@@ -210,6 +219,42 @@ function TemplateEditor({
                         </Select>
                      )}
                   </div>
+                  {scope === 'workspace' && (
+                     <div>
+                        <div className="flex items-center justify-between mb-2">
+                           <p className="text-sm font-medium">Project teams</p>
+                           <span className="text-xs text-muted-foreground">
+                              {teamIds.length} selected
+                           </span>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                           {teams.map((team: any) => {
+                              const selected = teamIds.includes(team.id);
+                              return (
+                                 <Button
+                                    key={team.id}
+                                    type="button"
+                                    size="xs"
+                                    variant={selected ? 'default' : 'outline'}
+                                    onClick={() =>
+                                       setTeamIds((current) =>
+                                          selected
+                                             ? current.filter((id) => id !== team.id)
+                                             : [...current, team.id]
+                                       )
+                                    }
+                                 >
+                                    {team.icon} {team.name}
+                                    {selected && <Check className="size-3.5 ml-1" />}
+                                 </Button>
+                              );
+                           })}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1.5">
+                           Workspace templates can be used by any selected team.
+                        </p>
+                     </div>
+                  )}
                   <div className="grid grid-cols-3 gap-3">
                      <Select value={statusId} onValueChange={setStatusId}>
                         <SelectTrigger>

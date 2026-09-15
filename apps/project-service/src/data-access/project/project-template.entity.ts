@@ -14,6 +14,7 @@ export interface ProjectTemplateConfig {
     priorityId?: string;
     healthId?: string;
     percentComplete?: number;
+    teamIds?: string[];
     leadId?: string;
     initiativeId?: string;
     labelIds?: string[];
