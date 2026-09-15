@@ -18,6 +18,7 @@ import {
   ProjectUpdate,
   Team,
   toSafeMember,
+  WorkspaceMember,
 } from '../../data-access';
 import { WorkspacesService } from '../workspaces/workspaces.service';
 
@@ -115,6 +116,25 @@ export class ProjectsService {
     return uniqueLabelIds;
   }
 
+  private async validateMemberIds(memberIds: string[], teamId: string, actorId: string) {
+    const team = await this.em.findOne(Team, { id: teamId });
+    const workspaceIds = team?.workspaceId
+      ? [team.workspaceId]
+      : await this.workspacesService.getAccessibleWorkspaceIds(actorId);
+    const memberships = await this.em.find(WorkspaceMember, {
+      memberId: { $in: memberIds },
+      workspaceId: { $in: workspaceIds },
+    });
+    const validIds = new Set(memberships.map((membership) => membership.memberId));
+    const missingIds = memberIds.filter((memberId) => !validIds.has(memberId));
+    if (missingIds.length > 0) {
+      throw new BadRequestException(
+        `Project member(s) are not in the team workspace: ${missingIds.join(', ')}`,
+      );
+    }
+    return [...new Set(memberIds)];
+  }
+
   private transformProject(
     project: Project,
     membersMap: Map<string, any>,
@@ -133,14 +153,7 @@ export class ProjectsService {
       .filter(Boolean);
     // A project can outlive a soft-deleted lead. Keep the response shape
     // renderable so project lists never crash while displaying that project.
-    const lead = (project.leadId
-      ? membersMap.get(project.leadId)
-      : membersMap.get('ln')) ||
-      members[0] || {
-        id: project.leadId || 'unknown',
-        name: 'Unknown member',
-        avatarUrl: null,
-      };
+    const lead = project.leadId ? (membersMap.get(project.leadId) ?? null) : null;
 
     const status = STATUS_DATA[project.statusId] || {
       id: project.statusId,
@@ -178,7 +191,7 @@ export class ProjectsService {
       issueCount: issues.length,
       startDate: project.startDate
         ? project.startDate.toISOString().split('T')[0]
-        : '2025-01-01',
+        : undefined,
       targetDate: project.targetDate
         ? project.targetDate.toISOString().split('T')[0]
         : undefined,
@@ -281,7 +294,7 @@ export class ProjectsService {
 
     const enrichedUpdates = updates.map((u) => ({
       id: u.id,
-      author: membersMap.get(u.authorId) || membersMap.get('ln'),
+      author: membersMap.get(u.authorId) ?? null,
       date: u.createdAt.toISOString().split('T')[0],
       health: u.health,
       blocks: u.blocks,
@@ -299,14 +312,7 @@ export class ProjectsService {
         completed: m.completed,
       })),
       updates: enrichedUpdates,
-      activity: [
-        {
-          id: `act-${id}-1`,
-          user: baseProject.lead,
-          date: baseProject.startDate,
-          text: `created the project ${baseProject.name}`,
-        },
-      ],
+      activity: [],
     };
   }
 
@@ -322,7 +328,7 @@ export class ProjectsService {
       id,
       name: dto.name,
       teamId: dto.teamId,
-      leadId: dto.leadId || 'ln',
+      leadId: dto.leadId || memberId,
       statusId: dto.statusId || 'in-progress',
       statusCategory: dto.statusCategory || 'started',
       priorityId: dto.priorityId || 'no-priority',
@@ -339,6 +345,18 @@ export class ProjectsService {
     });
 
     this.em.persist(project);
+
+    const memberIds = await this.validateMemberIds(
+      dto.memberIds ?? [memberId],
+      dto.teamId,
+      memberId,
+    );
+    this.em.persist(
+      memberIds.map(
+        (projectMemberId) =>
+          new ProjectMember({ projectId: id, memberId: projectMemberId }),
+      ),
+    );
 
     if (dto.labelIds !== undefined) {
       const labelIds = await this.validateLabelIds(dto.labelIds, dto.teamId);
@@ -378,6 +396,10 @@ export class ProjectsService {
     if (dto.description !== undefined) project.description = dto.description;
     if (dto.resources !== undefined) project.resources = dto.resources;
 
+    if (dto.memberIds !== undefined) {
+      await this.replaceMembers(id, dto.memberIds, memberId, false);
+    }
+
     if (dto.labelIds !== undefined) {
       const labelIds = await this.validateLabelIds(dto.labelIds, project.teamId);
       const existing = await this.em.find(ProjectLabel, { projectId: id });
@@ -402,6 +424,41 @@ export class ProjectsService {
       await this.em.flush();
     }
     return { success: true };
+  }
+
+  async getMembers(id: string, memberId: string) {
+    const project = await this.em.findOne(Project, { id });
+    if (!project) throw new NotFoundException(`Project ${id} not found`);
+    await this.assertTeamAccess(memberId, project.teamId, `Project ${id} not found`);
+    const links = await this.em.find(ProjectMember, { projectId: id });
+    const members = await this.em.find(Member, {
+      id: { $in: links.map((link) => link.memberId) },
+    });
+    const membersMap = new Map(
+      members.map((member) => [member.id, toSafeMember(member)]),
+    );
+    return links.map((link) => membersMap.get(link.memberId)).filter(Boolean);
+  }
+
+  async replaceMembers(id: string, memberIds: string[], actorId: string, flush = true) {
+    const project = await this.em.findOne(Project, { id });
+    if (!project) throw new NotFoundException(`Project ${id} not found`);
+    await this.assertTeamAccess(actorId, project.teamId, `Project ${id} not found`);
+    const validMemberIds = await this.validateMemberIds(
+      memberIds,
+      project.teamId,
+      actorId,
+    );
+    const existing = await this.em.find(ProjectMember, { projectId: id });
+    this.em.remove(existing);
+    this.em.persist(
+      validMemberIds.map(
+        (projectMemberId) =>
+          new ProjectMember({ projectId: id, memberId: projectMemberId }),
+      ),
+    );
+    if (flush) await this.em.flush();
+    return this.getMembers(id, actorId);
   }
 
   async addUpdate(projectId: string, dto: CreateProjectUpdateDto, memberId: string) {

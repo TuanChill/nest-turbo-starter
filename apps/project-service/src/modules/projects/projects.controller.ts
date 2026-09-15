@@ -1,10 +1,21 @@
 import { User } from '@app/common';
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Put,
+  Query,
+} from '@nestjs/common';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import {
   CreateMilestoneDto,
   CreateProjectDto,
   CreateProjectUpdateDto,
+  ReplaceProjectMembersDto,
   UpdateProjectDto,
 } from './dto/project.dto';
 import { ProjectsService } from './projects.service';
@@ -38,6 +49,22 @@ export class ProjectsController {
   @Get(':id/detail')
   findDetail(@Param('id') id: string, @User('id') memberId: string) {
     return this.projectsService.findDetail(id, memberId);
+  }
+
+  @ApiOperation({ summary: 'Get project members' })
+  @Get(':id/members')
+  getMembers(@Param('id') id: string, @User('id') memberId: string) {
+    return this.projectsService.getMembers(id, memberId);
+  }
+
+  @ApiOperation({ summary: 'Replace project members' })
+  @Put(':id/members')
+  replaceMembers(
+    @Param('id') id: string,
+    @Body() dto: ReplaceProjectMembersDto,
+    @User('id') memberId: string,
+  ) {
+    return this.projectsService.replaceMembers(id, dto.memberIds, memberId);
   }
 
   @ApiOperation({ summary: 'Create project' })

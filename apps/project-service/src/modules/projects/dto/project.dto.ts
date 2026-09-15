@@ -83,6 +83,16 @@ export class CreateProjectDto {
   @IsOptional()
   labelIds?: string[];
 
+  @ApiPropertyOptional({
+    type: [String],
+    description: 'Workspace members assigned to the project',
+  })
+  @IsArray()
+  @ArrayUnique()
+  @IsString({ each: true })
+  @IsOptional()
+  memberIds?: string[];
+
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
@@ -169,6 +179,13 @@ export class UpdateProjectDto {
   @IsOptional()
   labelIds?: string[];
 
+  @ApiPropertyOptional({ type: [String], description: 'Replace the project member set' })
+  @IsArray()
+  @ArrayUnique()
+  @IsString({ each: true })
+  @IsOptional()
+  memberIds?: string[];
+
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
@@ -199,6 +216,14 @@ export class CreateProjectUpdateDto {
   @IsArray()
   @Type(() => Object)
   blocks: any[];
+}
+
+export class ReplaceProjectMembersDto {
+  @ApiProperty({ type: [String] })
+  @IsArray()
+  @ArrayUnique()
+  @IsString({ each: true })
+  memberIds: string[];
 }
 
 export class CreateMilestoneDto {
