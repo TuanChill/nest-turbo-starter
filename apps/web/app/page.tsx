@@ -10,7 +10,9 @@ export default async function Home() {
 
    if (accessToken) {
       const lastWorkspace = getSavedWorkspaceFromCookieStore(cookieStore);
-      redirect(ROUTES.DEFAULT_WORKSPACE_DASHBOARD(lastWorkspace || 'circle-workspace'));
+      redirect(
+         lastWorkspace ? ROUTES.DEFAULT_WORKSPACE_DASHBOARD(lastWorkspace) : ROUTES.ONBOARDING
+      );
    }
 
    return <LandingPage />;

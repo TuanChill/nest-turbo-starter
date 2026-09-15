@@ -28,7 +28,9 @@ export function middleware(request: NextRequest) {
    if (isAuthPage && accessToken) {
       const lastWorkspace = getSavedWorkspaceFromRequest(request);
       const url = request.nextUrl.clone();
-      url.pathname = ROUTES.DEFAULT_WORKSPACE_DASHBOARD(lastWorkspace || 'circle-workspace');
+      url.pathname = lastWorkspace
+         ? ROUTES.DEFAULT_WORKSPACE_DASHBOARD(lastWorkspace)
+         : ROUTES.ONBOARDING;
       return NextResponse.redirect(url);
    }
 

@@ -86,7 +86,7 @@ export function GoogleLoginButton({ text = 'Continue with Google' }: GoogleLogin
                   ? ROUTES.ONBOARDING
                   : destinationSlug
                     ? ROUTES.WORKSPACE.MY_ISSUES(destinationSlug)
-                    : ROUTES.DEFAULT_WORKSPACE_DASHBOARD());
+                    : ROUTES.ONBOARDING);
             router.push(targetUrl);
          } catch (err: unknown) {
             const message = err instanceof Error ? err.message : 'Google Sign-in failed';

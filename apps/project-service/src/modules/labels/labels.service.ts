@@ -15,6 +15,7 @@ import {
   ProjectLabel,
   Workspace,
 } from '../../data-access';
+import { requireWorkspaceSelection } from '../workspaces/workspace-selection';
 import { WorkspacesService } from '../workspaces/workspaces.service';
 
 @Injectable()
@@ -43,18 +44,30 @@ export class LabelsService {
       }
       return workspace.id;
     }
-    return accessibleWorkspaceIds[0];
+    return requireWorkspaceSelection(accessibleWorkspaceIds);
   }
 
-  async findAll(memberId: string, scope?: Exclude<LabelScope, 'both'>) {
-    const workspaceIds = await this.getAccessibleWorkspaceIds(memberId);
+  async findAll(
+    memberId: string,
+    scope?: Exclude<LabelScope, 'both'>,
+    requestedWorkspaceId?: string,
+  ) {
+    const workspaceIds = requestedWorkspaceId
+      ? [await this.resolveWorkspaceId(memberId, requestedWorkspaceId)]
+      : await this.getAccessibleWorkspaceIds(memberId);
     const where: any = { workspaceId: { $in: workspaceIds } };
     if (scope) where.scope = { $in: [scope, 'both'] };
     return this.em.find(Label, where);
   }
 
-  async findAllGroups(memberId: string, scope?: Exclude<LabelGroupScope, 'both'>) {
-    const workspaceIds = await this.getAccessibleWorkspaceIds(memberId);
+  async findAllGroups(
+    memberId: string,
+    scope?: Exclude<LabelGroupScope, 'both'>,
+    requestedWorkspaceId?: string,
+  ) {
+    const workspaceIds = requestedWorkspaceId
+      ? [await this.resolveWorkspaceId(memberId, requestedWorkspaceId)]
+      : await this.getAccessibleWorkspaceIds(memberId);
     const where: any = { workspaceId: { $in: workspaceIds } };
     if (scope) where.scope = { $in: [scope, 'both'] };
     return this.em.find(LabelGroup, where, { orderBy: { name: 'asc' } });

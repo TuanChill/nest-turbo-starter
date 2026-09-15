@@ -17,38 +17,33 @@ export const ROUTES = {
 
    // Workspace-level Routes
    WORKSPACE: {
-      ROOT: (orgId: string = 'circle-workspace') => `/${orgId}`,
-      INBOX: (orgId: string = 'circle-workspace') => `/${orgId}/inbox`,
-      MY_ISSUES: (orgId: string = 'circle-workspace') => `/${orgId}/my-issues`,
-      AGENT: (orgId: string = 'circle-workspace') => `/${orgId}/agent`,
-      INITIATIVES: (orgId: string = 'circle-workspace') => `/${orgId}/initiatives`,
-      PROJECTS: (orgId: string = 'circle-workspace') => `/${orgId}/projects`,
+      ROOT: (orgId: string) => `/${orgId}`,
+      INBOX: (orgId: string) => `/${orgId}/inbox`,
+      MY_ISSUES: (orgId: string) => `/${orgId}/my-issues`,
+      AGENT: (orgId: string) => `/${orgId}/agent`,
+      INITIATIVES: (orgId: string) => `/${orgId}/initiatives`,
+      PROJECTS: (orgId: string) => `/${orgId}/projects`,
       PROJECT_OVERVIEW: (orgId: string, projectId: string) =>
          `/${orgId}/project/${projectId}/overview`,
       PROJECT_ISSUES: (orgId: string, projectId: string) => `/${orgId}/project/${projectId}/issues`,
       PROJECT_ACTIVITY: (orgId: string, projectId: string) =>
          `/${orgId}/project/${projectId}/activity`,
-      VIEWS: (orgId: string = 'circle-workspace') => `/${orgId}/views`,
-      TEAMS: (orgId: string = 'circle-workspace') => `/${orgId}/teams`,
-      MEMBERS: (orgId: string = 'circle-workspace') => `/${orgId}/members`,
-      SETTINGS: (orgId: string = 'circle-workspace') => `/${orgId}/settings`,
-      SETTINGS_PROFILE: (orgId: string = 'circle-workspace') => `/${orgId}/settings/profile`,
-      SETTINGS_PREFERENCES: (orgId: string = 'circle-workspace') =>
-         `/${orgId}/settings/preferences`,
-      SETTINGS_TEAMS: (orgId: string = 'circle-workspace') => `/${orgId}/settings/teams`,
+      VIEWS: (orgId: string) => `/${orgId}/views`,
+      TEAMS: (orgId: string) => `/${orgId}/teams`,
+      MEMBERS: (orgId: string) => `/${orgId}/members`,
+      SETTINGS: (orgId: string) => `/${orgId}/settings`,
+      SETTINGS_PROFILE: (orgId: string) => `/${orgId}/settings/profile`,
+      SETTINGS_PREFERENCES: (orgId: string) => `/${orgId}/settings/preferences`,
+      SETTINGS_TEAMS: (orgId: string) => `/${orgId}/settings/teams`,
       SETTINGS_TEAM_DETAIL: (orgId: string, teamId: string) => `/${orgId}/settings/teams/${teamId}`,
-      SETTINGS_MEMBERS: (orgId: string = 'circle-workspace') => `/${orgId}/settings/members`,
-      SETTINGS_SECURITY: (orgId: string = 'circle-workspace') => `/${orgId}/settings/security`,
-      SETTINGS_AI: (orgId: string = 'circle-workspace') => `/${orgId}/settings/ai`,
-      SETTINGS_INTEGRATIONS: (orgId: string = 'circle-workspace') =>
-         `/${orgId}/settings/integrations`,
-      SETTINGS_CONNECTED_ACCOUNTS: (orgId: string = 'circle-workspace') =>
-         `/${orgId}/settings/connected-accounts`,
-      SETTINGS_NOTIFICATIONS: (orgId: string = 'circle-workspace') =>
-         `/${orgId}/settings/notifications`,
-      SETTINGS_LABELS: (orgId: string = 'circle-workspace') => `/${orgId}/settings/issue-labels`,
-      SETTINGS_TEMPLATES: (orgId: string = 'circle-workspace') =>
-         `/${orgId}/settings/issue-templates`,
+      SETTINGS_MEMBERS: (orgId: string) => `/${orgId}/settings/members`,
+      SETTINGS_SECURITY: (orgId: string) => `/${orgId}/settings/security`,
+      SETTINGS_AI: (orgId: string) => `/${orgId}/settings/ai`,
+      SETTINGS_INTEGRATIONS: (orgId: string) => `/${orgId}/settings/integrations`,
+      SETTINGS_CONNECTED_ACCOUNTS: (orgId: string) => `/${orgId}/settings/connected-accounts`,
+      SETTINGS_NOTIFICATIONS: (orgId: string) => `/${orgId}/settings/notifications`,
+      SETTINGS_LABELS: (orgId: string) => `/${orgId}/settings/issue-labels`,
+      SETTINGS_TEMPLATES: (orgId: string) => `/${orgId}/settings/issue-templates`,
    },
 
    // Team-level Routes
@@ -65,8 +60,8 @@ export const ROUTES = {
       SETTINGS: (orgId: string, teamId: string) => `/${orgId}/settings/teams/${teamId}`,
    },
 
-   // Helper / Fallback
-   DEFAULT_WORKSPACE_DASHBOARD: (orgId: string = 'circle-workspace') => `/${orgId}/my-issues`,
+   // Workspace dashboard helper. Callers must supply a verified workspace slug.
+   DEFAULT_WORKSPACE_DASHBOARD: (orgId: string) => `/${orgId}/my-issues`,
 } as const;
 
 export type AppRoutes = typeof ROUTES;

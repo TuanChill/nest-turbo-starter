@@ -16,8 +16,12 @@ export class LabelsController {
 
   @ApiOperation({ summary: 'Get all labels' })
   @Get()
-  findAll(@User('id') memberId: string, @Query('scope') scope?: 'issue' | 'project') {
-    return this.labelsService.findAll(memberId, scope);
+  findAll(
+    @User('id') memberId: string,
+    @Query('scope') scope?: 'issue' | 'project',
+    @Query('workspaceId') workspaceId?: string,
+  ) {
+    return this.labelsService.findAll(memberId, scope, workspaceId);
   }
 
   @ApiOperation({ summary: 'Get all label groups' })
@@ -25,8 +29,9 @@ export class LabelsController {
   findAllGroups(
     @User('id') memberId: string,
     @Query('scope') scope?: 'issue' | 'project',
+    @Query('workspaceId') workspaceId?: string,
   ) {
-    return this.labelsService.findAllGroups(memberId, scope);
+    return this.labelsService.findAllGroups(memberId, scope, workspaceId);
   }
 
   @ApiOperation({ summary: 'Create label group' })

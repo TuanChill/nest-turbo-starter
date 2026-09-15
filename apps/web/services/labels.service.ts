@@ -23,8 +23,13 @@ export interface LabelGroup {
 export type LabelInterface = LabelItem;
 
 export const labelsService = {
-   async getLabelGroups(scope: 'issue' | 'project' = 'issue'): Promise<LabelGroup[]> {
-      return apiClient<LabelGroup[]>('/circle/api/labels/groups', { params: { scope } });
+   async getLabelGroups(
+      scope: 'issue' | 'project' = 'issue',
+      workspaceId?: string
+   ): Promise<LabelGroup[]> {
+      return apiClient<LabelGroup[]>('/circle/api/labels/groups', {
+         params: { scope, workspaceId },
+      });
    },
 
    async createLabelGroup(payload: Partial<LabelGroup>): Promise<LabelGroup> {
@@ -47,8 +52,11 @@ export const labelsService = {
       });
    },
 
-   async getLabels(scope: 'issue' | 'project' = 'issue'): Promise<LabelItem[]> {
-      return apiClient<LabelItem[]>('/circle/api/labels', { params: { scope } });
+   async getLabels(
+      scope: 'issue' | 'project' = 'issue',
+      workspaceId?: string
+   ): Promise<LabelItem[]> {
+      return apiClient<LabelItem[]>('/circle/api/labels', { params: { scope, workspaceId } });
    },
 
    async createLabel(payload: Partial<LabelItem>): Promise<LabelItem> {

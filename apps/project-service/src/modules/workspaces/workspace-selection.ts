@@ -1,5 +1,12 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 
+export function requireExplicitWorkspaceId(requestedWorkspaceId?: string) {
+  if (!requestedWorkspaceId) {
+    throw new BadRequestException('workspaceId is required');
+  }
+  return requestedWorkspaceId;
+}
+
 /**
  * Workspace-scoped create flows must not guess when the caller belongs to
  * more than one workspace. A single accessible workspace is safe to infer;

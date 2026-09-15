@@ -137,9 +137,9 @@ export class IssueTemplatesService {
     if (!workspaceIds.length) return [];
     if (teamId) {
       const team = await this.em.findOne(Team, { id: teamId });
-      if (!team || (team.workspaceId && !workspaceIds.includes(team.workspaceId)))
+      if (!team || !team.workspaceId || !workspaceIds.includes(team.workspaceId))
         return [];
-      await this.assertTeamAccess(teamId, team.workspaceId || workspaceIds[0], memberId);
+      await this.assertTeamAccess(teamId, team.workspaceId, memberId);
     }
     const where: any = { workspaceId: { $in: workspaceIds } };
     if (teamId) where.$or = [{ scope: 'workspace' }, { scope: 'team', teamId }];

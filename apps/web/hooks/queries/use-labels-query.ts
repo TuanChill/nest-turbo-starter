@@ -2,18 +2,23 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { labelsService, LabelGroup, LabelItem } from '@/services/labels.service';
 import { labelKeys } from './keys';
 import { toast } from 'sonner';
+import { useParams } from 'next/navigation';
 
 export function useLabels(scope: 'issue' | 'project' = 'issue') {
+   const { orgId } = useParams<{ orgId?: string }>();
    return useQuery({
-      queryKey: labelKeys.list(scope),
-      queryFn: () => labelsService.getLabels(scope),
+      queryKey: labelKeys.list(scope, orgId),
+      queryFn: () => labelsService.getLabels(scope, orgId),
+      enabled: Boolean(orgId),
    });
 }
 
 export function useLabelGroups(scope: 'issue' | 'project' = 'issue') {
+   const { orgId } = useParams<{ orgId?: string }>();
    return useQuery({
-      queryKey: [...labelKeys.lists(), 'groups', scope],
-      queryFn: () => labelsService.getLabelGroups(scope),
+      queryKey: [...labelKeys.lists(), 'groups', scope, orgId],
+      queryFn: () => labelsService.getLabelGroups(scope, orgId),
+      enabled: Boolean(orgId),
    });
 }
 

@@ -11,6 +11,7 @@ import {
   WorkspaceMember,
 } from '../../data-access';
 import { allMembersBelongToWorkspace, canAccessTeam } from '../access-control';
+import { requireExplicitWorkspaceId } from '../workspaces/workspace-selection';
 import { WorkspacesService } from '../workspaces/workspaces.service';
 
 export interface PublicMember {
@@ -168,13 +169,13 @@ export class TeamsService {
   }
 
   async create(dto: CreateTeamDto, currentMemberId: string) {
-    let resolvedWorkspaceId: string | undefined;
-    if (dto.workspaceId) {
-      resolvedWorkspaceId =
-        (await this.resolveWorkspaceId(currentMemberId, dto.workspaceId)) || undefined;
-      if (!resolvedWorkspaceId) {
-        throw new NotFoundException(`Workspace ${dto.workspaceId} not found`);
-      }
+    const requestedWorkspaceId = requireExplicitWorkspaceId(dto.workspaceId);
+    const resolvedWorkspaceId = await this.resolveWorkspaceId(
+      currentMemberId,
+      requestedWorkspaceId,
+    );
+    if (!resolvedWorkspaceId) {
+      throw new NotFoundException(`Workspace ${requestedWorkspaceId} not found`);
     }
 
     let id = (dto.id || dto.name.toUpperCase().replace(/[^A-Z0-9]+/g, '')).slice(0, 10);
@@ -186,7 +187,7 @@ export class TeamsService {
     const { memberIds, ...teamData } = dto;
     const team = new Team({
       ...teamData,
-      ...(resolvedWorkspaceId ? { workspaceId: resolvedWorkspaceId } : {}),
+      workspaceId: resolvedWorkspaceId,
       id,
       icon: dto.icon || '⚡',
       color: dto.color || '#5e6ad2',

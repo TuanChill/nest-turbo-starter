@@ -1,5 +1,18 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { requireWorkspaceSelection } from './workspace-selection';
+import {
+  requireExplicitWorkspaceId,
+  requireWorkspaceSelection,
+} from './workspace-selection';
+
+describe('requireExplicitWorkspaceId', () => {
+  it('rejects an unscoped workspace mutation', () => {
+    expect(() => requireExplicitWorkspaceId()).toThrow('workspaceId is required');
+  });
+
+  it('returns the caller-selected workspace', () => {
+    expect(requireExplicitWorkspaceId('workspace-a')).toBe('workspace-a');
+  });
+});
 
 describe('requireWorkspaceSelection', () => {
   it('infers the only accessible workspace', () => {

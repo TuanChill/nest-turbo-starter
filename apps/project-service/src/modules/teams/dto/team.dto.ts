@@ -36,10 +36,9 @@ export class CreateTeamDto {
   @IsOptional()
   memberIds?: string[];
 
-  @ApiPropertyOptional()
+  @ApiProperty({ description: 'Workspace that owns the team' })
   @IsString()
-  @IsOptional()
-  workspaceId?: string;
+  workspaceId: string;
 }
 
 export class UpdateTeamDto {
