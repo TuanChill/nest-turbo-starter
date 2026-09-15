@@ -1,5 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
 import { EntityManager, MikroORM } from '@mikro-orm/core';
+import { Injectable, Logger } from '@nestjs/common';
 import {
   Cycle,
   DocumentFolder,
@@ -76,7 +76,7 @@ export class SeedService {
           timezone: u.timezone,
           joinedDate: new Date(u.joinedDate),
         });
-        await this.em.persist(member);
+        this.em.persist(member);
       }
       await this.em.flush();
     }
@@ -93,7 +93,7 @@ export class SeedService {
           joined: t.joined,
           color: t.color,
         });
-        await this.em.persist(team);
+        this.em.persist(team);
       }
       await this.em.flush();
 
@@ -105,7 +105,7 @@ export class SeedService {
             memberId: u.id,
             role: 'member',
           });
-          await this.em.persist(tm);
+          this.em.persist(tm);
         }
       }
       await this.em.flush();
@@ -117,7 +117,7 @@ export class SeedService {
       this.logger.log('Seeding labels...');
       for (const l of RAW_LABELS) {
         const label = new Label(l);
-        await this.em.persist(label);
+        this.em.persist(label);
       }
       await this.em.flush();
     }
@@ -142,7 +142,7 @@ export class SeedService {
           completed: 0,
           successRate: (c as any).successRate,
         });
-        await this.em.persist(cycle);
+        this.em.persist(cycle);
       }
       await this.em.flush();
     }
@@ -227,7 +227,7 @@ export class SeedService {
             { label: 'Documentation PRD', url: 'https://linear.app' },
           ],
         });
-        await this.em.persist(p);
+        this.em.persist(p);
 
         // Milestone
         const milestone = new ProjectMilestone({
@@ -237,7 +237,7 @@ export class SeedService {
           completed: i % 2 === 0,
           orderIndex: 0,
         });
-        await this.em.persist(milestone);
+        this.em.persist(milestone);
 
         // Project update
         const update = new ProjectUpdate({
@@ -251,7 +251,7 @@ export class SeedService {
             },
           ],
         });
-        await this.em.persist(update);
+        this.em.persist(update);
       }
       await this.em.flush();
     }
@@ -262,7 +262,7 @@ export class SeedService {
       this.logger.log('Seeding initiatives...');
       for (const ini of RAW_INITIATIVES) {
         const initiative = new Initiative(ini as any);
-        await this.em.persist(initiative);
+        this.em.persist(initiative);
       }
       await this.em.flush();
     }
@@ -278,7 +278,7 @@ export class SeedService {
           icon: folderData.icon,
           teamId: folderData.teamId,
         });
-        await this.em.persist(folder);
+        this.em.persist(folder);
 
         for (const docData of folderData.documents) {
           const doc = new TeamDocument({
@@ -291,7 +291,7 @@ export class SeedService {
             createdAt: new Date(docData.createdAt),
             updatedAt: new Date(docData.updatedAt),
           });
-          await this.em.persist(doc);
+          this.em.persist(doc);
         }
       }
       await this.em.flush();
@@ -303,7 +303,7 @@ export class SeedService {
       this.logger.log('Seeding saved views...');
       for (const v of RAW_SAVED_VIEWS) {
         const view = new SavedView(v as any);
-        await this.em.persist(view);
+        this.em.persist(view);
       }
       await this.em.flush();
     }
@@ -313,25 +313,146 @@ export class SeedService {
     if (issuesCount === 0) {
       this.logger.log('Seeding sample issues...');
       const sampleSeeds = [
-        ['LNUI-701', 'Combobox: keyboard selection skips disabled options inconsistently', 'product-feedback', 'urgent', 'ln', '21', '1'],
-        ['LNUI-702', 'Date picker: month navigation feels laggy on low-end devices', 'product-feedback', 'medium', 'sophia', '21', '2'],
-        ['LNUI-703', 'Rework Dialog focus trap to support nested portals', 'in-progress', 'urgent', 'mason', '21', '3'],
-        ['LNUI-704', 'Add virtualization to Data Table for 10k+ rows', 'in-progress', 'high', 'alex', '21', '10'],
-        ['LNUI-705', 'Ship CLI flag to scaffold components with test files', 'in-progress', 'medium', 'ethan', '21', '6'],
-        ['LNUI-706', 'Migrate color tokens to OKLCH with fallbacks', 'in-progress', 'high', 'aiden', '21', '2'],
-        ['LNUI-707', 'Refactor Tooltip positioning engine to floating middleware', 'technical-review', 'high', 'sophia', '21', '8'],
-        ['LNUI-708', 'Toast queue: collapse duplicate notifications', 'technical-review', 'medium', 'noah', '21', '12'],
-        ['LNUI-709', 'Carousel: momentum scrolling on trackpads', 'paused', 'low', 'logan', '21', '1'],
-        ['LNUI-710', 'Command palette: async sources hang when provider throws', 'blocked', 'urgent', 'emma', '21', '1'],
-        ['LNUI-711', 'Report: Select dropdown clipped inside scrollable Sheet', 'triage', 'no-priority', 'ln', '21', '3'],
-        ['LNUI-712', 'Add skeleton variants for Card and Table', 'to-do', 'medium', 'olivia', '21', '7'],
-        ['LNUI-713', 'Expose CSS variables for Radix Accordion animations', 'to-do', 'low', 'lucas', '21', '1'],
-        ['LNUI-714', 'Fix popover anchor drift during page zoom', 'done', 'high', 'mason', '21', '9'],
-        ['LNUI-715', 'Improve screen reader announcements for Toast', 'done', 'urgent', 'amelia', '21', '12'],
+        [
+          'LNUI-701',
+          'Combobox: keyboard selection skips disabled options inconsistently',
+          'product-feedback',
+          'urgent',
+          'ln',
+          '21',
+          '1',
+        ],
+        [
+          'LNUI-702',
+          'Date picker: month navigation feels laggy on low-end devices',
+          'product-feedback',
+          'medium',
+          'sophia',
+          '21',
+          '2',
+        ],
+        [
+          'LNUI-703',
+          'Rework Dialog focus trap to support nested portals',
+          'in-progress',
+          'urgent',
+          'mason',
+          '21',
+          '3',
+        ],
+        [
+          'LNUI-704',
+          'Add virtualization to Data Table for 10k+ rows',
+          'in-progress',
+          'high',
+          'alex',
+          '21',
+          '10',
+        ],
+        [
+          'LNUI-705',
+          'Ship CLI flag to scaffold components with test files',
+          'in-progress',
+          'medium',
+          'ethan',
+          '21',
+          '6',
+        ],
+        [
+          'LNUI-706',
+          'Migrate color tokens to OKLCH with fallbacks',
+          'in-progress',
+          'high',
+          'aiden',
+          '21',
+          '2',
+        ],
+        [
+          'LNUI-707',
+          'Refactor Tooltip positioning engine to floating middleware',
+          'technical-review',
+          'high',
+          'sophia',
+          '21',
+          '8',
+        ],
+        [
+          'LNUI-708',
+          'Toast queue: collapse duplicate notifications',
+          'technical-review',
+          'medium',
+          'noah',
+          '21',
+          '12',
+        ],
+        [
+          'LNUI-709',
+          'Carousel: momentum scrolling on trackpads',
+          'paused',
+          'low',
+          'logan',
+          '21',
+          '1',
+        ],
+        [
+          'LNUI-710',
+          'Command palette: async sources hang when provider throws',
+          'blocked',
+          'urgent',
+          'emma',
+          '21',
+          '1',
+        ],
+        [
+          'LNUI-711',
+          'Report: Select dropdown clipped inside scrollable Sheet',
+          'triage',
+          'no-priority',
+          'ln',
+          '21',
+          '3',
+        ],
+        [
+          'LNUI-712',
+          'Add skeleton variants for Card and Table',
+          'to-do',
+          'medium',
+          'olivia',
+          '21',
+          '7',
+        ],
+        [
+          'LNUI-713',
+          'Expose CSS variables for Radix Accordion animations',
+          'to-do',
+          'low',
+          'lucas',
+          '21',
+          '1',
+        ],
+        [
+          'LNUI-714',
+          'Fix popover anchor drift during page zoom',
+          'done',
+          'high',
+          'mason',
+          '21',
+          '9',
+        ],
+        [
+          'LNUI-715',
+          'Improve screen reader announcements for Toast',
+          'done',
+          'urgent',
+          'amelia',
+          '21',
+          '12',
+        ],
       ];
 
       for (let i = 0; i < sampleSeeds.length; i++) {
-        const [identifier, title, statusId, priorityId, assigneeId, cycleId, projectId] = sampleSeeds[i];
+        const [identifier, title, statusId, priorityId, assigneeId, cycleId, projectId] =
+          sampleSeeds[i];
         const issue = new Issue({
           id: String(i + 1),
           identifier,
@@ -341,7 +462,9 @@ export class SeedService {
           statusCategory:
             statusId === 'done'
               ? 'completed'
-              : statusId === 'in-progress' || statusId === 'technical-review' || statusId === 'product-feedback'
+              : statusId === 'in-progress' ||
+                  statusId === 'technical-review' ||
+                  statusId === 'product-feedback'
                 ? 'started'
                 : statusId === 'triage'
                   ? 'triage'
@@ -355,7 +478,7 @@ export class SeedService {
           rank: `0|hzzzz${String.fromCharCode(97 + i)}:`,
           dueDate: new Date('2026-08-30'),
         });
-        await this.em.persist(issue);
+        this.em.persist(issue);
 
         // Activity
         const act = new IssueActivity({
@@ -365,7 +488,7 @@ export class SeedService {
           event: 'created',
           text: 'created this issue',
         });
-        await this.em.persist(act);
+        this.em.persist(act);
       }
       await this.em.flush();
 
@@ -376,7 +499,8 @@ export class SeedService {
         userId: 'ln',
         actorId: 'sophia',
         type: 'comment',
-        content: 'Heads up: Radix solves this with a DismissableLayer tree — worth reading before we reinvent it.',
+        content:
+          'Heads up: Radix solves this with a DismissableLayer tree — worth reading before we reinvent it.',
         read: false,
       });
       this.em.persist(notif);
