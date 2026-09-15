@@ -3,6 +3,7 @@
 import ProjectsTimeline from '@/components/common/projects/projects-timeline';
 import { ProjectGroup } from '@/components/common/projects/projects';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
 import {
    countCompletedProjects,
    getInitiativeProjects,
@@ -11,21 +12,15 @@ import {
 import { Initiative } from '@/services/initiatives.service';
 import type { Project } from '@/services/projects.service';
 import { useProjects } from '@/hooks/queries/use-projects-query';
+import { usePostInitiativeUpdate } from '@/hooks/queries/use-initiatives-query';
+import { Textarea } from '@/components/ui/textarea';
 import { renderProjectIcon } from '@/lib/project-utils';
 import { renderPriorityIcon } from '@/lib/priority-utils';
-import {
-   CalendarRange,
-   ChevronDown,
-   FilePenLine,
-   FileText,
-   Plus,
-   Tag,
-   UserRound,
-} from 'lucide-react';
+import { CalendarRange, ChevronDown, FilePenLine, FileText, Tag, UserRound } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { parseAsStringLiteral, useQueryState } from 'nuqs';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { AddProjectToInitiativePopover } from './add-project-to-initiative-popover';
 import { InitiativeProgressPanel } from './initiative-progress-panel';
 import { InitiativeStatusIcon } from './initiative-status-icon';
@@ -160,8 +155,28 @@ function PropertyRow({ label, children }: { label: string; children: React.React
 
 function Overview({ initiative }: { initiative: Initiative }) {
    const { data: liveProjects = [] } = useProjects();
+   const postUpdate = usePostInitiativeUpdate();
+   const [isUpdateEditorOpen, setIsUpdateEditorOpen] = useState(false);
+   const [updateText, setUpdateText] = useState('');
+   const [updateHealth, setUpdateHealth] = useState<
+      'no-update' | 'on-track' | 'at-risk' | 'off-track'
+   >('on-track');
    const completed = countCompletedProjects(initiative, liveProjects);
    const total = initiative.projectCount;
+
+   const submitUpdate = async () => {
+      const text = updateText.trim();
+      if (!text) return;
+      await postUpdate.mutateAsync({
+         id: initiative.id,
+         payload: {
+            health: updateHealth,
+            blocks: [{ type: 'paragraph', text }],
+         },
+      });
+      setUpdateText('');
+      setIsUpdateEditorOpen(false);
+   };
 
    return (
       <div className="w-full h-full flex overflow-hidden">
@@ -215,16 +230,97 @@ function Overview({ initiative }: { initiative: Initiative }) {
 
                <div className="flex items-center gap-3 text-sm">
                   <span className="text-muted-foreground text-xs w-24">Resources</span>
-                  <button className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors">
-                     <Plus className="size-4" />
-                     Add document or link…
-                  </button>
+                  {initiative.resources?.length ? (
+                     <div className="flex flex-wrap gap-2">
+                        {initiative.resources.map((resource) => (
+                           <a
+                              key={`${resource.label}-${resource.url}`}
+                              href={resource.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-primary hover:underline"
+                           >
+                              {resource.label}
+                           </a>
+                        ))}
+                     </div>
+                  ) : (
+                     <span className="text-muted-foreground">No resources</span>
+                  )}
                </div>
 
-               <button className="flex items-center justify-center gap-2 rounded-lg border py-4 text-sm text-muted-foreground hover:bg-accent/40 transition-colors">
-                  <FilePenLine className="size-4" />
-                  Write first initiative update
-               </button>
+               {isUpdateEditorOpen ? (
+                  <div className="rounded-lg border p-3 space-y-3">
+                     <Textarea
+                        autoFocus
+                        value={updateText}
+                        onChange={(event) => setUpdateText(event.target.value)}
+                        placeholder="Share an initiative update..."
+                     />
+                     <div className="flex items-center justify-between gap-2">
+                        <select
+                           value={updateHealth}
+                           onChange={(event) =>
+                              setUpdateHealth(event.target.value as typeof updateHealth)
+                           }
+                           className="h-8 rounded-md border bg-background px-2 text-xs"
+                        >
+                           <option value="on-track">On track</option>
+                           <option value="at-risk">At risk</option>
+                           <option value="off-track">Off track</option>
+                           <option value="no-update">No update</option>
+                        </select>
+                        <div className="flex gap-2">
+                           <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setIsUpdateEditorOpen(false)}
+                           >
+                              Cancel
+                           </Button>
+                           <Button
+                              size="sm"
+                              disabled={postUpdate.isPending || !updateText.trim()}
+                              onClick={submitUpdate}
+                           >
+                              {postUpdate.isPending ? 'Posting...' : 'Post update'}
+                           </Button>
+                        </div>
+                     </div>
+                  </div>
+               ) : (
+                  <button
+                     onClick={() => setIsUpdateEditorOpen(true)}
+                     className="flex items-center justify-center gap-2 rounded-lg border py-4 text-sm text-muted-foreground hover:bg-accent/40 transition-colors"
+                  >
+                     <FilePenLine className="size-4" />
+                     Write initiative update
+                  </button>
+               )}
+
+               {initiative.updates?.length ? (
+                  <div className="space-y-2">
+                     <h2 className="text-sm font-medium">Recent updates</h2>
+                     {initiative.updates.slice(0, 3).map((update) => (
+                        <div key={update.id} className="rounded-lg border p-3 text-sm">
+                           <div className="flex items-center justify-between text-xs text-muted-foreground">
+                              <span>
+                                 {update.author?.name ?? 'Member'} · {update.health}
+                              </span>
+                              <span>{new Date(update.createdAt).toLocaleDateString()}</span>
+                           </div>
+                           <p className="mt-2 text-muted-foreground">
+                              {update.blocks
+                                 .filter((block): block is { text: string } =>
+                                    Boolean(block && typeof block === 'object' && 'text' in block)
+                                 )
+                                 .map((block) => block.text)
+                                 .join('\n')}
+                           </p>
+                        </div>
+                     ))}
+                  </div>
+               ) : null}
 
                <div className="flex flex-col gap-2">
                   <h2 className="text-sm font-medium">Description</h2>
@@ -279,9 +375,26 @@ function Overview({ initiative }: { initiative: Initiative }) {
                   </span>
                </PropertyRow>
                <PropertyRow label="Labels">
-                  <span className="text-muted-foreground inline-flex items-center gap-1.5">
-                     <Tag className="size-4" /> Add label
-                  </span>
+                  {initiative.labels?.length ? (
+                     <div className="flex flex-wrap gap-1.5">
+                        {initiative.labels.map((label) => (
+                           <span
+                              key={label.id}
+                              className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs"
+                           >
+                              <span
+                                 className="size-2 rounded-full"
+                                 style={{ backgroundColor: label.color }}
+                              />
+                              {label.name}
+                           </span>
+                        ))}
+                     </div>
+                  ) : (
+                     <span className="text-muted-foreground inline-flex items-center gap-1.5">
+                        <Tag className="size-4" /> No labels
+                     </span>
+                  )}
                </PropertyRow>
                <PropertyRow label="Projects">
                   <span className="text-muted-foreground text-xs">

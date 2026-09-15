@@ -1,7 +1,11 @@
 import { User } from '@app/common';
 import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { CreateInitiativeDto, UpdateInitiativeDto } from './dto/initiative.dto';
+import {
+  CreateInitiativeDto,
+  CreateInitiativeUpdateDto,
+  UpdateInitiativeDto,
+} from './dto/initiative.dto';
 import { InitiativesService } from './initiatives.service';
 
 @ApiTags('Initiatives')
@@ -35,6 +39,16 @@ export class InitiativesController {
     @User('id') memberId: string,
   ) {
     return this.initiativesService.update(id, dto, memberId);
+  }
+
+  @ApiOperation({ summary: 'Post an initiative update' })
+  @Post(':id/updates')
+  addUpdate(
+    @Param('id') id: string,
+    @Body() dto: CreateInitiativeUpdateDto,
+    @User('id') memberId: string,
+  ) {
+    return this.initiativesService.addUpdate(id, dto, memberId);
   }
 
   @ApiOperation({ summary: 'Delete initiative' })

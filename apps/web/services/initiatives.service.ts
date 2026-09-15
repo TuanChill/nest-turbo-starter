@@ -14,6 +14,8 @@ export interface Initiative {
    target?: string;
    health: { id: string; name: string; color: string; description?: string };
    projectIds: string[];
+   labels: Array<{ id: string; name: string; color: string }>;
+   resources: Array<{ label: string; url: string }>;
    projectCount: number;
    completedProjectCount: number;
    progressPercent: number;
@@ -22,6 +24,13 @@ export interface Initiative {
       event: string;
       actor?: { id: string; name: string; avatarUrl?: string };
       metadata?: Record<string, unknown>;
+      createdAt: string;
+   }>;
+   updates: Array<{
+      id: string;
+      author?: { id: string; name: string; avatarUrl?: string } | null;
+      health: 'no-update' | 'on-track' | 'at-risk' | 'off-track';
+      blocks: unknown[];
       createdAt: string;
    }>;
    createdAt: string;
@@ -38,6 +47,13 @@ export interface InitiativeMutationPayload {
    target?: string;
    healthId?: string;
    projectIds?: string[];
+   labelIds?: string[];
+   resources?: Array<{ label: string; url: string }>;
+}
+
+export interface InitiativeUpdatePayload {
+   health: 'no-update' | 'on-track' | 'at-risk' | 'off-track';
+   blocks?: unknown[];
 }
 
 export const initiativesService = {
@@ -66,6 +82,13 @@ export const initiativesService = {
    async deleteInitiative(id: string): Promise<{ success: boolean }> {
       return apiClient<{ success: boolean }>(`/circle/api/initiatives/${id}`, {
          method: 'DELETE',
+      });
+   },
+
+   async postInitiativeUpdate(id: string, payload: InitiativeUpdatePayload): Promise<Initiative> {
+      return apiClient<Initiative>(`/circle/api/initiatives/${id}/updates`, {
+         method: 'POST',
+         body: JSON.stringify(payload),
       });
    },
 };

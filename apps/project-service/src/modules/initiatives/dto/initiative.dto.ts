@@ -57,6 +57,17 @@ export class CreateInitiativeDto {
   @IsArray()
   @IsOptional()
   projectIds?: string[];
+
+  @ApiPropertyOptional({ type: [String] })
+  @IsArray()
+  @IsOptional()
+  @IsString({ each: true })
+  labelIds?: string[];
+
+  @ApiPropertyOptional({ type: Array })
+  @IsArray()
+  @IsOptional()
+  resources?: any[];
 }
 
 export class UpdateInitiativeDto {
@@ -104,4 +115,26 @@ export class UpdateInitiativeDto {
   @IsArray()
   @IsOptional()
   projectIds?: string[];
+
+  @ApiPropertyOptional({ type: [String] })
+  @IsArray()
+  @IsOptional()
+  @IsString({ each: true })
+  labelIds?: string[];
+
+  @ApiPropertyOptional({ type: Array })
+  @IsArray()
+  @IsOptional()
+  resources?: any[];
+}
+
+export class CreateInitiativeUpdateDto {
+  @ApiPropertyOptional({ default: 'on-track' })
+  @IsEnum(['no-update', 'on-track', 'at-risk', 'off-track'])
+  health: 'no-update' | 'on-track' | 'at-risk' | 'off-track';
+
+  @ApiPropertyOptional({ type: Array })
+  @IsArray()
+  @IsOptional()
+  blocks?: any[];
 }

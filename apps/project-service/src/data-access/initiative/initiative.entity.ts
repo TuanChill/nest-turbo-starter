@@ -40,6 +40,12 @@ export class Initiative {
   @Property({ type: 'jsonb', default: '[]' })
   projectIds: string[] = [];
 
+  @Property({ type: 'jsonb', default: '[]' })
+  labelIds: string[] = [];
+
+  @Property({ type: 'jsonb', default: '[]' })
+  resources: any[] = [];
+
   @Property({ type: 'timestamp with time zone', nullable: true })
   deletedAt?: Date;
 

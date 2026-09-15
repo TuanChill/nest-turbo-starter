@@ -1,10 +1,17 @@
 import { EntityManager } from '@mikro-orm/core';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { CreateInitiativeDto, UpdateInitiativeDto } from './dto/initiative.dto';
+import {
+  CreateInitiativeDto,
+  CreateInitiativeUpdateDto,
+  UpdateInitiativeDto,
+} from './dto/initiative.dto';
 import { deriveInitiativeProgress } from './initiative-progress';
 import {
   Initiative,
   InitiativeActivity,
+  InitiativeUpdate,
+  Label,
+  LabelGroup,
   Member,
   Project,
   Team,
@@ -12,6 +19,7 @@ import {
   Workspace,
   WorkspaceMember,
 } from '../../data-access';
+import { assertMutuallyExclusiveLabelSelection } from '../labels/label-rules';
 import { WorkspacesService } from '../workspaces/workspaces.service';
 
 const HEALTH_DATA: Record<
@@ -64,6 +72,8 @@ export class InitiativesService {
     membersMap: Map<string, any>,
     projects: Project[],
     activities: InitiativeActivity[],
+    labels: Label[],
+    updates: InitiativeUpdate[],
   ) {
     const owner = initiative.ownerId ? membersMap.get(initiative.ownerId) : undefined;
     const health = HEALTH_DATA[initiative.healthId] || HEALTH_DATA['on-track'];
@@ -100,12 +110,21 @@ export class InitiativesService {
       projectCount: progress.projectCount,
       completedProjectCount: progress.completedProjectCount,
       progressPercent: progress.progressPercent,
+      labels: labels.filter((label) => initiative.labelIds.includes(label.id)),
+      resources: initiative.resources,
       activity: activities.map((activity) => ({
         id: activity.id,
         event: activity.event,
         actor: membersMap.get(activity.actorId),
         metadata: activity.metadata,
         createdAt: activity.createdAt,
+      })),
+      updates: updates.map((update) => ({
+        id: update.id,
+        author: membersMap.get(update.authorId) ?? null,
+        health: update.health,
+        blocks: update.blocks,
+        createdAt: update.createdAt,
       })),
       createdAt: initiative.createdAt
         ? initiative.createdAt.toISOString().split('T')[0]
@@ -189,6 +208,28 @@ export class InitiativesService {
     }
   }
 
+  private async validateLabelIds(labelIds: string[], workspaceId: string) {
+    const uniqueIds = [...new Set(labelIds)];
+    if (uniqueIds.length === 0) return [];
+    const labels = await this.em.find(Label, {
+      id: { $in: uniqueIds },
+      workspaceId,
+      scope: { $in: ['project', 'both'] },
+    });
+    const found = new Set(labels.map((label) => label.id));
+    const missing = uniqueIds.filter((id) => !found.has(id));
+    if (missing.length > 0) {
+      throw new BadRequestException(`Unknown initiative label(s): ${missing.join(', ')}`);
+    }
+    const groupIds = [...new Set(labels.map((label) => label.groupId).filter(Boolean))];
+    const groups = await this.em.find(LabelGroup, {
+      id: { $in: groupIds },
+      workspaceId,
+    });
+    assertMutuallyExclusiveLabelSelection(labels, groups);
+    return uniqueIds;
+  }
+
   private async loadProjects(initiatives: Initiative[]) {
     const storedIds = [
       ...new Set(initiatives.flatMap((initiative) => initiative.projectIds)),
@@ -225,6 +266,18 @@ export class InitiativesService {
     );
   }
 
+  private async loadUpdates(initiatives: Initiative[]) {
+    if (initiatives.length === 0) return [] as InitiativeUpdate[][];
+    const updates = await this.em.find(
+      InitiativeUpdate,
+      { initiativeId: { $in: initiatives.map((initiative) => initiative.id) } },
+      { orderBy: { createdAt: 'DESC' } },
+    );
+    return initiatives.map((initiative) =>
+      updates.filter((update) => update.initiativeId === initiative.id),
+    );
+  }
+
   async findAll(memberId: string) {
     const workspaceIds = await this.workspacesService.getAccessibleWorkspaceIds(memberId);
     if (workspaceIds.length === 0) return [];
@@ -235,6 +288,11 @@ export class InitiativesService {
     const membersMap = new Map(members.map((m) => [m.id, toSafeMember(m)]));
     const projectsByInitiative = await this.loadProjects(initiatives);
     const activitiesByInitiative = await this.loadActivities(initiatives);
+    const updatesByInitiative = await this.loadUpdates(initiatives);
+    const labels = await this.em.find(Label, {
+      workspaceId: { $in: workspaceIds },
+      scope: { $in: ['project', 'both'] },
+    });
 
     return initiatives.map((ini, index) =>
       this.transformInitiative(
@@ -242,6 +300,8 @@ export class InitiativesService {
         membersMap,
         projectsByInitiative[index],
         activitiesByInitiative[index],
+        labels,
+        updatesByInitiative[index],
       ),
     );
   }
@@ -255,12 +315,19 @@ export class InitiativesService {
     const membersMap = new Map(members.map((m) => [m.id, toSafeMember(m)]));
     const projectsByInitiative = await this.loadProjects([initiative]);
     const activitiesByInitiative = await this.loadActivities([initiative]);
+    const updatesByInitiative = await this.loadUpdates([initiative]);
+    const labels = await this.em.find(Label, {
+      workspaceId: initiative.workspaceId,
+      scope: { $in: ['project', 'both'] },
+    });
 
     return this.transformInitiative(
       initiative,
       membersMap,
       projectsByInitiative[0],
       activitiesByInitiative[0],
+      labels,
+      updatesByInitiative[0],
     );
   }
 
@@ -271,6 +338,7 @@ export class InitiativesService {
       workspaceId,
       dto.projectIds || [],
     );
+    const labelIds = await this.validateLabelIds(dto.labelIds || [], workspaceId);
     await this.validateOwnerId(dto.ownerId, workspaceId);
     if (dto.priorityId && !PRIORITY_DATA[dto.priorityId]) {
       throw new BadRequestException(`Unknown initiative priority ${dto.priorityId}`);
@@ -295,6 +363,8 @@ export class InitiativesService {
       target: dto.target,
       healthId: dto.healthId || 'on-track',
       projectIds,
+      labelIds,
+      resources: dto.resources || [],
     });
 
     this.em.persist(initiative);
@@ -330,6 +400,13 @@ export class InitiativesService {
       initiative.ownerId = dto.ownerId;
     }
     if (dto.target !== undefined) initiative.target = dto.target;
+    if (dto.resources !== undefined) initiative.resources = dto.resources;
+    if (dto.labelIds !== undefined) {
+      initiative.labelIds = await this.validateLabelIds(
+        dto.labelIds,
+        initiative.workspaceId,
+      );
+    }
     if (dto.healthId !== undefined) {
       if (!HEALTH_DATA[dto.healthId]) {
         throw new BadRequestException(`Unknown initiative health ${dto.healthId}`);
@@ -389,5 +466,30 @@ export class InitiativesService {
     initiative.deletedAt = new Date();
     await this.em.flush();
     return { success: true };
+  }
+
+  async addUpdate(id: string, dto: CreateInitiativeUpdateDto, memberId: string) {
+    const initiative = await this.em.findOne(Initiative, { id });
+    if (!initiative) throw new NotFoundException(`Initiative ${id} not found`);
+    await this.assertWorkspaceAccess(memberId, initiative);
+    initiative.healthId = dto.health;
+    this.em.persist(
+      new InitiativeUpdate({
+        initiativeId: id,
+        authorId: memberId,
+        health: dto.health,
+        blocks: dto.blocks ?? [],
+      }),
+    );
+    this.em.persist(
+      new InitiativeActivity({
+        initiativeId: id,
+        actorId: memberId,
+        event: 'posted an update',
+        metadata: { health: dto.health },
+      }),
+    );
+    await this.em.flush();
+    return this.findOne(id, memberId);
   }
 }

@@ -1,5 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { initiativesService, InitiativeMutationPayload } from '@/services/initiatives.service';
+import {
+   initiativesService,
+   InitiativeMutationPayload,
+   InitiativeUpdatePayload,
+} from '@/services/initiatives.service';
 import { initiativeKeys } from './keys';
 import { toast } from 'sonner';
 
@@ -64,5 +68,19 @@ export function useDeleteInitiative() {
       onError: (error: Error) => {
          toast.error(error.message || 'Failed to delete initiative');
       },
+   });
+}
+
+export function usePostInitiativeUpdate() {
+   const queryClient = useQueryClient();
+   return useMutation({
+      mutationFn: ({ id, payload }: { id: string; payload: InitiativeUpdatePayload }) =>
+         initiativesService.postInitiativeUpdate(id, payload),
+      onSuccess: (updated) => {
+         queryClient.invalidateQueries({ queryKey: initiativeKeys.lists() });
+         queryClient.setQueryData(initiativeKeys.detail(updated.id), updated);
+         toast.success('Initiative update posted');
+      },
+      onError: (error: Error) => toast.error(error.message || 'Failed to post initiative update'),
    });
 }
