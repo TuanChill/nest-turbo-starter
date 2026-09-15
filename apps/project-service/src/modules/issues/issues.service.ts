@@ -8,6 +8,7 @@ import {
   CreateIssueDto,
   UpdateIssueDto,
 } from './dto/issue.dto';
+import { isRelationInIssueTeam } from './relation-scope';
 import {
   Cycle,
   Issue,
@@ -495,6 +496,7 @@ export class IssuesService {
 
     const subIssues = await this.em.find(Issue, {
       $or: [{ parentIssueId: issue.id }, { parentIssueId: issue.identifier }],
+      teamId: issue.teamId,
     });
     const subissuesMap = new Map<string, string[]>();
     if (subIssues.length > 0) {
@@ -549,6 +551,24 @@ export class IssuesService {
       ],
     });
 
+    const relationIdentifiers = [
+      ...new Set(
+        relations.flatMap((relation) => [
+          relation.sourceIdentifier,
+          relation.targetIdentifier,
+        ]),
+      ),
+    ];
+    const relationEndpoints = await this.em.find(Issue, {
+      identifier: { $in: relationIdentifiers },
+    });
+    const endpointsByIdentifier = new Map(
+      relationEndpoints.map((endpoint) => [endpoint.identifier, endpoint]),
+    );
+    const visibleRelations = relations.filter((relation) =>
+      isRelationInIssueTeam(relation, issue, endpointsByIdentifier),
+    );
+
     const prLinks = await this.em.find(PrLink, { issueIdentifier: issue.identifier });
 
     const blockedByIds: string[] = [];
@@ -559,7 +579,7 @@ export class IssuesService {
       relationType: 'blocks' | 'blocked_by' | 'relates_to' | 'duplicate_of';
     }> = [];
 
-    for (const rel of relations) {
+    for (const rel of visibleRelations) {
       const isSource = rel.sourceIdentifier === issue.identifier;
       const otherIdentifier = isSource ? rel.targetIdentifier : rel.sourceIdentifier;
       const relationType =

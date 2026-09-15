@@ -43,6 +43,7 @@ Reference set: [Linear Docs](https://linear.app/docs), [Projects](https://linear
 - Team/project/issue headers no longer fabricate a `CORE` team while live data is loading or missing. Team lists use persisted cycle and created/updated timestamps, and onboarding rejects an unusable team key instead of silently substituting `ENG`.
 - Initiative reads now discard persisted project links whose primary team is missing or belongs to another workspace, and initiative creation requires explicit workspace context instead of choosing the first accessible workspace.
 - Issue-template references now require target-workspace members and labels, and enforce mutually exclusive label groups before a template is persisted or updated.
+- Issue detail reads now discard stale or cross-team relation rows and cross-team sub-issue links instead of exposing persisted identifiers outside the current team.
 
 ## Verification evidence (2026-09-15)
 
