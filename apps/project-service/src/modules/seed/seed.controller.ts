@@ -1,17 +1,25 @@
 import { Public } from '@app/common';
-import { Controller, Post } from '@nestjs/common';
+import { Controller, NotFoundException, Post } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { SeedService } from './seed.service';
 
 @ApiTags('Seed')
 @Controller('seed')
 export class SeedController {
-  constructor(private readonly seedService: SeedService) {}
+  constructor(
+    private readonly seedService: SeedService,
+    private readonly configService: ConfigService,
+  ) {}
 
   @ApiOperation({ summary: 'Seed database with full initial Circle dataset' })
   @Public()
   @Post()
   seed() {
+    if (this.configService.get<string>('appCommon.nodeEnv') === 'production') {
+      throw new NotFoundException();
+    }
+
     return this.seedService.seedAll();
   }
 }

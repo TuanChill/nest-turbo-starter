@@ -1,8 +1,6 @@
 'use client';
 
-import { Issue } from '@/mock-data/issues';
-import { users } from '@/mock-data/users';
-import { useAuthStore } from '@/store/auth-store';
+import type { Issue } from '@/mock-data/issues';
 import { parseAsStringLiteral, useQueryState } from 'nuqs';
 
 export const MY_ISSUES_TABS = ['assigned', 'created', 'subscribed', 'activity'] as const;
@@ -14,9 +12,6 @@ export const MY_ISSUES_TAB_ITEMS: { label: string; value: MyIssuesTab }[] = [
    { label: 'Subscribed', value: 'subscribed' },
    { label: 'Activity', value: 'activity' },
 ];
-
-/** The fallback "current" user of the workspace. */
-export const ME = users[0];
 
 /** Shared tab state (URL-backed) between the header and the page body. */
 export function useMyIssuesTab() {
@@ -31,8 +26,12 @@ const isSubscribed = (issue: Issue, currentUserId: string): boolean =>
    issue.assignee?.id === currentUserId || isCreatedByMe(issue, currentUserId);
 
 /** Issues shown by each My issues tab. */
-export function scopeMyIssues(issues: Issue[], tab: MyIssuesTab): Issue[] {
-   const currentUserId = useAuthStore.getState().user?.id || ME.id;
+export function scopeMyIssues(
+   issues: Issue[],
+   tab: MyIssuesTab,
+   currentUserId: string | null
+): Issue[] {
+   if (!currentUserId) return [];
 
    switch (tab) {
       case 'assigned':

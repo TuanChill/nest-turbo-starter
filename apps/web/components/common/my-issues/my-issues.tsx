@@ -8,7 +8,7 @@ import { SearchIssues } from '@/components/common/issues/search-issues';
 import { BreakdownPanel } from './breakdown-panel';
 import { displayOrderedStatus } from '@/mock-data/status';
 import { useFilterStore } from '@/store/filter-store';
-import { useIssuesStore } from '@/store/issues-store';
+import { useAuthStore } from '@/store/auth-store';
 import { useRightPanelStore } from '@/store/right-panel-store';
 import { useSearchStore } from '@/store/search-store';
 import { useViewStore } from '@/store/view-store';
@@ -28,20 +28,16 @@ export default function MyIssues() {
    const { viewType } = useViewStore();
    const { filters } = useFilterStore();
    const { data: serverIssues = [] } = useIssues();
-   const { issues: storeIssues = [] } = useIssuesStore();
+   const currentUserId = useAuthStore((state) => state.user?.id ?? null);
    const { openPanel } = useRightPanelStore();
-
-   const issues = useMemo(() => {
-      const ids = new Set(serverIssues.map((i) => i.id));
-      const idents = new Set(serverIssues.map((i) => i.identifier));
-      const extras = storeIssues.filter((i) => !ids.has(i.id) && !idents.has(i.identifier));
-      return [...serverIssues, ...extras];
-   }, [serverIssues, storeIssues]);
 
    const isSearching = isSearchOpen && searchQuery.trim() !== '';
    const isViewTypeGrid = viewType === 'grid';
 
-   const scopedIssues = useMemo(() => scopeMyIssues(issues, tab), [issues, tab]);
+   const scopedIssues = useMemo(
+      () => scopeMyIssues(serverIssues, tab, currentUserId),
+      [serverIssues, tab, currentUserId]
+   );
 
    const displayedIssues = useMemo(
       () => applyIssueFilters(scopedIssues, filters),
