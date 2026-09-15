@@ -16,7 +16,7 @@ export class Review {
   @Property({ type: 'string', nullable: true })
   workspaceId?: string;
 
-  @Property({ type: 'string', default: 'ln' })
+  @Property({ type: 'string' })
   authorId: string;
 
   @Property({ type: 'string', default: 'open' })

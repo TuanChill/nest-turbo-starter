@@ -17,7 +17,7 @@ export class Initiative {
   @PrimaryKey({ type: 'string' })
   id: string; // 'component-platform', etc.
 
-  @Property({ type: 'string', default: 'circle-workspace' })
+  @Property({ type: 'string' })
   workspaceId: string;
 
   @Property({ type: 'string' })

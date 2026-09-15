@@ -19,7 +19,7 @@ export class SavedView {
   @Property({ type: 'string', default: '📦' })
   icon: string;
 
-  @Property({ type: 'string', default: 'circle-workspace' })
+  @Property({ type: 'string' })
   workspaceId: string;
 
   @Property({ type: 'string', default: 'issue' })
@@ -34,7 +34,7 @@ export class SavedView {
   @Property({ type: 'string', default: 'list' })
   layout: 'list' | 'grid' = 'list';
 
-  @Property({ type: 'string', default: 'ln' })
+  @Property({ type: 'string' })
   ownerId: string;
 
   @Property({ type: 'jsonb', default: '{}' })

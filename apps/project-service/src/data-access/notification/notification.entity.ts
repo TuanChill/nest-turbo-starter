@@ -13,7 +13,7 @@ export class Notification {
   @Property({ type: 'string' })
   issueIdentifier: string; // 'LNUI-703'
 
-  @Property({ type: 'string', default: 'ln' })
+  @Property({ type: 'string' })
   userId: string; // recipient
 
   @Property({ type: 'string' })

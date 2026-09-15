@@ -17,9 +17,9 @@ export class CreateFolderDto {
   @IsOptional()
   icon?: string;
 
-  @ApiPropertyOptional({ example: 'CORE' })
+  @ApiProperty({ example: 'ENG2' })
   @IsString()
-  @IsOptional()
+  @IsNotEmpty()
   teamId?: string;
 }
 

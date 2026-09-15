@@ -12,6 +12,7 @@ import {
   Workspace,
   WorkspaceMember,
 } from '../../data-access';
+import { requireWorkspaceSelection } from '../workspaces/workspace-selection';
 import { WorkspacesService } from '../workspaces/workspaces.service';
 
 @Injectable()
@@ -90,10 +91,7 @@ export class ViewsService {
       }
       return workspace.id;
     }
-    if (accessibleWorkspaceIds.length === 0) {
-      throw new NotFoundException('No accessible workspace found');
-    }
-    return accessibleWorkspaceIds[0];
+    return requireWorkspaceSelection(accessibleWorkspaceIds);
   }
 
   private transformView(view: SavedView, membersMap: Map<string, any>) {

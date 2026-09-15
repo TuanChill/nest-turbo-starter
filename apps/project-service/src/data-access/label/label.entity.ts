@@ -19,7 +19,7 @@ export class Label {
   @Property({ type: 'string' })
   color: string;
 
-  @Property({ type: 'string', default: 'circle-workspace' })
+  @Property({ type: 'string' })
   workspaceId: string;
 
   @Property({ type: 'text', nullable: true })

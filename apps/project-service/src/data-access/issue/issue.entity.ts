@@ -42,10 +42,10 @@ export class Issue {
   @Property({ type: 'string', nullable: true })
   assigneeId?: string;
 
-  @Property({ type: 'string', default: 'ln' })
+  @Property({ type: 'string' })
   creatorId: string;
 
-  @Property({ type: 'string', default: 'CORE' })
+  @Property({ type: 'string' })
   teamId: string;
 
   @Property({ type: 'string', nullable: true })

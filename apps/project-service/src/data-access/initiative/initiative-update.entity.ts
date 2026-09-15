@@ -1,7 +1,8 @@
-import { Entity, PrimaryKey, Property } from '@mikro-orm/decorators/legacy';
+import { Entity, Index, PrimaryKey, Property } from '@mikro-orm/decorators/legacy';
 import { v7 } from 'uuid';
 
 @Entity({ tableName: 'initiative_updates' })
+@Index({ properties: ['initiativeId'] })
 export class InitiativeUpdate {
   @PrimaryKey({ type: 'string' })
   id: string = v7();

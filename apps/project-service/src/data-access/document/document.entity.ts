@@ -15,7 +15,7 @@ export class DocumentFolder {
   @Property({ type: 'string', default: '📁' })
   icon: string;
 
-  @Property({ type: 'string', default: 'CORE' })
+  @Property({ type: 'string' })
   teamId: string;
 
   @Property({ type: 'timestamp with time zone', onCreate: () => new Date() })
@@ -44,7 +44,7 @@ export class TeamDocument {
   @Property({ type: 'string', default: '📄' })
   icon: string;
 
-  @Property({ type: 'string', default: 'ln' })
+  @Property({ type: 'string' })
   creatorId: string;
 
   @Property({ type: 'boolean', default: false })

@@ -1,11 +1,11 @@
-import { EntityManager } from '@mikro-orm/core';
+import type { EntityManager } from '@mikro-orm/core';
 import {
   BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import {
+import type {
   CreateProjectTemplateDto,
   InstantiateProjectTemplateDto,
   UpdateProjectTemplateDto,
@@ -16,15 +16,15 @@ import {
   LabelGroup,
   ProjectMember,
   ProjectTemplate,
-  ProjectTemplateConfig,
   Team,
   Workspace,
   WorkspaceMember,
 } from '../../data-access';
-import { IssuesService } from '../issues/issues.service';
+import type { ProjectTemplateConfig } from '../../data-access';
+import type { IssuesService } from '../issues/issues.service';
 import { assertMutuallyExclusiveLabelSelection } from '../labels/label-rules';
-import { ProjectsService } from '../projects/projects.service';
-import { WorkspacesService } from '../workspaces/workspaces.service';
+import type { ProjectsService } from '../projects/projects.service';
+import type { WorkspacesService } from '../workspaces/workspaces.service';
 
 @Injectable()
 export class ProjectTemplatesService {

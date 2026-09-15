@@ -11,6 +11,7 @@ import {
   Workspace,
   WorkspaceMember,
 } from '../../data-access';
+import { requireWorkspaceSelection } from '../workspaces/workspace-selection';
 import { WorkspacesService } from '../workspaces/workspaces.service';
 
 @Injectable()
@@ -122,7 +123,7 @@ export class ReviewsService {
     if (accessibleWorkspaceIds.length === 0) {
       throw new NotFoundException('No accessible workspace found');
     }
-    let workspaceId = accessibleWorkspaceIds[0];
+    let workspaceId: string;
     if (dto.workspaceId) {
       const workspace = await this.em.findOne(Workspace, {
         $or: [{ id: dto.workspaceId }, { slug: dto.workspaceId }],
@@ -131,6 +132,8 @@ export class ReviewsService {
         throw new NotFoundException(`Workspace ${dto.workspaceId} not found`);
       }
       workspaceId = workspace.id;
+    } else {
+      workspaceId = requireWorkspaceSelection(accessibleWorkspaceIds);
     }
     if (dto.resolves) {
       await this.assertResolvesIssue(dto.resolves, workspaceId, authorId);

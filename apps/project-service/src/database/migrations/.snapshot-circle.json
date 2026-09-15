@@ -356,7 +356,7 @@
           "length": 255,
           "precision": null,
           "scale": null,
-          "default": "'CORE'",
+          "default": null,
           "comment": null,
           "enumItems": [],
           "mappedType": "string"
@@ -423,7 +423,7 @@
           "length": 255,
           "precision": null,
           "scale": null,
-          "default": "'circle-workspace'",
+          "default": null,
           "comment": null,
           "enumItems": [],
           "mappedType": "string"
@@ -901,6 +901,14 @@
       },
       "indexes": [
         {
+          "keyName": "initiative_updates_initiative_id_index",
+          "columnNames": ["initiative_id"],
+          "composite": false,
+          "constraint": false,
+          "primary": false,
+          "unique": false
+        },
+        {
           "keyName": "initiative_updates_pkey",
           "columnNames": ["id"],
           "composite": false,
@@ -1072,7 +1080,7 @@
           "length": 255,
           "precision": null,
           "scale": null,
-          "default": "'ln'",
+          "default": null,
           "comment": null,
           "enumItems": [],
           "mappedType": "string"
@@ -1088,7 +1096,7 @@
           "length": 255,
           "precision": null,
           "scale": null,
-          "default": "'CORE'",
+          "default": null,
           "comment": null,
           "enumItems": [],
           "mappedType": "string"
@@ -1863,7 +1871,7 @@
           "length": 255,
           "precision": null,
           "scale": null,
-          "default": "'circle-workspace'",
+          "default": null,
           "comment": null,
           "enumItems": [],
           "mappedType": "string"
@@ -2384,7 +2392,7 @@
           "length": 255,
           "precision": null,
           "scale": null,
-          "default": "'ln'",
+          "default": null,
           "comment": null,
           "enumItems": [],
           "mappedType": "string"
@@ -3862,7 +3870,7 @@
           "length": 255,
           "precision": null,
           "scale": null,
-          "default": "'ln'",
+          "default": null,
           "comment": null,
           "enumItems": [],
           "mappedType": "string"
@@ -4145,7 +4153,7 @@
           "length": 255,
           "precision": null,
           "scale": null,
-          "default": "'circle-workspace'",
+          "default": null,
           "comment": null,
           "enumItems": [],
           "mappedType": "string"
@@ -4225,7 +4233,7 @@
           "length": 255,
           "precision": null,
           "scale": null,
-          "default": "'ln'",
+          "default": null,
           "comment": null,
           "enumItems": [],
           "mappedType": "string"
@@ -4559,7 +4567,7 @@
           "length": 255,
           "precision": null,
           "scale": null,
-          "default": "'ln'",
+          "default": null,
           "comment": null,
           "enumItems": [],
           "mappedType": "string"

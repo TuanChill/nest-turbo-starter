@@ -9,8 +9,8 @@ const cliConfig = {
     path: path.join(__dirname, 'src/database/migrations'),
   },
   schemaGenerator: {
-    // The auth service owns this shared table; project-service must never
-    // include it in schema diffs or generated migrations.
+    // The auth service owns this shared table; project-service schema
+    // operations must never manage it.
     skipTables: ['users'],
   },
   extensions: [Migrator],
