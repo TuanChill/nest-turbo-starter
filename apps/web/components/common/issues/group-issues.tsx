@@ -113,7 +113,7 @@ const IssueGridList: FC<{ issues: Issue[]; group: IssueGroupDescriptor }> = ({ i
       accept: IssueDragType,
       canDrop: () => group.groupBy !== undefined,
       drop(item: Issue, monitor) {
-         if (!monitor.didDrop()) return;
+         if (monitor.didDrop()) return;
          switch (group.groupBy) {
             case 'status':
                if (group.status && item.status.id !== group.status.id) {
