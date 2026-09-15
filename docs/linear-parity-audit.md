@@ -68,6 +68,7 @@ Reference set: [Linear Docs](https://linear.app/docs), [Projects](https://linear
 - Google authentication no longer accepts unverified profiles or mismatched audiences: ID tokens require a verified profile, access-token flows validate Google token audience and `verified_email`, userinfo must match the token email, and database-sync failures abort login instead of issuing a token for a fallback user. Password sign-up no longer generates a synthetic avatar, and Google member IDs use deterministic collision-safe allocation.
 - Inbox rendering accepts a persisted notification with no visible actor and renders an explicit unknown-member state instead of dereferencing `null`. Read/unread mutations now roll back the optimistic state and expose the API error when persistence fails.
 - SES invite delivery no longer logs a simulated email or returns success without credentials; missing SES configuration is an explicit unavailable delivery result covered by a service regression test.
+- The integrations settings route no longer renders a hard-coded provider catalog or fake enabled cards; it shows an explicit unavailable state until provider connection and permission APIs exist.
 
 ## Verification evidence (2026-09-15)
 
