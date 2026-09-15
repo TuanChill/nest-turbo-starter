@@ -1,5 +1,9 @@
 import type { InboxItem, NotificationType } from '@/mock-data/inbox';
 import {
+   deleteAllNotifications as apiDeleteAllNotifications,
+   deleteCompletedIssueNotifications as apiDeleteCompletedIssueNotifications,
+   deleteNotification as apiDeleteNotification,
+   deleteReadNotifications as apiDeleteReadNotifications,
    fetchInbox as apiFetchInbox,
    markAllNotificationsAsRead as apiMarkAllNotificationsAsRead,
    markNotificationAsRead as apiMarkNotificationAsRead,
@@ -20,6 +24,10 @@ interface NotificationsState {
    markAsRead: (id: string) => void;
    markAllAsRead: () => void;
    markAsUnread: (id: string) => void;
+   deleteNotification: (id: string) => Promise<void>;
+   deleteAllNotifications: () => Promise<void>;
+   deleteReadNotifications: () => Promise<void>;
+   deleteCompletedIssueNotifications: () => Promise<void>;
 
    // Filters
    getUnreadNotifications: () => InboxItem[];
@@ -112,6 +120,75 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
       apiMarkNotificationAsRead(id, false).catch((err) =>
          console.error(`Failed to mark notification ${id} as unread:`, err)
       );
+   },
+
+   deleteNotification: async (id: string) => {
+      const previous = get().notifications;
+      const previousSelected = get().selectedNotification;
+      set((state) => ({
+         notifications: state.notifications.filter((notification) => notification.id !== id),
+         selectedNotification:
+            state.selectedNotification?.id === id ? undefined : state.selectedNotification,
+      }));
+      try {
+         await apiDeleteNotification(id);
+      } catch (err) {
+         set({ notifications: previous, selectedNotification: previousSelected });
+         throw err;
+      }
+   },
+
+   deleteAllNotifications: async () => {
+      const previous = get().notifications;
+      const previousSelected = get().selectedNotification;
+      set({ notifications: [], selectedNotification: undefined });
+      try {
+         await apiDeleteAllNotifications();
+      } catch (err) {
+         set({ notifications: previous, selectedNotification: previousSelected });
+         throw err;
+      }
+   },
+
+   deleteReadNotifications: async () => {
+      const previous = get().notifications;
+      const previousSelected = get().selectedNotification;
+      set((state) => {
+         const notifications = state.notifications.filter((notification) => !notification.read);
+         const selectedNotification = state.selectedNotification?.read
+            ? undefined
+            : state.selectedNotification;
+         return { notifications, selectedNotification };
+      });
+      try {
+         await apiDeleteReadNotifications();
+      } catch (err) {
+         set({ notifications: previous, selectedNotification: previousSelected });
+         throw err;
+      }
+   },
+
+   deleteCompletedIssueNotifications: async () => {
+      const previous = get().notifications;
+      const previousSelected = get().selectedNotification;
+      const isCompleted = (notification: InboxItem) =>
+         notification.status?.category === 'completed';
+      set((state) => {
+         const notifications = state.notifications.filter(
+            (notification) => !isCompleted(notification)
+         );
+         const selectedNotification =
+            state.selectedNotification && isCompleted(state.selectedNotification)
+               ? undefined
+               : state.selectedNotification;
+         return { notifications, selectedNotification };
+      });
+      try {
+         await apiDeleteCompletedIssueNotifications();
+      } catch (err) {
+         set({ notifications: previous, selectedNotification: previousSelected });
+         throw err;
+      }
    },
 
    // Filters

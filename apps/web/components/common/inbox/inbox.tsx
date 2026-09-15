@@ -30,6 +30,17 @@ import { SidebarTrigger } from '@/components/ui/sidebar';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { ChevronLeft } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+   AlertDialog,
+   AlertDialogAction,
+   AlertDialogCancel,
+   AlertDialogContent,
+   AlertDialogDescription,
+   AlertDialogFooter,
+   AlertDialogHeader,
+   AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { toast } from 'sonner';
 
 export default function Inbox() {
    const {
@@ -39,6 +50,9 @@ export default function Inbox() {
       markAsRead,
       markAllAsRead,
       getUnreadNotifications,
+      deleteAllNotifications,
+      deleteReadNotifications,
+      deleteCompletedIssueNotifications,
       isLoading,
       isInitialized,
       error,
@@ -47,17 +61,16 @@ export default function Inbox() {
 
    const isMobile = useIsMobile();
    const [showRead, setShowRead] = useState(true);
-   const [showSnoozed, setShowSnoozed] = useState(false);
    const [showUnreadFirst, setShowUnreadFirst] = useState(false);
    const [ordering, setOrdering] = useState('newest');
    const [showId, setShowId] = useState(true);
    const [showStatusIcon, setShowStatusIcon] = useState(true);
+   const [pendingDelete, setPendingDelete] = useState<'all' | 'read' | 'completed' | null>(null);
 
    // Filter and sort notifications based on settings
    const filteredNotifications = notifications
       .filter((notification) => {
          if (!showRead && notification.read) return false;
-         // Add snoozed filter logic here when implemented
          return true;
       })
       .sort((a, b) => {
@@ -66,21 +79,23 @@ export default function Inbox() {
             if (a.read && !b.read) return 1;
          }
          // Sort by timestamp (newest first by default)
-         return ordering === 'newest'
-            ? new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-            : new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
+         const aTime = a.notificationCreatedAt ? Date.parse(a.notificationCreatedAt) : 0;
+         const bTime = b.notificationCreatedAt ? Date.parse(b.notificationCreatedAt) : 0;
+         return ordering === 'newest' ? bTime - aTime : aTime - bTime;
       });
 
-   const handleDeleteAllNotifications = () => {
-      console.log('Delete all notifications');
-   };
-
-   const handleDeleteReadNotifications = () => {
-      console.log('Delete read notifications');
-   };
-
-   const handleDeleteCompletedIssues = () => {
-      console.log('Delete notifications for completed issues');
+   const confirmDelete = async () => {
+      if (!pendingDelete) return;
+      try {
+         if (pendingDelete === 'all') await deleteAllNotifications();
+         if (pendingDelete === 'read') await deleteReadNotifications();
+         if (pendingDelete === 'completed') await deleteCompletedIssueNotifications();
+         toast.success('Inbox updated');
+      } catch (err) {
+         toast.error(err instanceof Error ? err.message : 'Could not update inbox');
+      } finally {
+         setPendingDelete(null);
+      }
    };
 
    const listPane = (
@@ -96,15 +111,15 @@ export default function Inbox() {
                      </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start">
-                     <DropdownMenuItem onClick={handleDeleteAllNotifications}>
+                     <DropdownMenuItem onClick={() => setPendingDelete('all')}>
                         <Trash2 className="w-4 h-4 mr-2" />
                         Delete all notifications
                      </DropdownMenuItem>
-                     <DropdownMenuItem onClick={handleDeleteReadNotifications}>
+                     <DropdownMenuItem onClick={() => setPendingDelete('read')}>
                         <CheckCheck className="w-4 h-4 mr-2" />
                         Delete all read notifications
                      </DropdownMenuItem>
-                     <DropdownMenuItem onClick={handleDeleteCompletedIssues}>
+                     <DropdownMenuItem onClick={() => setPendingDelete('completed')}>
                         <Archive className="w-4 h-4 mr-2" />
                         Delete notifications for completed issues
                      </DropdownMenuItem>
@@ -148,16 +163,6 @@ export default function Inbox() {
                      <DropdownMenuSeparator />
 
                      <div className="p-2 space-y-3">
-                        <div className="flex items-center justify-between">
-                           <Label htmlFor="show-snoozed" className="text-sm">
-                              Show snoozed
-                           </Label>
-                           <Switch
-                              id="show-snoozed"
-                              checked={showSnoozed}
-                              onCheckedChange={setShowSnoozed}
-                           />
-                        </div>
                         <div className="flex items-center justify-between">
                            <Label htmlFor="show-read" className="text-sm">
                               Show read
@@ -244,6 +249,27 @@ export default function Inbox() {
                ))
             )}
          </div>
+         <AlertDialog
+            open={pendingDelete !== null}
+            onOpenChange={(open) => !open && setPendingDelete(null)}
+         >
+            <AlertDialogContent>
+               <AlertDialogHeader>
+                  <AlertDialogTitle>Update inbox?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                     {pendingDelete === 'all'
+                        ? 'All inbox notifications will be permanently removed.'
+                        : pendingDelete === 'read'
+                          ? 'All read inbox notifications will be permanently removed.'
+                          : 'Notifications for completed issues will be permanently removed.'}
+                  </AlertDialogDescription>
+               </AlertDialogHeader>
+               <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={confirmDelete}>Continue</AlertDialogAction>
+               </AlertDialogFooter>
+            </AlertDialogContent>
+         </AlertDialog>
       </>
    );
 

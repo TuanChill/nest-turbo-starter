@@ -1,7 +1,7 @@
 import { EntityManager } from '@mikro-orm/core';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateNotificationDto, MarkReadDto } from './dto/inbox.dto';
-import { Member, Notification, toSafeMember } from '../../data-access';
+import { Issue, Member, Notification, toSafeMember } from '../../data-access';
 import { IssuesService } from '../issues/issues.service';
 
 function formatTimestamp(date: Date): string {
@@ -42,6 +42,7 @@ export class InboxService {
           type: notif.type,
           user,
           timestamp: formatTimestamp(notif.createdAt),
+          notificationCreatedAt: notif.createdAt.toISOString(),
           read: notif.read,
         };
       }),
@@ -69,6 +70,53 @@ export class InboxService {
     }
     await this.em.flush();
     return { success: true, updatedCount: notifications.length };
+  }
+
+  async delete(userId: string, id: string) {
+    const notif = await this.em.findOne(Notification, { id, userId });
+    if (!notif) throw new NotFoundException(`Notification ${id} not found`);
+
+    this.em.remove(notif);
+    await this.em.flush();
+    return { success: true, id };
+  }
+
+  async deleteAll(userId: string) {
+    const notifications = await this.em.find(Notification, { userId });
+    await this.removeNotifications(notifications);
+    return { success: true, deletedCount: notifications.length };
+  }
+
+  async deleteRead(userId: string) {
+    const notifications = await this.em.find(Notification, { userId, read: true });
+    await this.removeNotifications(notifications);
+    return { success: true, deletedCount: notifications.length };
+  }
+
+  async deleteForCompletedIssues(userId: string) {
+    const notifications = await this.em.find(Notification, { userId });
+    const identifiers = [
+      ...new Set(notifications.map((notification) => notification.issueIdentifier)),
+    ];
+    const completedIssues = await this.em.find(Issue, {
+      identifier: { $in: identifiers },
+      statusCategory: 'completed',
+    });
+    const completedIdentifiers = new Set(
+      completedIssues.map((issue) => issue.identifier),
+    );
+    const completedNotifications = notifications.filter((notification) =>
+      completedIdentifiers.has(notification.issueIdentifier),
+    );
+
+    await this.removeNotifications(completedNotifications);
+    return { success: true, deletedCount: completedNotifications.length };
+  }
+
+  private async removeNotifications(notifications: Notification[]) {
+    if (notifications.length === 0) return;
+    for (const notification of notifications) this.em.remove(notification);
+    await this.em.flush();
   }
 
   async create(dto: CreateNotificationDto) {
