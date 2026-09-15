@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SidebarTrigger } from '@/components/ui/sidebar';
-import { User } from '@/mock-data/users';
+import type { Member } from '@/services/members.service';
 import { cn } from '@/lib/utils';
 import { useIssues } from '@/hooks/queries/use-issues-query';
 import { useRightPanelStore } from '@/store/right-panel-store';
@@ -115,7 +115,7 @@ function HeaderSearch() {
    );
 }
 
-export default function Header({ member }: { member: User }) {
+export default function Header({ member }: { member: Member }) {
    const { orgId } = useParams<{ orgId: string }>();
    const [activeTab] = useQueryState('tab', parseAsString.withDefault('assigned'));
    const { data: issues = [] } = useIssues();

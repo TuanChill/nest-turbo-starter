@@ -7,13 +7,14 @@ import { IssueFilterBar } from '@/components/common/issues/issue-filter-bar';
 import { SearchIssues } from '@/components/common/issues/search-issues';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Issue } from '@/mock-data/issues';
-import { labels } from '@/mock-data/labels';
+import type { Issue } from '@/mock-data/issues';
 import { priorities } from '@/mock-data/priorities';
+import type { Member } from '@/services/members.service';
+import { useLabels } from '@/hooks/queries/use-labels-query';
 import { useTeams } from '@/hooks/queries/use-teams-query';
 import { useProjects } from '@/hooks/queries/use-projects-query';
 import { useIssues } from '@/hooks/queries/use-issues-query';
-import { statusUserColors, User } from '@/mock-data/users';
+import { statusUserColors } from '@/lib/member-status';
 import { displayOrderedStatus } from '@/mock-data/status';
 import { useFilterStore } from '@/store/filter-store';
 import { useRightPanelStore } from '@/store/right-panel-store';
@@ -24,9 +25,9 @@ import { formatDistanceToNowStrict } from 'date-fns';
 import { parseAsString, useQueryState } from 'nuqs';
 import { useEffect, useMemo, useState } from 'react';
 
-const presenceLabel: Record<User['status'], string> = {
+const presenceLabel: Record<string, string> = {
    online: 'Online now',
-   away: 'Away as of 11 minutes ago',
+   away: 'Away',
    offline: 'Offline',
 };
 
@@ -67,7 +68,7 @@ function BreakdownList({ rows }: { rows: BreakdownRow[] }) {
 }
 
 /** Client-only relative/local time values (avoid SSR hydration mismatches). */
-function useClientTimes(member: User) {
+function useClientTimes(member: Member) {
    const [localTime, setLocalTime] = useState<string | null>(null);
    const [joinedAgo, setJoinedAgo] = useState<string | null>(null);
 
@@ -88,7 +89,11 @@ function useClientTimes(member: User) {
       };
       update();
       const interval = setInterval(update, 30_000);
-      setJoinedAgo(formatDistanceToNowStrict(new Date(member.joinedDate), { addSuffix: true }));
+      setJoinedAgo(
+         member.joinedDate
+            ? formatDistanceToNowStrict(new Date(member.joinedDate), { addSuffix: true })
+            : null
+      );
       return () => clearInterval(interval);
    }, [member]);
 
@@ -100,7 +105,7 @@ function useClientTimes(member: User) {
  * status, with a right panel showing identity, teams, projects and
  * per-label / priority / project / team breakdowns.
  */
-export default function MemberProfile({ member }: { member: User }) {
+export default function MemberProfile({ member }: { member: Member }) {
    const { data: issues = [] } = useIssues();
    const [activeTab] = useQueryState('tab', parseAsString.withDefault('assigned'));
    const { localTime, joinedAgo } = useClientTimes(member);
@@ -110,6 +115,7 @@ export default function MemberProfile({ member }: { member: User }) {
    const { openPanel } = useRightPanelStore();
    const { data: teams = [] } = useTeams();
    const { data: projects = [] } = useProjects();
+   const { data: labels = [] } = useLabels('issue');
 
    const isSearching = isSearchOpen && searchQuery.trim() !== '';
    const isViewTypeGrid = viewType === 'grid';
@@ -127,7 +133,7 @@ export default function MemberProfile({ member }: { member: User }) {
    );
 
    const memberTeams = useMemo(
-      () => teams.filter((team) => member.teamIds.includes(team.id)),
+      () => teams.filter((team) => (member.teamIds ?? []).includes(team.id)),
       [teams, member.teamIds]
    );
 
@@ -161,7 +167,7 @@ export default function MemberProfile({ member }: { member: User }) {
             count: counts.get(label.id) ?? 0,
          }))
          .sort((a, b) => b.count - a.count);
-   }, [displayedIssues]);
+   }, [displayedIssues, labels]);
 
    const priorityRows = useMemo<BreakdownRow[]>(() => {
       const counts = countBy(displayedIssues, (issue) => [issue.priority.id]);
@@ -242,7 +248,10 @@ export default function MemberProfile({ member }: { member: User }) {
                            </Avatar>
                            <span
                               className="border-background absolute -end-0.5 -bottom-0.5 size-3 rounded-full border-2"
-                              style={{ backgroundColor: statusUserColors[member.status] }}
+                              style={{
+                                 backgroundColor:
+                                    statusUserColors[member.status] ?? statusUserColors.offline,
+                              }}
                            />
                         </div>
                         <div className="min-w-0">
