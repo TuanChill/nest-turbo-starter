@@ -1,8 +1,11 @@
 import { EntityManager } from '@mikro-orm/core';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateViewDto, UpdateViewDto } from './dto/view.dto';
+import { assertProjectTargetReferences } from './view-target';
 import {
   Member,
+  Project,
+  ProjectTeam,
   SavedView,
   Team,
   toSafeMember,
@@ -47,6 +50,30 @@ export class ViewsService {
     if (!team || team.workspaceId !== workspaceId) {
       throw new NotFoundException(`Team ${teamId} not found`);
     }
+  }
+
+  private async assertProjectTarget(
+    projectId: string,
+    workspaceId: string,
+    teamId?: string,
+  ) {
+    const project = await this.em.findOne(Project, { id: projectId });
+    if (!project) {
+      throw new NotFoundException(`Project ${projectId} not found`);
+    }
+
+    const links = await this.em.find(ProjectTeam, { projectId });
+    const projectTeamIds = [
+      ...new Set([project.teamId, ...links.map((link) => link.teamId)]),
+    ];
+    const teams = await this.em.find(Team, { id: { $in: projectTeamIds } });
+    assertProjectTargetReferences(
+      projectId,
+      projectTeamIds,
+      new Map(teams.map((projectTeam) => [projectTeam.id, projectTeam.workspaceId])),
+      workspaceId,
+      teamId,
+    );
   }
 
   private async resolveWorkspaceId(memberId: string, requestedWorkspaceId?: string) {
@@ -149,6 +176,9 @@ export class ViewsService {
       await this.assertTeamTargetAccess(ownerId, dto.teamId);
       await this.assertTeamInWorkspace(dto.teamId, workspaceId);
     }
+    if (dto.projectId) {
+      await this.assertProjectTarget(dto.projectId, workspaceId, dto.teamId);
+    }
     let id = dto.id || dto.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
     const existing = await this.em.findOne(SavedView, { id });
     if (existing) {
@@ -180,6 +210,11 @@ export class ViewsService {
     if (dto.teamId !== undefined && dto.teamId !== view.teamId) {
       await this.assertTeamTargetAccess(memberId, dto.teamId);
       await this.assertTeamInWorkspace(dto.teamId, view.workspaceId);
+    }
+    const nextTeamId = dto.teamId !== undefined ? dto.teamId : view.teamId;
+    const nextProjectId = dto.projectId !== undefined ? dto.projectId : view.projectId;
+    if (nextProjectId) {
+      await this.assertProjectTarget(nextProjectId, view.workspaceId, nextTeamId);
     }
 
     if (dto.name !== undefined) view.name = dto.name;

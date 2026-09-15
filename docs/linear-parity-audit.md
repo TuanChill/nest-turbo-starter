@@ -35,10 +35,11 @@ Reference set: [Linear Docs](https://linear.app/docs), [Projects](https://linear
 - The public seed endpoint now returns not-found in production. My Issues counts and lists use only authenticated-user/server issue data; they no longer fall back to the first mock user or local mock records. Template queries also wait for a verified workspace ID during legacy-route redirects.
 - Deployment locking now waits for an active deploy to finish for up to ten minutes so a queued release does not fail immediately on a held remote lock.
 - Member responses now filter returned team IDs to teams visible to the requester, preventing cross-workspace team metadata from leaking through an otherwise valid member lookup. The production Agent route now returns an explicit not-configured error instead of canned workspace data; the UI surfaces that API error.
+- Saved-view create/update now validates referenced projects against the view workspace and selected team, preventing cross-workspace or unrelated-team project references.
 
 ## Verification evidence (2026-09-15)
 
 - Google OAuth login succeeded against `https://pm.capylabs.io`; onboarding created the test workspace and Engineering team, and the authenticated app loaded a seeded welcome issue.
 - The supplied `https://pm.capylabs.io/my-workspace/projects` URL is not the canonical workspace route for that account. The app redirected it to the authenticated workspace route; the currently deployed build logged legacy `workspaceId=my-workspace` requests before redirect, which is why the new route-gating fix still needs deployment verification.
-- Local checks after the access-control and multi-team changes: project-service Jest `5/5` suites and `12/12` tests passed; project-service typecheck passed; Next production build passed.
+- Local checks after the access-control and multi-team changes: project-service Jest `9/9` suites and `19/19` tests passed; project-service typecheck passed; Next production build passed. The saved-view boundary fix also passes targeted lint and its dedicated unit coverage.
 - Full Linear parity is not yet complete: mock-backed legacy surfaces, placeholder integrations/admin/importers, advanced view operators, cycle history, notification snooze/subscriptions, and broader E2E coverage remain explicitly open.
