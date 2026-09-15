@@ -4,8 +4,10 @@ import type { Team } from '@/mock-data/teams';
 export type { Team };
 
 export const teamsService = {
-   async getTeams(): Promise<Team[]> {
-      return apiClient<Team[]>('/circle/api/teams');
+   async getTeams(workspaceId?: string): Promise<Team[]> {
+      return apiClient<Team[]>('/circle/api/teams', {
+         params: { workspaceId },
+      });
    },
 
    async getTeamById(id: string): Promise<Team> {

@@ -13,8 +13,10 @@ export interface Member {
    joinedDate?: string;
 }
 
-export async function getMembers(): Promise<Member[]> {
-   return apiClient<Member[]>('/circle/api/members');
+export async function getMembers(workspaceId?: string): Promise<Member[]> {
+   return apiClient<Member[]>('/circle/api/members', {
+      params: { workspaceId },
+   });
 }
 
 export async function getMemberById(id: string, accessToken?: string): Promise<Member> {

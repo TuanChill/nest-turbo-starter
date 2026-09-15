@@ -3,6 +3,7 @@ import type { Issue } from '@/mock-data/issues';
 import type { ContentBlock, IssueDetail } from '@/mock-data/issue-details';
 
 export interface IssueFilterParams {
+   workspaceId?: string;
    teamId?: string;
    cycleId?: string;
    projectId?: string;

@@ -15,8 +15,10 @@ export interface Member {
 }
 
 export const membersService = {
-   async getMembers(): Promise<Member[]> {
-      return apiClient<Member[]>('/circle/api/members');
+   async getMembers(workspaceId?: string): Promise<Member[]> {
+      return apiClient<Member[]>('/circle/api/members', {
+         params: { workspaceId },
+      });
    },
 
    async getMemberById(id: string): Promise<Member> {

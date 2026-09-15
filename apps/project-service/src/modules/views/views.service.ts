@@ -118,10 +118,12 @@ export class ViewsService {
     teamId?: string,
     type?: 'issue' | 'project',
     projectId?: string,
+    requestedWorkspaceId?: string,
   ) {
     const accessibleTeamIds = await this.workspacesService.getAccessibleTeamIds(memberId);
-    const accessibleWorkspaceIds =
-      await this.workspacesService.getAccessibleWorkspaceIds(memberId);
+    const accessibleWorkspaceIds = requestedWorkspaceId
+      ? [await this.resolveWorkspaceId(memberId, requestedWorkspaceId)]
+      : await this.workspacesService.getAccessibleWorkspaceIds(memberId);
     if (accessibleWorkspaceIds.length === 0) return [];
 
     const where: any = { workspaceId: { $in: accessibleWorkspaceIds } };

@@ -1,4 +1,4 @@
-import { isProjectScopeVisible } from './project-scope';
+import { isProjectScopeVisible, projectIssueWhere } from './project-scope';
 
 describe('isProjectScopeVisible', () => {
   const workspaces = new Map([
@@ -27,5 +27,12 @@ describe('isProjectScopeVisible', () => {
 
   it('rejects projects with no accessible team', () => {
     expect(isProjectScopeVisible(['team-a'], workspaces, new Set())).toBe(false);
+  });
+
+  it('scopes project issue reads to the project teams', () => {
+    expect(projectIssueWhere('project-1', ['team-a', 'team-a', 'team-b'])).toEqual({
+      projectId: 'project-1',
+      teamId: { $in: ['team-a', 'team-b'] },
+    });
   });
 });

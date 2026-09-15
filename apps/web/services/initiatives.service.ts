@@ -57,8 +57,10 @@ export interface InitiativeUpdatePayload {
 }
 
 export const initiativesService = {
-   async getInitiatives(): Promise<Initiative[]> {
-      return apiClient<Initiative[]>('/circle/api/initiatives');
+   async getInitiatives(workspaceId?: string): Promise<Initiative[]> {
+      return apiClient<Initiative[]>('/circle/api/initiatives', {
+         params: { workspaceId },
+      });
    },
 
    async getInitiativeById(id: string): Promise<Initiative> {

@@ -8,27 +8,49 @@ import {
 import type { ContentBlock, IssueDetail } from '@/mock-data/issue-details';
 import { issueKeys } from './keys';
 import { toast } from 'sonner';
+import { useParams } from 'next/navigation';
+import { useWorkspaces } from './use-workspaces-query';
 
 export function useIssues(params?: IssueFilterParams) {
+   const { orgId } = useParams<{ orgId?: string }>();
+   const { data: workspaces = [], isFetched: workspacesFetched } = useWorkspaces();
+   const workspaceId =
+      params?.workspaceId ||
+      workspaces.find((workspace) => workspace.slug === orgId || workspace.id === orgId)?.id;
+   const hasRouteWorkspace = Boolean(params?.workspaceId || orgId);
+   const scopedParams = { ...params, workspaceId };
    return useQuery({
-      queryKey: issueKeys.list(params as Record<string, unknown>),
-      queryFn: () => issuesService.getIssues(params),
+      queryKey: issueKeys.list(scopedParams as Record<string, unknown>),
+      queryFn: () => issuesService.getIssues(scopedParams),
+      enabled: !hasRouteWorkspace || (workspacesFetched && Boolean(workspaceId)),
    });
 }
 
 export function useIssue(identifier: string, enabled = true) {
+   const { orgId } = useParams<{ orgId?: string }>();
+   const { data: workspaces = [], isFetched: workspacesFetched } = useWorkspaces();
+   const workspaceId = workspaces.find(
+      (workspace) => workspace.slug === orgId || workspace.id === orgId
+   )?.id;
    return useQuery({
-      queryKey: issueKeys.detail(identifier),
-      queryFn: () => issuesService.getIssueById(identifier),
-      enabled: Boolean(identifier) && enabled,
+      queryKey: [...issueKeys.detail(identifier), workspaceId],
+      queryFn: () => issuesService.getIssueById(identifier, workspaceId),
+      enabled:
+         Boolean(identifier) && enabled && (!orgId || (workspacesFetched && Boolean(workspaceId))),
    });
 }
 
 export function useIssueDetail(identifier: string, enabled = true) {
+   const { orgId } = useParams<{ orgId?: string }>();
+   const { data: workspaces = [], isFetched: workspacesFetched } = useWorkspaces();
+   const workspaceId = workspaces.find(
+      (workspace) => workspace.slug === orgId || workspace.id === orgId
+   )?.id;
    return useQuery({
-      queryKey: issueKeys.activity(identifier),
-      queryFn: () => issuesService.getIssueDetail(identifier),
-      enabled: Boolean(identifier) && enabled,
+      queryKey: [...issueKeys.activity(identifier), workspaceId],
+      queryFn: () => issuesService.getIssueDetail(identifier, workspaceId),
+      enabled:
+         Boolean(identifier) && enabled && (!orgId || (workspacesFetched && Boolean(workspaceId))),
    });
 }
 

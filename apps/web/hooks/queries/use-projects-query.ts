@@ -2,11 +2,20 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { projectsService, Project, ProjectUpdatePayload } from '@/services/projects.service';
 import { projectKeys } from './keys';
 import { toast } from 'sonner';
+import { useParams } from 'next/navigation';
+import { useWorkspaces } from './use-workspaces-query';
 
-export function useProjects(teamId?: string) {
+export function useProjects(teamId?: string, workspaceId?: string) {
+   const { orgId } = useParams<{ orgId?: string }>();
+   const { data: workspaces = [], isFetched: workspacesFetched } = useWorkspaces();
+   const resolvedWorkspaceId =
+      workspaceId ||
+      workspaces.find((workspace) => workspace.slug === orgId || workspace.id === orgId)?.id;
+   const hasRouteWorkspace = Boolean(workspaceId || orgId);
    return useQuery({
-      queryKey: projectKeys.list(teamId),
-      queryFn: () => projectsService.getProjects(teamId),
+      queryKey: projectKeys.list(teamId, resolvedWorkspaceId),
+      queryFn: () => projectsService.getProjects(teamId, resolvedWorkspaceId),
+      enabled: !hasRouteWorkspace || (workspacesFetched && Boolean(resolvedWorkspaceId)),
    });
 }
 

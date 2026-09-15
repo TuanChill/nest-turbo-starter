@@ -123,7 +123,6 @@ export const StatusTriageIcon: React.FC<{ color: string }> = ({ color }) => (
 /*                             Status definitions                             */
 /* -------------------------------------------------------------------------- */
 
-export const TestingIcon: React.FC = () => <StatusPieIcon color="#14b8a6" fraction={0.55} />;
 export const InReviewIcon: React.FC = () => <StatusPieIcon color="#8b5cf6" fraction={0.7} />;
 export const InProgressIcon: React.FC = () => <StatusPieIcon color="#facc15" fraction={0.25} />;
 export const TechnicalReviewIcon: React.FC = () => <StatusPieIcon color="#22c55e" fraction={0.4} />;
@@ -134,7 +133,6 @@ export const BacklogIcon: React.FC = () => <StatusGearIcon color="#95a2b3" />;
 export const TriageIcon: React.FC = () => <StatusTriageIcon color="#f2790f" />;
 export const IdeaIcon: React.FC = () => <StatusGearIcon color="#5e6ad2" />;
 export const ProductFeedbackIcon: React.FC = () => <StatusPieIcon color="#f2994a" fraction={0.8} />;
-export const BlockedIcon: React.FC = () => <StatusPieIcon color="#eb5757" fraction={0.65} />;
 export const ShippedIcon: React.FC = () => <StatusCheckIcon color="#4cb782" />;
 export const CanceledIcon: React.FC = () => <StatusXIcon color="#95a2b3" />;
 export const DuplicateIcon: React.FC = () => <StatusDuplicateIcon color="#95a2b3" />;
@@ -147,13 +145,6 @@ export const DuplicateIcon: React.FC = () => <StatusDuplicateIcon color="#95a2b3
  * so mock data referencing `status[0..5]` keeps working.
  */
 export const status: Status[] = [
-   {
-      id: 'testing',
-      name: 'Testing',
-      color: '#14b8a6',
-      category: 'started',
-      icon: TestingIcon,
-   },
    {
       id: 'in-review',
       name: 'In Review',
@@ -188,7 +179,6 @@ export const status: Status[] = [
       category: 'started',
       icon: ProductFeedbackIcon,
    },
-   { id: 'blocked', name: 'Blocked', color: '#eb5757', category: 'started', icon: BlockedIcon },
    { id: 'shipped', name: 'Shipped', color: '#4cb782', category: 'completed', icon: ShippedIcon },
    { id: 'canceled', name: 'Canceled', color: '#95a2b3', category: 'canceled', icon: CanceledIcon },
    {

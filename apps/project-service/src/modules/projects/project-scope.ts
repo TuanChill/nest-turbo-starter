@@ -14,3 +14,10 @@ export function isProjectScopeVisible(
     workspaceIds.size === 1 && teamIds.some((teamId) => accessibleTeamIds.has(teamId))
   );
 }
+
+export function projectIssueWhere(projectId: string, teamIds: string[]) {
+  return {
+    projectId,
+    teamId: { $in: [...new Set(teamIds)] },
+  };
+}

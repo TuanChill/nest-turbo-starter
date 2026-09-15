@@ -295,8 +295,10 @@ export class InitiativesService {
     );
   }
 
-  async findAll(memberId: string) {
-    const workspaceIds = await this.workspacesService.getAccessibleWorkspaceIds(memberId);
+  async findAll(memberId: string, requestedWorkspaceId?: string) {
+    const workspaceIds = requestedWorkspaceId
+      ? [await this.resolveWorkspaceId(memberId, requestedWorkspaceId)]
+      : await this.workspacesService.getAccessibleWorkspaceIds(memberId);
     if (workspaceIds.length === 0) return [];
     const initiatives = await this.em.find(Initiative, {
       workspaceId: { $in: workspaceIds },

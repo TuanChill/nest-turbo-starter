@@ -25,6 +25,7 @@ import {
   Team,
   TeamMember,
   toSafeMember,
+  Workspace,
   WorkspaceMember,
 } from '../../data-access';
 import { assertMutuallyExclusiveLabelSelection } from '../labels/label-rules';
@@ -88,6 +89,23 @@ export class IssuesService {
     private readonly em: EntityManager,
     private readonly workspacesService: WorkspacesService,
   ) {}
+
+  private async getAccessibleTeamIds(memberId: string, workspaceId?: string) {
+    const accessibleTeamIds = await this.workspacesService.getAccessibleTeamIds(memberId);
+    if (!workspaceId) return accessibleTeamIds;
+
+    const workspaceIds = await this.workspacesService.getAccessibleWorkspaceIds(memberId);
+    const workspace = await this.em.findOne(Workspace, {
+      $or: [{ id: workspaceId }, { slug: workspaceId }],
+    });
+    if (!workspace || !workspaceIds.includes(workspace.id)) return [];
+
+    const teams = await this.em.find(Team, {
+      workspaceId: workspace.id,
+      id: { $in: accessibleTeamIds },
+    });
+    return teams.map((team) => team.id);
+  }
 
   private async assertTeamAccess(
     memberId: string,
@@ -279,6 +297,7 @@ export class IssuesService {
     memberId: string,
     query?: {
       teamId?: string;
+      workspaceId?: string;
       cycleId?: string;
       projectId?: string;
       statusCategories?: string | string[];
@@ -291,7 +310,10 @@ export class IssuesService {
       offset?: number;
     },
   ) {
-    const accessibleTeamIds = await this.workspacesService.getAccessibleTeamIds(memberId);
+    const accessibleTeamIds = await this.getAccessibleTeamIds(
+      memberId,
+      query?.workspaceId,
+    );
     if (accessibleTeamIds.length === 0) {
       return [];
     }
@@ -444,17 +466,16 @@ export class IssuesService {
     );
   }
 
-  async findOne(identifierOrId: string, memberId?: string) {
+  async findOne(identifierOrId: string, memberId?: string, workspaceId?: string) {
     const issue = await this.em.findOne(Issue, {
       $or: [{ identifier: identifierOrId }, { id: identifierOrId }],
     });
     if (!issue) throw new NotFoundException(`Issue ${identifierOrId} not found`);
     if (memberId) {
-      await this.assertTeamAccess(
-        memberId,
-        issue.teamId,
-        `Issue ${identifierOrId} not found`,
-      );
+      const accessibleTeamIds = await this.getAccessibleTeamIds(memberId, workspaceId);
+      if (!accessibleTeamIds.includes(issue.teamId)) {
+        throw new NotFoundException(`Issue ${identifierOrId} not found`);
+      }
     }
 
     const team = await this.em.findOne(Team, { id: issue.teamId });
@@ -515,8 +536,8 @@ export class IssuesService {
     );
   }
 
-  async findDetail(identifierOrId: string, memberId?: string) {
-    const base = await this.findOne(identifierOrId, memberId);
+  async findDetail(identifierOrId: string, memberId?: string, workspaceId?: string) {
+    const base = await this.findOne(identifierOrId, memberId, workspaceId);
     const issue = await this.em.findOne(Issue, {
       $or: [{ identifier: identifierOrId }, { id: identifierOrId }],
     });

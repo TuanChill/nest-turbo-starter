@@ -8,6 +8,7 @@ import {
   toCycleBurnupPoint,
 } from './cycle-history';
 import { deriveCycleProgress } from './cycle-progress';
+import { cycleIssueWhere } from './cycle-scope';
 import { CreateCycleDto, UpdateCycleDto } from './dto/cycle.dto';
 import { Cycle, CycleHistory, Issue } from '../../data-access';
 import { WorkspacesService } from '../workspaces/workspaces.service';
@@ -69,7 +70,7 @@ export class CyclesService {
   }
 
   private async enrichCycle(cycle: Cycle) {
-    const issues = await this.em.find(Issue, { cycleId: cycle.id });
+    const issues = await this.em.find(Issue, cycleIssueWhere(cycle.id, cycle.teamId));
     // Scope and progress are derived from the persisted issues. Stored seed counters
     // must never make an empty cycle look like it contains work.
     const progress = deriveCycleProgress(issues);
@@ -111,7 +112,7 @@ export class CyclesService {
     if (!accessibleTeamIds.includes(cycle.teamId)) {
       throw new NotFoundException(`Cycle ${id} not found`);
     }
-    const issues = await this.em.find(Issue, { cycleId: cycle.id });
+    const issues = await this.em.find(Issue, cycleIssueWhere(cycle.id, cycle.teamId));
     await this.recordSnapshot(cycle, deriveCycleProgress(issues));
     return this.getHistoricalBurnup(cycle);
   }
@@ -228,7 +229,7 @@ export class CyclesService {
     }
 
     // Deleting a cycle returns its issues to the team backlog before hiding the cycle.
-    const issues = await this.em.find(Issue, { cycleId: id });
+    const issues = await this.em.find(Issue, cycleIssueWhere(id, cycle.teamId));
     for (const issue of issues) issue.cycleId = '';
     cycle.deletedAt = new Date();
     await this.em.flush();

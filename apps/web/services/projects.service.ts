@@ -11,9 +11,10 @@ export interface ProjectUpdatePayload {
 }
 
 export const projectsService = {
-   async getProjects(teamId?: string): Promise<Project[]> {
-      const query = teamId ? `?teamId=${encodeURIComponent(teamId)}` : '';
-      return apiClient<Project[]>(`/circle/api/projects${query}`);
+   async getProjects(teamId?: string, workspaceId?: string): Promise<Project[]> {
+      return apiClient<Project[]>('/circle/api/projects', {
+         params: { teamId, workspaceId },
+      });
    },
 
    async getProjectById(id: string): Promise<Project> {

@@ -58,13 +58,15 @@ export interface CreateViewPayload {
 
 export const viewsService = {
    async getViews(
-      projectIdOrFilters?: string | { projectId?: string; teamId?: string },
+      projectIdOrFilters?: string | { projectId?: string; teamId?: string; workspaceId?: string },
       maybeTeamId?: string
    ): Promise<View[]> {
       const params = new URLSearchParams();
       if (typeof projectIdOrFilters === 'object' && projectIdOrFilters !== null) {
          if (projectIdOrFilters.projectId) params.set('projectId', projectIdOrFilters.projectId);
          if (projectIdOrFilters.teamId) params.set('teamId', projectIdOrFilters.teamId);
+         if (projectIdOrFilters.workspaceId)
+            params.set('workspaceId', projectIdOrFilters.workspaceId);
       } else if (typeof projectIdOrFilters === 'string') {
          if (maybeTeamId) {
             params.set('projectId', projectIdOrFilters);

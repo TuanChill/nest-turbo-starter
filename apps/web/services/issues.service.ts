@@ -3,6 +3,7 @@ import type { Issue } from '@/mock-data/issues';
 import type { ContentBlock, IssueDetail } from '@/mock-data/issue-details';
 
 export interface IssueFilterParams {
+   workspaceId?: string;
    teamId?: string;
    cycleId?: string;
    projectId?: string;
@@ -59,12 +60,14 @@ export const issuesService = {
       });
    },
 
-   async getIssueById(identifier: string): Promise<Issue> {
-      return apiClient<Issue>(`/issues/${identifier}`);
+   async getIssueById(identifier: string, workspaceId?: string): Promise<Issue> {
+      return apiClient<Issue>(`/issues/${identifier}`, { params: { workspaceId } });
    },
 
-   async getIssueDetail(identifier: string): Promise<IssueDetail> {
-      return apiClient<IssueDetail>(`/issues/${identifier}/detail`);
+   async getIssueDetail(identifier: string, workspaceId?: string): Promise<IssueDetail> {
+      return apiClient<IssueDetail>(`/issues/${identifier}/detail`, {
+         params: { workspaceId },
+      });
    },
 
    async createIssue(data: CreateIssuePayload): Promise<Issue> {

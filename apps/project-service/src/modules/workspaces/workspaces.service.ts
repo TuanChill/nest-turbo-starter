@@ -1,10 +1,5 @@
 import { EntityManager } from '@mikro-orm/core';
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
 import { JoinWorkspaceDto } from './dto/join-workspace.dto';
@@ -13,42 +8,49 @@ import { canAccessWorkspace } from '../access-control';
 
 @Injectable()
 export class WorkspacesService {
-  private readonly logger = new Logger(WorkspacesService.name);
-
   constructor(private readonly em: EntityManager) {}
 
-  /** Teams a member can see: their direct team memberships plus every team in a workspace they belong to. */
+  /**
+   * Teams a member can see: direct memberships and teams in accessible
+   * workspaces. Unscoped or orphaned teams are never visible.
+   */
   async getAccessibleTeamIds(memberId: string): Promise<string[]> {
-    const [workspaceMemberships, teamMemberships] = await Promise.all([
-      this.em.find(WorkspaceMember, { memberId }),
+    const workspaceIds = await this.getAccessibleWorkspaceIds(memberId);
+    if (workspaceIds.length === 0) return [];
+
+    const [workspaceTeams, directMemberships] = await Promise.all([
+      this.em.find(Team, { workspaceId: { $in: workspaceIds } }),
       this.em.find(TeamMember, { memberId }),
     ]);
+    const directTeamIds = directMemberships.map((membership) => membership.teamId);
+    const directTeams = directTeamIds.length
+      ? await this.em.find(Team, { id: { $in: directTeamIds } })
+      : [];
 
-    const workspaceIds = workspaceMemberships.map((wm) => wm.workspaceId);
-    const teamIds = new Set(teamMemberships.map((tm) => tm.teamId));
-
-    if (workspaceIds.length > 0) {
-      const workspaceTeams = await this.em.find(Team, {
-        workspaceId: { $in: workspaceIds },
-      });
-      for (const team of workspaceTeams) {
-        teamIds.add(team.id);
-      }
-    }
-
-    return Array.from(teamIds);
+    return [
+      ...new Set(
+        [...workspaceTeams, ...directTeams]
+          .filter(
+            (team) =>
+              Boolean(team.workspaceId) && workspaceIds.includes(team.workspaceId!),
+          )
+          .map((team) => team.id),
+      ),
+    ];
   }
 
   /** Workspaces visible to a member, including workspaces reached through a team membership. */
   async getAccessibleWorkspaceIds(memberId: string): Promise<string[]> {
-    const [workspaceMemberships, teamMemberships] = await Promise.all([
+    const [workspaceMemberships, teamMemberships, ownedWorkspaces] = await Promise.all([
       this.em.find(WorkspaceMember, { memberId }),
       this.em.find(TeamMember, { memberId }),
+      this.em.find(Workspace, { ownerId: memberId }),
     ]);
 
-    const workspaceIds = new Set(
-      workspaceMemberships.map((membership) => membership.workspaceId),
-    );
+    const workspaceIds = new Set([
+      ...workspaceMemberships.map((membership) => membership.workspaceId),
+      ...ownedWorkspaces.map((workspace) => workspace.id),
+    ]);
     const teamIds = teamMemberships.map((membership) => membership.teamId);
     if (teamIds.length > 0) {
       const teams = await this.em.find(Team, { id: { $in: teamIds } });
@@ -57,7 +59,9 @@ export class WorkspacesService {
       }
     }
 
-    return Array.from(workspaceIds);
+    if (workspaceIds.size === 0) return [];
+    const workspaces = await this.em.find(Workspace, { id: { $in: [...workspaceIds] } });
+    return workspaces.map((workspace) => workspace.id);
   }
 
   private slugify(text: string): string {
@@ -81,39 +85,7 @@ export class WorkspacesService {
     return code;
   }
 
-  async ensureDefaultWorkspace(memberId: string): Promise<Workspace | null> {
-    const existingCount = await this.em.count(Workspace, {});
-    if (existingCount === 0) {
-      this.logger.log('Seeding initial default Circle Workspace in database...');
-      const workspace = new Workspace({
-        id: 'circle-workspace',
-        name: 'Circle Workspace',
-        slug: 'circle-workspace',
-        icon: 'from-orange-600 to-amber-500',
-        description: 'Default organization workspace for Circle',
-        ownerId: memberId,
-        inviteCode: 'CIR-WELCOME',
-      });
-      this.em.persist(workspace);
-
-      const wm = new WorkspaceMember({
-        id: uuidv4(),
-        workspaceId: workspace.id,
-        memberId,
-        role: 'Owner',
-        joinedAt: new Date(),
-      });
-      this.em.persist(wm);
-      await this.em.flush();
-      return workspace;
-    }
-
-    return null;
-  }
-
   async findAll(memberId?: string, memberEmail?: string): Promise<any[]> {
-    await this.ensureDefaultWorkspace(memberId);
-
     let member: Member | null = null;
     if (memberId || memberEmail) {
       member = await this.em.findOne(Member, {

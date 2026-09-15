@@ -28,13 +28,15 @@ export class ProjectsController {
   @ApiOperation({ summary: 'Get all projects' })
   @ApiQuery({ name: 'teamId', required: false })
   @ApiQuery({ name: 'health', required: false })
+  @ApiQuery({ name: 'workspaceId', required: false })
   @Get()
   findAll(
     @User('id') memberId: string,
     @Query('teamId') teamId?: string,
     @Query('health') health?: string,
+    @Query('workspaceId') workspaceId?: string,
   ) {
-    return this.projectsService.findAll(memberId, { teamId, health });
+    return this.projectsService.findAll(memberId, { teamId, health, workspaceId });
   }
 
   @ApiOperation({ summary: 'Get project by ID' })

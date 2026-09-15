@@ -15,7 +15,8 @@ export const issueKeys = {
 export const projectKeys = {
    all: ['projects'] as const,
    lists: () => [...projectKeys.all, 'list'] as const,
-   list: (teamId?: string) => [...projectKeys.lists(), { teamId }] as const,
+   list: (teamId?: string, workspaceId?: string) =>
+      [...projectKeys.lists(), { teamId, workspaceId }] as const,
    details: () => [...projectKeys.all, 'detail'] as const,
    detail: (id: string) => [...projectKeys.details(), id] as const,
    overview: (id: string) => [...projectKeys.detail(id), 'overview'] as const,
@@ -39,6 +40,7 @@ export const issueTemplateKeys = {
 export const teamKeys = {
    all: ['teams'] as const,
    lists: () => [...teamKeys.all, 'list'] as const,
+   list: (workspaceId?: string) => [...teamKeys.lists(), { workspaceId }] as const,
    details: () => [...teamKeys.all, 'detail'] as const,
    detail: (id: string) => [...teamKeys.details(), id] as const,
 };
@@ -46,6 +48,7 @@ export const teamKeys = {
 export const initiativeKeys = {
    all: ['initiatives'] as const,
    lists: () => [...initiativeKeys.all, 'list'] as const,
+   list: (workspaceId?: string) => [...initiativeKeys.lists(), { workspaceId }] as const,
    details: () => [...initiativeKeys.all, 'detail'] as const,
    detail: (id: string) => [...initiativeKeys.details(), id] as const,
 };
@@ -53,7 +56,7 @@ export const initiativeKeys = {
 export const viewKeys = {
    all: ['views'] as const,
    lists: () => [...viewKeys.all, 'list'] as const,
-   list: (filters?: { teamId?: string; projectId?: string }) =>
+   list: (filters?: { teamId?: string; projectId?: string; workspaceId?: string }) =>
       [...viewKeys.lists(), filters ?? {}] as const,
    details: () => [...viewKeys.all, 'detail'] as const,
    detail: (id: string) => [...viewKeys.details(), id] as const,
@@ -70,6 +73,7 @@ export const documentKeys = {
 export const memberKeys = {
    all: ['members'] as const,
    lists: () => [...memberKeys.all, 'list'] as const,
+   list: (workspaceId?: string) => [...memberKeys.lists(), { workspaceId }] as const,
    details: () => [...memberKeys.all, 'detail'] as const,
    detail: (id: string) => [...memberKeys.details(), id] as const,
    teams: (id: string) => [...memberKeys.detail(id), 'teams'] as const,

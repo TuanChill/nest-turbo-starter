@@ -1,6 +1,6 @@
 import { User } from '@app/common';
-import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import {
   CreateInitiativeDto,
   CreateInitiativeUpdateDto,
@@ -14,9 +14,10 @@ export class InitiativesController {
   constructor(private readonly initiativesService: InitiativesService) {}
 
   @ApiOperation({ summary: 'Get all initiatives' })
+  @ApiQuery({ name: 'workspaceId', required: false })
   @Get()
-  findAll(@User('id') memberId: string) {
-    return this.initiativesService.findAll(memberId);
+  findAll(@User('id') memberId: string, @Query('workspaceId') workspaceId?: string) {
+    return this.initiativesService.findAll(memberId, workspaceId);
   }
 
   @ApiOperation({ summary: 'Get initiative by ID' })

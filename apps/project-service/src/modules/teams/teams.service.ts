@@ -84,26 +84,30 @@ export class TeamsService {
         filter = { workspaceId };
       }
     } else if (memberId) {
-      // Find all workspaces where memberId is a member
-      const userWorkspaces = await this.em.find(WorkspaceMember, { memberId });
-      const userTeamMemberships = await this.em.find(TeamMember, { memberId });
-      const wsIds = userWorkspaces.map((w) => w.workspaceId);
-      const teamIds = userTeamMemberships.map((t) => t.teamId);
-
-      const conditions: any[] = [];
-      if (wsIds.length > 0) {
-        conditions.push({ workspaceId: { $in: wsIds } });
-      }
-      if (teamIds.length > 0) {
-        conditions.push({ id: { $in: teamIds } });
-      }
-
-      filter = conditions.length > 0 ? { $or: conditions } : {};
+      const accessibleTeamIds =
+        await this.workspacesService.getAccessibleTeamIds(memberId);
+      filter = accessibleTeamIds.length
+        ? { id: { $in: accessibleTeamIds } }
+        : { id: '__none__' };
     }
 
     const teams = await this.em.find(Team, filter);
-    const teamMembers = await this.em.find(TeamMember, {});
-    const members = await this.em.find(Member, {});
+    const teamIds = teams.map((team) => team.id);
+    const teamMembers = teamIds.length
+      ? await this.em.find(TeamMember, { teamId: { $in: teamIds } })
+      : [];
+    const workspaceIds = [
+      ...new Set(teams.map((team) => team.workspaceId).filter(Boolean)),
+    ];
+    const workspaceMembers = workspaceIds.length
+      ? await this.em.find(WorkspaceMember, { workspaceId: { $in: workspaceIds } })
+      : [];
+    const visibleMemberIds = new Set(
+      workspaceMembers.map((membership) => membership.memberId),
+    );
+    const members = visibleMemberIds.size
+      ? await this.em.find(Member, { id: { $in: [...visibleMemberIds] } })
+      : [];
     const projects = await this.em.find(Project, {});
 
     const membersMap = new Map(members.map((m) => [m.id, toSafeMember(m)]));
@@ -113,6 +117,7 @@ export class TeamsService {
         .filter((tm) => tm.teamId === team.id)
         .map((tm) => tm.memberId);
       const teamUsers = teamUserIds
+        .filter((id) => visibleMemberIds.has(id))
         .map((id) => membersMap.get(id))
         .filter((m): m is Member => Boolean(m))
         .map((m) => this.toPublicMember(m));
@@ -144,9 +149,21 @@ export class TeamsService {
     }
 
     const teamMembers = await this.em.find(TeamMember, { teamId: id });
-    const members = await this.em.find(Member, {
-      id: { $in: teamMembers.map((tm) => tm.memberId) },
-    });
+    const workspaceMembers = team.workspaceId
+      ? await this.em.find(WorkspaceMember, { workspaceId: team.workspaceId })
+      : [];
+    const visibleMemberIds = new Set(
+      workspaceMembers.map((membership) => membership.memberId),
+    );
+    const members = visibleMemberIds.size
+      ? await this.em.find(Member, {
+          id: {
+            $in: teamMembers
+              .map((tm) => tm.memberId)
+              .filter((teamMemberId) => visibleMemberIds.has(teamMemberId)),
+          },
+        })
+      : [];
     const projects = await this.em.find(Project, { teamId: id });
 
     const isJoined = memberId
@@ -276,13 +293,12 @@ export class TeamsService {
     if (!team) throw new NotFoundException(`Team ${teamId} not found`);
     await this.assertTeamAccess(actorId, teamId, `Team ${teamId} not found`);
 
-    if (team.workspaceId) {
-      const member = await this.em.findOne(WorkspaceMember, {
-        workspaceId: team.workspaceId,
-        memberId: dto.memberId,
-      });
-      if (!member) throw new NotFoundException(`Member ${dto.memberId} not found`);
-    }
+    if (!team.workspaceId) throw new NotFoundException(`Team ${teamId} not found`);
+    const member = await this.em.findOne(WorkspaceMember, {
+      workspaceId: team.workspaceId,
+      memberId: dto.memberId,
+    });
+    if (!member) throw new NotFoundException(`Member ${dto.memberId} not found`);
 
     const existing = await this.em.findOne(TeamMember, {
       teamId,
@@ -311,9 +327,20 @@ export class TeamsService {
   }
 
   async findMembers(teamId: string, memberId: string) {
+    const team = await this.em.findOne(Team, { id: teamId });
+    if (!team || !team.workspaceId)
+      throw new NotFoundException(`Team ${teamId} not found`);
     await this.assertTeamAccess(memberId, teamId, `Team ${teamId} not found`);
-    const teamMembers = await this.em.find(TeamMember, { teamId });
-    const memberIds = teamMembers.map((tm) => tm.memberId);
+    const [teamMembers, workspaceMembers] = await Promise.all([
+      this.em.find(TeamMember, { teamId }),
+      this.em.find(WorkspaceMember, { workspaceId: team.workspaceId }),
+    ]);
+    const workspaceMemberIds = new Set(
+      workspaceMembers.map((membership) => membership.memberId),
+    );
+    const memberIds = teamMembers
+      .map((tm) => tm.memberId)
+      .filter((teamMemberId) => workspaceMemberIds.has(teamMemberId));
     const members = await this.em.find(Member, { id: { $in: memberIds } });
     return members.map((m) => this.toPublicMember(m));
   }

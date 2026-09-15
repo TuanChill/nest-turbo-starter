@@ -18,6 +18,7 @@ export class IssuesController {
 
   @ApiOperation({ summary: 'Get all issues with multi-dimensional filtering' })
   @ApiQuery({ name: 'teamId', required: false })
+  @ApiQuery({ name: 'workspaceId', required: false })
   @ApiQuery({ name: 'cycleId', required: false })
   @ApiQuery({ name: 'projectId', required: false })
   @ApiQuery({ name: 'statusCategories', required: false })
@@ -32,6 +33,7 @@ export class IssuesController {
   findAll(
     @User('id') memberId: string,
     @Query('teamId') teamId?: string,
+    @Query('workspaceId') workspaceId?: string,
     @Query('cycleId') cycleId?: string,
     @Query('projectId') projectId?: string,
     @Query('statusCategories') statusCategories?: string,
@@ -45,6 +47,7 @@ export class IssuesController {
   ) {
     return this.issuesService.findAll(memberId, {
       teamId,
+      workspaceId,
       cycleId,
       projectId,
       statusCategories,
@@ -60,16 +63,24 @@ export class IssuesController {
 
   @ApiOperation({ summary: 'Get issue by identifier or ID' })
   @Get(':identifier')
-  findOne(@Param('identifier') identifier: string, @User('id') memberId: string) {
-    return this.issuesService.findOne(identifier, memberId);
+  findOne(
+    @Param('identifier') identifier: string,
+    @User('id') memberId: string,
+    @Query('workspaceId') workspaceId?: string,
+  ) {
+    return this.issuesService.findOne(identifier, memberId, workspaceId);
   }
 
   @ApiOperation({
     summary: 'Get issue detail (description blocks, activity feed, relations, PRs)',
   })
   @Get(':identifier/detail')
-  findDetail(@Param('identifier') identifier: string, @User('id') memberId: string) {
-    return this.issuesService.findDetail(identifier, memberId);
+  findDetail(
+    @Param('identifier') identifier: string,
+    @User('id') memberId: string,
+    @Query('workspaceId') workspaceId?: string,
+  ) {
+    return this.issuesService.findDetail(identifier, memberId, workspaceId);
   }
 
   @ApiOperation({ summary: 'Create new issue' })

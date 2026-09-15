@@ -80,12 +80,14 @@ import {
 } from '@/hooks/queries/use-teams-query';
 import { Team } from '@/services/teams.service';
 import { useCycles } from '@/hooks/queries/use-cycles-query';
+import { useLabels } from '@/hooks/queries/use-labels-query';
 
 export default function TeamSettings({ teamId }: TeamSettingsProps) {
    const { orgId } = useParams<{ orgId: string }>();
    const router = useRouter();
    const { data: team, isLoading } = useTeam(teamId);
    const { data: cycles = [] } = useCycles(teamId);
+   const { data: labels = [] } = useLabels('issue');
    const updateTeamMutation = useUpdateTeam();
    const deleteTeamMutation = useDeleteTeam();
    const toggleJoinMutation = useToggleJoinTeam();
@@ -174,8 +176,7 @@ export default function TeamSettings({ teamId }: TeamSettingsProps) {
    };
 
    const handleRetireTeam = async () => {
-      toast.success(`Team "${team.name}" has been retired`);
-      setRetireOpen(false);
+      toast.error('Team retirement is not supported by the current API');
    };
 
    const handleDeleteTeam = async () => {
@@ -263,7 +264,7 @@ export default function TeamSettings({ teamId }: TeamSettingsProps) {
                            icon={<Tag className="size-4" />}
                            title="Issue labels"
                            description="Labels available to this team's issues"
-                           trailing={<span>7 labels</span>}
+                           trailing={<span>{labels.length} labels</span>}
                            chevron
                            onClick={() => {}}
                         />
@@ -275,7 +276,7 @@ export default function TeamSettings({ teamId }: TeamSettingsProps) {
                         trailing={<span>None</span>}
                         chevron
                         onClick={() =>
-                           toast.info('Recurring schedules will be available in next sprint')
+                           toast.error('Recurring issues are not enabled for this team')
                         }
                      />
                   </SettingsCard>
@@ -290,7 +291,7 @@ export default function TeamSettings({ teamId }: TeamSettingsProps) {
                         trailing={<span>{status.length} statuses</span>}
                         chevron
                         onClick={() =>
-                           toast.info('Issue statuses match the workspace default for now')
+                           toast.info('Issue statuses are managed by the workspace workflow')
                         }
                      />
                      <SettingsRow
@@ -298,7 +299,7 @@ export default function TeamSettings({ teamId }: TeamSettingsProps) {
                         title="Workflows & automations"
                         description="Manage issue automations and git workflows"
                         chevron
-                        onClick={() => toast.info('Automations are active for this team')}
+                        onClick={() => toast.error('Team automations are not configured')}
                      />
                      <SettingsRow
                         icon={<Radar className="size-4" />}

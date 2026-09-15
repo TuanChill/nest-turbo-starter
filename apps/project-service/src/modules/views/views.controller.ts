@@ -13,14 +13,16 @@ export class ViewsController {
   @ApiQuery({ name: 'teamId', required: false })
   @ApiQuery({ name: 'type', required: false, enum: ['issue', 'project'] })
   @ApiQuery({ name: 'projectId', required: false })
+  @ApiQuery({ name: 'workspaceId', required: false })
   @Get()
   findAll(
     @User('id') memberId: string,
     @Query('teamId') teamId?: string,
     @Query('type') type?: 'issue' | 'project',
     @Query('projectId') projectId?: string,
+    @Query('workspaceId') workspaceId?: string,
   ) {
-    return this.viewsService.findAll(memberId, teamId, type, projectId);
+    return this.viewsService.findAll(memberId, teamId, type, projectId, workspaceId);
   }
 
   @ApiOperation({ summary: 'Get saved view by ID' })

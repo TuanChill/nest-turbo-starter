@@ -2,11 +2,20 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { membersService, Member } from '@/services/members.service';
 import { memberKeys } from './keys';
 import { toast } from 'sonner';
+import { useParams } from 'next/navigation';
+import { useWorkspaces } from './use-workspaces-query';
 
-export function useMembers() {
+export function useMembers(workspaceId?: string) {
+   const { orgId } = useParams<{ orgId?: string }>();
+   const { data: workspaces = [], isFetched: workspacesFetched } = useWorkspaces();
+   const resolvedWorkspaceId =
+      workspaceId ||
+      workspaces.find((workspace) => workspace.slug === orgId || workspace.id === orgId)?.id;
+   const hasRouteWorkspace = Boolean(workspaceId || orgId);
    return useQuery({
-      queryKey: memberKeys.lists(),
-      queryFn: () => membersService.getMembers(),
+      queryKey: memberKeys.list(resolvedWorkspaceId),
+      queryFn: () => membersService.getMembers(resolvedWorkspaceId),
+      enabled: !hasRouteWorkspace || (workspacesFetched && Boolean(resolvedWorkspaceId)),
    });
 }
 

@@ -10,7 +10,7 @@ import { useTeams } from '@/hooks/queries/use-teams-query';
 import { useIssueTemplates } from '@/hooks/queries/use-issue-templates-query';
 import { useMembers } from '@/hooks/queries/use-members-query';
 import { Label } from '@/components/ui/label';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Issue } from '@/mock-data/issues';
 import type { User } from '@/mock-data/users';
 import { priorities } from '@/mock-data/priorities';
@@ -112,10 +112,19 @@ export function CreateNewIssue() {
    const [addIssueForm, setAddIssueForm] = useState<Issue>(createDefaultData());
    const [selectedTemplateId, setSelectedTemplateId] = useState('none');
 
+   const wasOpen = useRef(false);
+
    useEffect(() => {
-      setAddIssueForm(createDefaultData());
-      setSelectedTemplateId('none');
-   }, [createDefaultData]);
+      // Query refetches replace project/team objects while the dialog is open.
+      // Resetting from those object changes used to erase the user's title or
+      // description and move focus out of the active editor. Initialize only
+      // when the dialog transitions from closed to open.
+      if (isOpen && !wasOpen.current) {
+         setAddIssueForm(createDefaultData());
+         setSelectedTemplateId('none');
+      }
+      wasOpen.current = isOpen;
+   }, [isOpen, createDefaultData]);
 
    const applyIssueTemplate = (templateId: string) => {
       setSelectedTemplateId(templateId);

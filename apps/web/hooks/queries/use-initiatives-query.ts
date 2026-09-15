@@ -6,11 +6,20 @@ import {
 } from '@/services/initiatives.service';
 import { initiativeKeys } from './keys';
 import { toast } from 'sonner';
+import { useParams } from 'next/navigation';
+import { useWorkspaces } from './use-workspaces-query';
 
-export function useInitiatives() {
+export function useInitiatives(workspaceId?: string) {
+   const { orgId } = useParams<{ orgId?: string }>();
+   const { data: workspaces = [], isFetched: workspacesFetched } = useWorkspaces();
+   const resolvedWorkspaceId =
+      workspaceId ||
+      workspaces.find((workspace) => workspace.slug === orgId || workspace.id === orgId)?.id;
+   const hasRouteWorkspace = Boolean(workspaceId || orgId);
    return useQuery({
-      queryKey: initiativeKeys.lists(),
-      queryFn: () => initiativesService.getInitiatives(),
+      queryKey: initiativeKeys.list(resolvedWorkspaceId),
+      queryFn: () => initiativesService.getInitiatives(resolvedWorkspaceId),
+      enabled: !hasRouteWorkspace || (workspacesFetched && Boolean(resolvedWorkspaceId)),
    });
 }
 
