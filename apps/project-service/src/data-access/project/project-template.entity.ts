@@ -1,4 +1,10 @@
-import { Entity, Filter, PrimaryKey, Property } from '@mikro-orm/decorators/legacy';
+import {
+  Entity,
+  Filter,
+  Index,
+  PrimaryKey,
+  Property,
+} from '@mikro-orm/decorators/legacy';
 import { v7 } from 'uuid';
 
 export type ProjectTemplateScope = 'workspace' | 'team';
@@ -47,6 +53,8 @@ export interface ProjectTemplateConfig {
 
 @Filter({ name: 'softDelete', cond: () => ({ deletedAt: null }), default: true })
 @Entity({ tableName: 'project_templates' })
+@Index({ properties: ['workspaceId'] })
+@Index({ properties: ['teamId'] })
 export class ProjectTemplate {
   @PrimaryKey({ type: 'uuid' })
   id: string = v7();

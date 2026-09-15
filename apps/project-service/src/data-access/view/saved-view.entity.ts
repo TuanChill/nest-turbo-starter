@@ -1,8 +1,9 @@
 import { EntityRepositoryType } from '@mikro-orm/core';
-import { Entity, PrimaryKey, Property } from '@mikro-orm/decorators/legacy';
+import { Entity, Index, PrimaryKey, Property } from '@mikro-orm/decorators/legacy';
 import { SavedViewRepository } from './saved-view.repository';
 
 @Entity({ tableName: 'saved_views', repository: () => SavedViewRepository })
+@Index({ properties: ['workspaceId'] })
 export class SavedView {
   [EntityRepositoryType]?: SavedViewRepository;
 

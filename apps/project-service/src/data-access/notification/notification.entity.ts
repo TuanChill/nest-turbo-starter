@@ -1,8 +1,9 @@
 import { EntityRepositoryType } from '@mikro-orm/core';
-import { Entity, PrimaryKey, Property } from '@mikro-orm/decorators/legacy';
+import { Entity, Index, PrimaryKey, Property } from '@mikro-orm/decorators/legacy';
 import { NotificationRepository } from './notification.repository';
 
 @Entity({ tableName: 'notifications', repository: () => NotificationRepository })
+@Index({ properties: ['userId', 'read', 'createdAt'] })
 export class Notification {
   [EntityRepositoryType]?: NotificationRepository;
 

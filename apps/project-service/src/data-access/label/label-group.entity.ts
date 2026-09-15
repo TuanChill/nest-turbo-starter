@@ -1,4 +1,10 @@
-import { Entity, Filter, PrimaryKey, Property } from '@mikro-orm/decorators/legacy';
+import {
+  Entity,
+  Filter,
+  Index,
+  PrimaryKey,
+  Property,
+} from '@mikro-orm/decorators/legacy';
 import { v7 } from 'uuid';
 
 export type LabelGroupScope = 'issue' | 'project' | 'both';
@@ -9,6 +15,7 @@ export type LabelGroupScope = 'issue' | 'project' | 'both';
   default: true,
 })
 @Entity({ tableName: 'label_groups' })
+@Index({ properties: ['workspaceId'] })
 export class LabelGroup {
   @PrimaryKey({ type: 'uuid' })
   id: string = v7();
@@ -25,10 +32,18 @@ export class LabelGroup {
   @Property({ type: 'boolean', default: false })
   mutuallyExclusive = false;
 
-  @Property({ type: 'timestamp with time zone', onCreate: () => new Date() })
+  @Property({
+    type: 'timestamp with time zone',
+    onCreate: () => new Date(),
+    defaultRaw: 'now()',
+  })
   createdAt: Date = new Date();
 
-  @Property({ type: 'timestamp with time zone', onUpdate: () => new Date() })
+  @Property({
+    type: 'timestamp with time zone',
+    onUpdate: () => new Date(),
+    defaultRaw: 'now()',
+  })
   updatedAt: Date = new Date();
 
   @Property({ type: 'timestamp with time zone', nullable: true })

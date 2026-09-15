@@ -1,7 +1,8 @@
-import { Entity, PrimaryKey, Property } from '@mikro-orm/decorators/legacy';
+import { Entity, Index, PrimaryKey, Property } from '@mikro-orm/decorators/legacy';
 import { v7 } from 'uuid';
 
 @Entity({ tableName: 'initiative_activities' })
+@Index({ properties: ['initiativeId', 'createdAt'] })
 export class InitiativeActivity {
   @PrimaryKey({ type: 'uuid' })
   id: string = v7();
@@ -18,7 +19,11 @@ export class InitiativeActivity {
   @Property({ type: 'jsonb', default: '{}' })
   metadata: Record<string, unknown> = {};
 
-  @Property({ type: 'timestamp with time zone', onCreate: () => new Date() })
+  @Property({
+    type: 'timestamp with time zone',
+    onCreate: () => new Date(),
+    defaultRaw: 'now()',
+  })
   createdAt: Date = new Date();
 
   constructor(partial?: Partial<InitiativeActivity>) {

@@ -3,7 +3,7 @@ import { v7 } from 'uuid';
 
 @Entity({ tableName: 'initiative_updates' })
 export class InitiativeUpdate {
-  @PrimaryKey({ type: 'uuid' })
+  @PrimaryKey({ type: 'string' })
   id: string = v7();
 
   @Property({ type: 'string' })
@@ -18,7 +18,11 @@ export class InitiativeUpdate {
   @Property({ type: 'jsonb', default: '[]' })
   blocks: any[] = [];
 
-  @Property({ type: 'timestamp with time zone', onCreate: () => new Date() })
+  @Property({
+    type: 'timestamp with time zone',
+    onCreate: () => new Date(),
+    defaultRaw: 'now()',
+  })
   createdAt: Date = new Date();
 
   constructor(partial?: Partial<InitiativeUpdate>) {

@@ -1,9 +1,16 @@
 import { EntityRepositoryType } from '@mikro-orm/core';
-import { Entity, Filter, PrimaryKey, Property } from '@mikro-orm/decorators/legacy';
+import {
+  Entity,
+  Filter,
+  Index,
+  PrimaryKey,
+  Property,
+} from '@mikro-orm/decorators/legacy';
 import { InitiativeRepository } from './initiative.repository';
 
 @Filter({ name: 'softDelete', cond: () => ({ deletedAt: null }), default: true })
 @Entity({ tableName: 'initiatives', repository: () => InitiativeRepository })
+@Index({ properties: ['workspaceId'] })
 export class Initiative {
   [EntityRepositoryType]?: InitiativeRepository;
 

@@ -1,10 +1,12 @@
 import { EntityRepositoryType } from '@mikro-orm/core';
-import { Entity, PrimaryKey, Property } from '@mikro-orm/decorators/legacy';
+import { Entity, Index, PrimaryKey, Property } from '@mikro-orm/decorators/legacy';
 import { LabelRepository } from './label.repository';
 
 export type LabelScope = 'issue' | 'project' | 'both';
 
 @Entity({ tableName: 'labels', repository: () => LabelRepository })
+@Index({ properties: ['workspaceId'] })
+@Index({ properties: ['groupId'] })
 export class Label {
   [EntityRepositoryType]?: LabelRepository;
 
@@ -26,7 +28,11 @@ export class Label {
   @Property({ type: 'uuid', nullable: true })
   groupId?: string;
 
-  @Property({ type: 'timestamp with time zone', onCreate: () => new Date() })
+  @Property({
+    type: 'timestamp with time zone',
+    onCreate: () => new Date(),
+    defaultRaw: 'now()',
+  })
   createdAt: Date = new Date();
 
   @Property({ type: 'string', default: 'both' })

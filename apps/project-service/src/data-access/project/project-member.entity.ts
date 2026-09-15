@@ -1,7 +1,15 @@
-import { Entity, PrimaryKey, Property } from '@mikro-orm/decorators/legacy';
+import {
+  Entity,
+  Index,
+  PrimaryKey,
+  Property,
+  Unique,
+} from '@mikro-orm/decorators/legacy';
 import { v7 } from 'uuid';
 
 @Entity({ tableName: 'project_members' })
+@Index({ properties: ['projectId'] })
+@Unique({ properties: ['projectId', 'memberId'] })
 export class ProjectMember {
   @PrimaryKey({ type: 'uuid' })
   id: string = v7();

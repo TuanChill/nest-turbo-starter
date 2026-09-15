@@ -1,8 +1,9 @@
 import { EntityRepositoryType } from '@mikro-orm/core';
-import { Entity, PrimaryKey, Property } from '@mikro-orm/decorators/legacy';
+import { Entity, Index, PrimaryKey, Property } from '@mikro-orm/decorators/legacy';
 import { ReviewRepository } from './review.repository';
 
 @Entity({ tableName: 'reviews', repository: () => ReviewRepository })
+@Index({ properties: ['workspaceId'] })
 export class Review {
   [EntityRepositoryType]?: ReviewRepository;
 
