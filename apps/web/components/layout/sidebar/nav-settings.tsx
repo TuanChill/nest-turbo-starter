@@ -37,12 +37,8 @@ interface SettingsNavItem {
    icon: LucideIcon;
 }
 
-/**
- * Placeholder settings pages have no real content yet — hide from nav until built, keep routes intact.
- */
-const HIDDEN_SETTINGS_SECTIONS = new Set([
-   ...Object.keys(PLACEHOLDER_SECTIONS).filter((section) => section !== 'project-templates'),
-]);
+/** Keep unsupported settings out of the production navigation. */
+const HIDDEN_SETTINGS_SECTIONS = new Set(Object.keys(PLACEHOLDER_SECTIONS));
 
 interface SettingsNavGroup {
    label: string;

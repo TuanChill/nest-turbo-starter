@@ -6,7 +6,10 @@ import {
   UpdateInitiativeDto,
 } from './dto/initiative.dto';
 import { deriveInitiativeProgress } from './initiative-progress';
-import { isProjectInInitiativeWorkspace } from './initiative-scope';
+import {
+  areProjectTeamsInInitiativeWorkspace,
+  isProjectInInitiativeWorkspace,
+} from './initiative-scope';
 import {
   Initiative,
   InitiativeActivity,
@@ -15,6 +18,7 @@ import {
   LabelGroup,
   Member,
   Project,
+  ProjectTeam,
   Team,
   toSafeMember,
   Workspace,
@@ -176,19 +180,36 @@ export class InitiativesService {
 
     const accessibleTeamIds = await this.workspacesService.getAccessibleTeamIds(memberId);
     const projects = await this.em.find(Project, { id: { $in: uniqueProjectIds } });
-    const teams = await this.em.find(Team, {
-      id: { $in: projects.map((project) => project.teamId) },
+    const projectTeamLinks = await this.em.find(ProjectTeam, {
+      projectId: { $in: uniqueProjectIds },
     });
-    const workspaceTeamIds = new Set(
-      teams.filter((team) => team.workspaceId === workspaceId).map((team) => team.id),
-    );
+    const teamIdsByProject = new Map<string, string[]>();
+    for (const project of projects) {
+      teamIdsByProject.set(project.id, [project.teamId]);
+    }
+    for (const link of projectTeamLinks) {
+      const ids = teamIdsByProject.get(link.projectId) ?? [];
+      if (!ids.includes(link.teamId)) ids.push(link.teamId);
+      teamIdsByProject.set(link.projectId, ids);
+    }
+    const teams = await this.em.find(Team, {
+      id: {
+        $in: [...new Set([...teamIdsByProject.values()].flat())],
+      },
+    });
+    const workspaceByTeamId = new Map(teams.map((team) => [team.id, team.workspaceId]));
     const foundIds = new Set(projects.map((project) => project.id));
     const invalid = uniqueProjectIds.filter((projectId) => {
       const project = projects.find((candidate) => candidate.id === projectId);
+      const projectTeamIds = teamIdsByProject.get(projectId) ?? [];
       return (
         !project ||
         !accessibleTeamIds.includes(project.teamId) ||
-        !workspaceTeamIds.has(project.teamId)
+        !areProjectTeamsInInitiativeWorkspace(
+          projectTeamIds,
+          workspaceByTeamId,
+          workspaceId,
+        )
       );
     });
     // Keep this explicit so an empty result can never be mistaken for valid input.
@@ -254,8 +275,21 @@ export class InitiativesService {
     const projects = [
       ...new Map([...storedProjects, ...linkedProjects].map((p) => [p.id, p])).values(),
     ];
+    const projectTeamLinks =
+      projects.length > 0
+        ? await this.em.find(ProjectTeam, {
+            projectId: { $in: projects.map((project) => project.id) },
+          })
+        : [];
     const teams = await this.em.find(Team, {
-      id: { $in: [...new Set(projects.map((project) => project.teamId))] },
+      id: {
+        $in: [
+          ...new Set([
+            ...projects.map((project) => project.teamId),
+            ...projectTeamLinks.map((link) => link.teamId),
+          ]),
+        ],
+      },
     });
     const workspaceByTeamId = new Map(teams.map((team) => [team.id, team.workspaceId]));
     return initiatives.map((initiative) =>
@@ -263,6 +297,16 @@ export class InitiativesService {
         (project) =>
           isProjectInInitiativeWorkspace(
             workspaceByTeamId.get(project.teamId),
+            initiative.workspaceId,
+          ) &&
+          areProjectTeamsInInitiativeWorkspace(
+            [
+              project.teamId,
+              ...projectTeamLinks
+                .filter((link) => link.projectId === project.id)
+                .map((link) => link.teamId),
+            ],
+            workspaceByTeamId,
             initiative.workspaceId,
           ) &&
           (project.initiativeId === initiative.id ||

@@ -1,6 +1,7 @@
 import { EntityManager } from '@mikro-orm/core';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { v7 } from 'uuid';
+import { canAssignIssueToMember } from './assignee-scope';
 import {
   AddReactionDto,
   AddRelationDto,
@@ -152,7 +153,14 @@ export class IssuesService {
           memberId: assigneeId,
         })
       : null;
-    if (!member || (!teamMembership && !workspaceMembership) || !team) {
+    if (
+      !canAssignIssueToMember({
+        memberExists: Boolean(member),
+        teamExists: Boolean(team),
+        teamMembershipExists: Boolean(teamMembership),
+        workspaceMembershipExists: Boolean(workspaceMembership),
+      })
+    ) {
       throw new BadRequestException(
         `Assignee ${assigneeId} is not a member of team ${teamId}`,
       );

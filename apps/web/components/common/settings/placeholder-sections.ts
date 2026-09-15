@@ -1,4 +1,4 @@
-/** Config of the generic settings pages that don't have a dedicated UI yet. */
+/** Config of settings sections whose backend contract is not enabled yet. */
 export interface PlaceholderConfig {
    title: string;
    description?: string;
@@ -13,26 +13,10 @@ export const PLACEHOLDER_SECTIONS: Record<string, PlaceholderConfig> = {
       actionLabel: 'New SLA',
       emptyLabel: 'No SLAs',
    },
-   'project-labels': {
-      title: 'Project labels',
-      actionLabel: 'New label',
-      emptyLabel: 'No project labels',
-   },
-   'project-templates': {
-      title: 'Project templates',
-      actionLabel: 'New template',
-      emptyLabel: 'No project templates',
-   },
    'project-updates': {
       title: 'Project updates',
       description: 'Configure how project updates are collected across the workspace',
       emptyLabel: 'No updates',
-   },
-   'initiatives': {
-      title: 'Initiatives',
-      description: 'Group projects into larger bodies of work',
-      actionLabel: 'New initiative',
-      emptyLabel: 'No initiatives',
    },
    'documents': {
       title: 'Documents',

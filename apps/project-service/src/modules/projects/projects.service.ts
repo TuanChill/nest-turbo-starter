@@ -644,7 +644,7 @@ export class ProjectsService {
       healthId: dto.healthId || 'on-track',
       percentComplete: dto.percentComplete || 0,
       icon: dto.icon || 'Cuboid',
-      startDate: dto.startDate ? new Date(dto.startDate) : new Date(),
+      startDate: dto.startDate ? new Date(dto.startDate) : undefined,
       targetDate: dto.targetDate ? new Date(dto.targetDate) : undefined,
       initiativeId: dto.initiativeId,
       summary: dto.summary,
