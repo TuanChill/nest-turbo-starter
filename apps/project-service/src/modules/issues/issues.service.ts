@@ -22,6 +22,7 @@ import {
   Project,
   Team,
   toSafeMember,
+  WorkspaceMember,
 } from '../../data-access';
 import { assertMutuallyExclusiveLabelSelection } from '../labels/label-rules';
 import { WorkspacesService } from '../workspaces/workspaces.service';
@@ -277,10 +278,43 @@ export class IssuesService {
       offset: query?.offset,
     });
 
-    const members = await this.em.find(Member, {});
-    const labels = await this.em.find(Label, { scope: { $in: ['issue', 'both'] } });
-    const projects = await this.em.find(Project, {});
-    const issueLabels = await this.em.find(IssueLabel, {});
+    const issueIds = issues.flatMap((issue) => [issue.id, issue.identifier]);
+    const teams = await this.em.find(Team, {
+      id: { $in: [...new Set(issues.map((issue) => issue.teamId))] },
+    });
+    const workspaceIds = [
+      ...new Set(teams.map((team) => team.workspaceId).filter(Boolean)),
+    ];
+    const candidateMemberIds = [
+      ...new Set(
+        issues
+          .flatMap((issue) => [issue.assigneeId, issue.creatorId])
+          .filter((id): id is string => Boolean(id)),
+      ),
+    ];
+    const workspaceMemberships = workspaceIds.length
+      ? await this.em.find(WorkspaceMember, {
+          workspaceId: { $in: workspaceIds },
+          memberId: { $in: candidateMemberIds },
+        })
+      : [];
+    const allowedMemberIds = workspaceIds.length
+      ? workspaceMemberships.map((membership) => membership.memberId)
+      : candidateMemberIds;
+    const members = await this.em.find(Member, { id: { $in: allowedMemberIds } });
+    const labels = await this.em.find(Label, {
+      scope: { $in: ['issue', 'both'] },
+      ...(workspaceIds.length ? { workspaceId: { $in: workspaceIds } } : {}),
+    });
+    const projects = await this.em.find(Project, {
+      id: {
+        $in: issues
+          .map((issue) => issue.projectId)
+          .filter((id): id is string => Boolean(id)),
+      },
+      teamId: { $in: [...new Set(issues.map((issue) => issue.teamId))] },
+    });
+    const issueLabels = await this.em.find(IssueLabel, { issueId: { $in: issueIds } });
 
     const membersMap = new Map(members.map((m) => [m.id, toSafeMember(m)]));
     const labelsMap = new Map(labels.map((l) => [l.id, l]));
@@ -337,9 +371,30 @@ export class IssuesService {
       );
     }
 
-    const members = await this.em.find(Member, {});
-    const labels = await this.em.find(Label, { scope: { $in: ['issue', 'both'] } });
-    const projects = await this.em.find(Project, {});
+    const team = await this.em.findOne(Team, { id: issue.teamId });
+    const candidateMemberIds = [
+      ...new Set(
+        [issue.assigneeId, issue.creatorId].filter((id): id is string => Boolean(id)),
+      ),
+    ];
+    const workspaceMemberships = team?.workspaceId
+      ? await this.em.find(WorkspaceMember, {
+          workspaceId: team.workspaceId,
+          memberId: { $in: candidateMemberIds },
+        })
+      : [];
+    const allowedMemberIds = team?.workspaceId
+      ? workspaceMemberships.map((membership) => membership.memberId)
+      : candidateMemberIds;
+    const members = await this.em.find(Member, { id: { $in: allowedMemberIds } });
+    const labels = await this.em.find(Label, {
+      scope: { $in: ['issue', 'both'] },
+      ...(team?.workspaceId ? { workspaceId: team.workspaceId } : {}),
+    });
+    const projects = await this.em.find(Project, {
+      id: issue.projectId ? issue.projectId : { $in: [] },
+      teamId: issue.teamId,
+    });
     const issueLabels = await this.em.find(IssueLabel, {
       $or: [{ issueId: issue.id }, { issueId: issue.identifier }],
     });
@@ -374,15 +429,28 @@ export class IssuesService {
       $or: [{ identifier: identifierOrId }, { id: identifierOrId }],
     });
     if (!issue) throw new NotFoundException(`Issue ${identifierOrId} not found`);
-
-    const members = await this.em.find(Member, {});
-    const membersMap = new Map(members.map((m) => [m.id, toSafeMember(m)]));
+    const team = await this.em.findOne(Team, { id: issue.teamId });
 
     const activities = await this.em.find(
       IssueActivity,
       { issueIdentifier: issue.identifier },
       { orderBy: { createdAt: 'ASC' } },
     );
+
+    const activityActorIds = activities.map((activity) => activity.actorId);
+    const workspaceMemberships = team?.workspaceId
+      ? await this.em.find(WorkspaceMember, {
+          workspaceId: team.workspaceId,
+          memberId: { $in: activityActorIds },
+        })
+      : [];
+    const allowedActivityActorIds = team?.workspaceId
+      ? workspaceMemberships.map((membership) => membership.memberId)
+      : activityActorIds;
+    const activityMembers = await this.em.find(Member, {
+      id: { $in: allowedActivityActorIds },
+    });
+    const membersMap = new Map(activityMembers.map((m) => [m.id, toSafeMember(m)]));
 
     const relations = await this.em.find(IssueRelation, {
       $or: [
