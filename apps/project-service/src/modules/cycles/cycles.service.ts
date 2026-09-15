@@ -1,6 +1,7 @@
 import { EntityManager } from '@mikro-orm/core';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { v7 } from 'uuid';
+import { allocateCycleId, allocateCycleNumber } from './cycle-allocation';
 import {
   calculateIdealProgress,
   mergeCycleBurnup,
@@ -151,15 +152,16 @@ export class CyclesService {
       throw new NotFoundException(`Team ${dto.teamId} not found`);
     }
 
-    let number = dto.number;
-    let id = dto.id || String(number);
-    const existing = await this.em.findOne(Cycle, { id });
-    if (existing) {
-      const all = await this.em.find(Cycle, { teamId: dto.teamId });
-      const maxNum = Math.max(...all.map((c) => c.number || 0), 0);
-      number = maxNum + 1;
-      id = String(number);
-    }
+    const all = await this.em.find(Cycle, { teamId: dto.teamId });
+    const number = allocateCycleNumber(
+      all.map((cycle) => cycle.number || 0),
+      dto.number,
+    );
+    const generatedId = v7();
+    const requestedIdExists = dto.id
+      ? Boolean(await this.em.findOne(Cycle, { id: dto.id }))
+      : false;
+    const id = allocateCycleId(dto.id, requestedIdExists, generatedId);
 
     const startDate = new Date(dto.startDate);
     const endDate = new Date(dto.endDate);

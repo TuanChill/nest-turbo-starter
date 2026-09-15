@@ -50,6 +50,7 @@ Reference set: [Linear Docs](https://linear.app/docs), [Projects](https://linear
 - Review and saved-view creation no longer silently chooses the first workspace for members who belong to multiple workspaces; an explicit workspace is required in that case. Legacy database defaults that could create `CORE`, `ln`, or `circle-workspace` foreign identities were removed and migrated; document-folder creation now requires a real team ID.
 - Project-template instantiation now has dedicated regression coverage for parent-key remapping and transaction failure visibility; invalid cloned issue creation propagates the error instead of returning a partial project.
 - Cycle progress now records one persisted snapshot per cycle/day, merges legacy persisted burn-up points, and exposes historical snapshots through the authenticated cycle history endpoint; completed-cycle graphs no longer depend on a mutable JSON-only counter.
+- Cycle creation now allocates team-local numbers from server state and globally collision-safe IDs, so a stale client number or another team’s legacy numeric cycle ID cannot fail creation or leak across teams.
 
 ## Verification evidence (2026-09-15)
 
