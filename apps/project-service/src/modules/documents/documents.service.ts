@@ -129,7 +129,10 @@ export class DocumentsService {
   }
 
   async createFolder(dto: CreateFolderDto, memberId: string) {
-    const teamId = dto.teamId || 'CORE';
+    if (!dto.teamId) {
+      throw new NotFoundException('A team is required to create a document folder');
+    }
+    const teamId = dto.teamId;
     const accessibleTeamIds = await this.workspacesService.getAccessibleTeamIds(memberId);
     if (!accessibleTeamIds.includes(teamId)) {
       throw new NotFoundException(`Team ${teamId} not found`);

@@ -672,27 +672,17 @@ export class IssuesService {
       teamId = teamId || visibleProjectTeamIds[0];
     }
 
-    // An omitted team is resolved to the caller's first accessible team. An
-    // explicit team is always validated and never silently redirected.
-    let team =
-      teamId && accessibleTeamIds.includes(teamId)
-        ? await this.em.findOne(Team, { id: teamId })
-        : null;
+    if (!teamId) {
+      throw new BadRequestException('teamId is required when creating an issue');
+    }
+
+    let team = accessibleTeamIds.includes(teamId)
+      ? await this.em.findOne(Team, { id: teamId })
+      : null;
     if (teamId && !team) {
       throw new NotFoundException(`Team ${teamId} not found`);
     }
-    if (!team) {
-      const fallbackTeam =
-        accessibleTeamIds.length > 0
-          ? await this.em.findOne(Team, { id: { $in: accessibleTeamIds } })
-          : null;
-      if (fallbackTeam) {
-        team = fallbackTeam;
-        teamId = fallbackTeam.id;
-      } else {
-        throw new NotFoundException('No accessible team to create this issue in');
-      }
-    }
+    if (!team) throw new NotFoundException(`Team ${teamId} not found`);
 
     if (dto.statusId && !ALL_STATUSES[dto.statusId]) {
       throw new BadRequestException(`Unknown issue status ${dto.statusId}`);
@@ -730,9 +720,7 @@ export class IssuesService {
       );
     }
 
-    const prefix =
-      team?.id?.toUpperCase() ||
-      (identifier?.includes('-') ? identifier.split('-')[0] : 'ENG');
+    const prefix = team.id.toUpperCase();
 
     // If identifier is not provided, or already taken in DB, generate unique sequential identifier
     const existing = identifier ? await this.em.findOne(Issue, { identifier }) : null;
@@ -775,7 +763,7 @@ export class IssuesService {
       priorityId: dto.priorityId || 'no-priority',
       assigneeId: dto.assigneeId,
       creatorId: actorId,
-      teamId: teamId || 'ENG',
+      teamId,
       projectId: projectId || undefined,
       cycleId: dto.cycleId ?? '',
       parentIssueId: dto.parentIssueId,

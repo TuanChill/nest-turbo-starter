@@ -69,7 +69,7 @@ export function CreateDocumentDialog({
    const setOpen = isControlled ? setControlledOpen! : setInternalOpen;
 
    const { teamId } = useParams<{ teamId?: string }>();
-   const { data: folders = [] } = useDocuments();
+   const { data: folders = [] } = useDocuments(teamId);
    const createDocumentMutation = useCreateDocument();
    const createFolderMutation = useCreateDocumentFolder();
 
@@ -95,6 +95,10 @@ export function CreateDocumentDialog({
          toast.error('Please enter a document name');
          return;
       }
+      if (isCreatingNewFolder && !teamId) {
+         toast.error('A team is required to create a folder');
+         return;
+      }
 
       setIsSubmitting(true);
       try {
@@ -111,7 +115,7 @@ export function CreateDocumentDialog({
             const folder = await createFolderMutation.mutateAsync({
                name: trimmedFolderName,
                icon: '📁',
-               teamId: teamId || 'CORE',
+               teamId,
             });
             targetFolderId = folder.id;
          } else if (!targetFolderId) {
@@ -119,7 +123,7 @@ export function CreateDocumentDialog({
             const folder = await createFolderMutation.mutateAsync({
                name: 'General',
                icon: '📁',
-               teamId: teamId || 'CORE',
+               teamId,
             });
             targetFolderId = folder.id;
          }
