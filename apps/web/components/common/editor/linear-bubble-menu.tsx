@@ -8,10 +8,13 @@ import {
    Code,
    Heading1,
    Heading2,
+   Heading3,
    Italic,
    Link as LinkIcon,
    List,
+   ListOrdered,
    Strikethrough,
+   Underline,
    Unlink,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -63,7 +66,7 @@ export function LinearBubbleMenu({ editor }: LinearBubbleMenuProps) {
          return;
       }
 
-      const menuWidth = 320;
+      const menuWidth = 420;
       const top = Math.max(10, rect.top - 44);
       const left = Math.max(
          12,
@@ -118,7 +121,7 @@ export function LinearBubbleMenu({ editor }: LinearBubbleMenuProps) {
    return (
       <div
          style={{ top: `${position.top}px`, left: `${position.left}px` }}
-         className="fixed z-50 flex items-center gap-0.5 rounded-lg border border-border/80 bg-popover/95 p-1 text-popover-foreground shadow-xl backdrop-blur-md animate-in fade-in-50 zoom-in-95 duration-100 select-none"
+         className="fixed z-50 flex max-w-[calc(100vw-24px)] flex-wrap items-center gap-0.5 rounded-lg border border-border/80 bg-popover/95 p-1 text-popover-foreground shadow-xl backdrop-blur-md animate-in fade-in-50 zoom-in-95 duration-100 select-none"
          onMouseDown={(event) => {
             // Formatting should not blur the editor before the button's action runs.
             if ((event.target as HTMLElement).closest('button')) {
@@ -190,6 +193,20 @@ export function LinearBubbleMenu({ editor }: LinearBubbleMenuProps) {
                   title="Strikethrough"
                >
                   <Strikethrough className="size-3.5" />
+               </button>
+
+               <button
+                  type="button"
+                  onClick={() => editor.chain().focus().toggleUnderline().run()}
+                  className={cn(
+                     'flex size-7 items-center justify-center rounded hover:bg-accent transition-colors',
+                     editor.isActive('underline')
+                        ? 'bg-accent text-accent-foreground underline'
+                        : 'text-muted-foreground hover:text-foreground'
+                  )}
+                  title="Underline (Cmd+U)"
+               >
+                  <Underline className="size-3.5" />
                </button>
 
                <button
@@ -269,6 +286,20 @@ export function LinearBubbleMenu({ editor }: LinearBubbleMenuProps) {
 
                <button
                   type="button"
+                  onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+                  className={cn(
+                     'flex size-7 items-center justify-center rounded hover:bg-accent transition-colors text-xs font-semibold',
+                     editor.isActive('heading', { level: 3 })
+                        ? 'bg-accent text-accent-foreground'
+                        : 'text-muted-foreground hover:text-foreground'
+                  )}
+                  title="Heading 3"
+               >
+                  <Heading3 className="size-3.5" />
+               </button>
+
+               <button
+                  type="button"
                   onClick={() => editor.chain().focus().toggleTaskList().run()}
                   className={cn(
                      'flex size-7 items-center justify-center rounded hover:bg-accent transition-colors',
@@ -293,6 +324,20 @@ export function LinearBubbleMenu({ editor }: LinearBubbleMenuProps) {
                   title="Bullet list"
                >
                   <List className="size-3.5" />
+               </button>
+
+               <button
+                  type="button"
+                  onClick={() => editor.chain().focus().toggleOrderedList().run()}
+                  className={cn(
+                     'flex size-7 items-center justify-center rounded hover:bg-accent transition-colors',
+                     editor.isActive('orderedList')
+                        ? 'bg-accent text-accent-foreground'
+                        : 'text-muted-foreground hover:text-foreground'
+                  )}
+                  title="Numbered list"
+               >
+                  <ListOrdered className="size-3.5" />
                </button>
             </>
          )}

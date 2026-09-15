@@ -275,6 +275,14 @@ input[type='search'] {
    margin-bottom: 0.35rem;
 }
 
+.linear-tiptap-editor .ProseMirror h4 {
+   font-size: 1rem;
+   font-weight: 600;
+   line-height: 1.45;
+   margin-top: 0.85rem;
+   margin-bottom: 0.3rem;
+}
+
 .linear-tiptap-editor .ProseMirror blockquote {
    border-left: 3px solid var(--border);
    padding-left: 0.875rem;

@@ -6,6 +6,7 @@ import {
    Heading1,
    Heading2,
    Heading3,
+   Heading4,
    List,
    ListOrdered,
    Minus,
@@ -57,6 +58,15 @@ export const SLASH_COMMAND_ITEMS: CommandItem[] = [
       searchTerms: ['h3', 'subheading', 'header', 'small'],
       command: ({ editor, range }) => {
          editor.chain().focus().deleteRange(range).setHeading({ level: 3 }).run();
+      },
+   },
+   {
+      title: 'Heading 4',
+      description: 'Small section heading',
+      icon: Heading4,
+      searchTerms: ['h4', 'subheading', 'header', 'small'],
+      command: ({ editor, range }) => {
+         editor.chain().focus().deleteRange(range).setHeading({ level: 4 }).run();
       },
    },
    {
