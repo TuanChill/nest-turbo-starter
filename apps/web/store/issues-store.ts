@@ -1,8 +1,8 @@
-import { groupIssuesByStatus, Issue } from '@/mock-data/issues';
-import { Priority } from '@/mock-data/priorities';
-import { Project } from '@/mock-data/projects';
-import { Status } from '@/mock-data/status';
-import { User } from '@/mock-data/users';
+import type { Issue } from '@/mock-data/issues';
+import type { Priority } from '@/mock-data/priorities';
+import type { Project } from '@/mock-data/projects';
+import type { Status } from '@/mock-data/status';
+import type { User } from '@/mock-data/users';
 import {
    deleteIssue as apiDeleteIssue,
    fetchIssues as apiFetchIssues,
@@ -12,6 +12,7 @@ import {
 } from '@/lib/api/issues';
 import { issueKeys } from '@/hooks/queries/keys';
 import { getQueryClient } from '@/providers/query-provider';
+import { groupIssuesByStatus } from '@/lib/issue-grouping';
 import { create } from 'zustand';
 
 interface FilterOptions {

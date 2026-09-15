@@ -1,5 +1,5 @@
 import { Badge } from '@/components/ui/badge';
-import { Project } from '@/mock-data/projects';
+import type { Project } from '@/mock-data/projects';
 import { renderProjectIcon } from '@/lib/project-utils';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';

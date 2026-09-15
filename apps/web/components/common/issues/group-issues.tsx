@@ -1,10 +1,10 @@
 'use client';
 
-import { Issue } from '@/mock-data/issues';
-import { Priority } from '@/mock-data/priorities';
-import { Project } from '@/mock-data/projects';
-import { Status } from '@/mock-data/status';
-import { User } from '@/mock-data/users';
+import type { Issue } from '@/mock-data/issues';
+import type { Priority } from '@/mock-data/priorities';
+import type { Project } from '@/mock-data/projects';
+import type { Status } from '@/mock-data/status';
+import type { User } from '@/mock-data/users';
 import { useIssuesStore } from '@/store/issues-store';
 import { useViewStore } from '@/store/view-store';
 import { useCreateIssueStore } from '@/store/create-issue-store';

@@ -2,7 +2,7 @@
 
 import { CapacityRing } from '@/components/common/cycles/capacity-ring';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Project } from '@/mock-data/projects';
+import type { Project } from '@/mock-data/projects';
 import { useProjectsDisplayStore } from '@/store/projects-display-store';
 import { renderProjectIcon } from '@/lib/project-utils';
 import { renderPriorityIcon } from '@/lib/priority-utils';

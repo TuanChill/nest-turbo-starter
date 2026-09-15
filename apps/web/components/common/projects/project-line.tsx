@@ -1,7 +1,7 @@
 'use client';
 
 import { format } from 'date-fns';
-import { Project } from '@/mock-data/projects';
+import type { Project } from '@/mock-data/projects';
 import { useProjectsDisplayStore } from '@/store/projects-display-store';
 import { useUpdateProject } from '@/hooks/queries/use-projects-query';
 import Link from 'next/link';

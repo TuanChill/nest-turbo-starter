@@ -1,6 +1,6 @@
 import { apiClient } from './api-client';
-import { Project } from '@/mock-data/projects';
-import { ProjectDetail } from '@/mock-data/project-details';
+import type { Project } from '@/mock-data/projects';
+import type { ProjectDetail } from '@/mock-data/project-details';
 
 export type { Project, ProjectDetail };
 

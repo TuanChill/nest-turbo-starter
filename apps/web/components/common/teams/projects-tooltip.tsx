@@ -1,7 +1,7 @@
 'use client';
 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Project } from '@/mock-data/projects';
+import type { Project } from '@/mock-data/projects';
 import { renderStatusIcon } from '@/lib/status-utils';
 import { renderProjectIcon } from '@/lib/project-utils';
 import { Box } from 'lucide-react';

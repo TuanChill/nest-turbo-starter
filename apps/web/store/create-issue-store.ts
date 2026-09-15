@@ -1,6 +1,6 @@
-import { Status } from '@/mock-data/status';
-import { Project } from '@/mock-data/projects';
-import { Cycle } from '@/mock-data/cycles';
+import type { Status } from '@/mock-data/status';
+import type { Project } from '@/mock-data/projects';
+import type { Cycle } from '@/mock-data/cycles';
 import { create } from 'zustand';
 
 export interface CreateIssueOptions {

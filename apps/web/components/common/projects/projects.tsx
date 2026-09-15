@@ -2,7 +2,7 @@
 
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { Project } from '@/mock-data/projects';
+import type { Project } from '@/mock-data/projects';
 import { useProjects } from '@/hooks/queries/use-projects-query';
 import { useTeams } from '@/hooks/queries/use-teams-query';
 import { useProjectsFilterStore } from '@/store/projects-filter-store';
