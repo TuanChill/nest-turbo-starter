@@ -1,6 +1,14 @@
 import { apiClient } from './api-client';
 
 export type CycleStatus = 'planned' | 'upcoming' | 'current' | 'completed';
+export interface CycleBurnupPoint {
+   date: string;
+   scope: number;
+   started: number;
+   completed: number;
+   ideal: number;
+}
+
 export interface Cycle {
    id: string;
    number: number;
@@ -15,13 +23,7 @@ export interface Cycle {
    started: number;
    completed: number;
    successRate?: number;
-   burnup?: Array<{
-      date: string;
-      scope: number;
-      started: number;
-      completed: number;
-      ideal: number;
-   }>;
+   burnup?: CycleBurnupPoint[];
 }
 
 export const cyclesService = {
@@ -32,6 +34,10 @@ export const cyclesService = {
 
    async getCycleById(id: string): Promise<Cycle> {
       return apiClient<Cycle>(`/circle/api/cycles/${id}`);
+   },
+
+   async getCycleHistory(id: string): Promise<CycleBurnupPoint[]> {
+      return apiClient<CycleBurnupPoint[]>(`/circle/api/cycles/${id}/history`);
    },
 
    async createCycle(payload: Partial<Cycle>): Promise<Cycle> {

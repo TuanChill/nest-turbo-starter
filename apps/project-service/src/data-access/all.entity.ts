@@ -1,3 +1,4 @@
+import { CycleHistory } from './cycle/cycle-history.entity';
 import { Cycle } from './cycle/cycle.entity';
 import { DocumentFolder, TeamDocument } from './document/document.entity';
 import { InitiativeActivity } from './initiative/initiative-activity.entity';
@@ -56,6 +57,7 @@ export const ALL_ENTITIES = [
   ProjectTeam,
   ProjectUpdate,
   Cycle,
+  CycleHistory,
   Issue,
   IssueTemplate,
   IssueActivity,

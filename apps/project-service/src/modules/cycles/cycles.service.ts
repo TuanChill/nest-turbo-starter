@@ -1,8 +1,14 @@
 import { EntityManager } from '@mikro-orm/core';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { v7 } from 'uuid';
+import {
+  calculateIdealProgress,
+  mergeCycleBurnup,
+  toCycleBurnupPoint,
+} from './cycle-history';
 import { deriveCycleProgress } from './cycle-progress';
 import { CreateCycleDto, UpdateCycleDto } from './dto/cycle.dto';
-import { Cycle, Issue } from '../../data-access';
+import { Cycle, CycleHistory, Issue } from '../../data-access';
 import { WorkspacesService } from '../workspaces/workspaces.service';
 
 @Injectable()
@@ -11,6 +17,55 @@ export class CyclesService {
     private readonly em: EntityManager,
     private readonly workspacesService: WorkspacesService,
   ) {}
+
+  private async recordSnapshot(
+    cycle: Cycle,
+    progress: ReturnType<typeof deriveCycleProgress>,
+    recordedOn = new Date(),
+  ) {
+    const day = new Date(
+      Date.UTC(
+        recordedOn.getUTCFullYear(),
+        recordedOn.getUTCMonth(),
+        recordedOn.getUTCDate(),
+      ),
+    );
+    const existing = await this.em.findOne(CycleHistory, {
+      cycleId: cycle.id,
+      recordedOn: day,
+    });
+    const values = {
+      scope: progress.scope,
+      started: progress.started,
+      completed: progress.completed,
+      ideal: calculateIdealProgress(cycle.startDate, cycle.endDate, day, progress.scope),
+    };
+    if (existing) {
+      Object.assign(existing, values);
+    } else {
+      this.em.persist(
+        new CycleHistory({
+          id: v7(),
+          cycleId: cycle.id,
+          recordedOn: day,
+          ...values,
+        }),
+      );
+    }
+    await this.em.flush();
+  }
+
+  private async getHistoricalBurnup(cycle: Cycle) {
+    const snapshots = await this.em.find(
+      CycleHistory,
+      { cycleId: cycle.id },
+      { orderBy: { recordedOn: 'ASC' } },
+    );
+    return mergeCycleBurnup(
+      Array.isArray(cycle.burnup) ? cycle.burnup : [],
+      snapshots.map(toCycleBurnupPoint),
+    );
+  }
 
   private async enrichCycle(cycle: Cycle) {
     const issues = await this.em.find(Issue, { cycleId: cycle.id });
@@ -24,7 +79,8 @@ export class CyclesService {
     const startDateStr = cycle.startDate.toISOString().split('T')[0];
     const endDateStr = cycle.endDate.toISOString().split('T')[0];
 
-    const burnup = cycle.burnup || [];
+    await this.recordSnapshot(cycle, progress);
+    const burnup = await this.getHistoricalBurnup(cycle);
 
     const successRate =
       totalScope > 0 ? Math.round((completedCount / totalScope) * 100) : 0;
@@ -45,6 +101,18 @@ export class CyclesService {
       successRate: cycle.status === 'completed' ? successRate : undefined,
       burnup,
     };
+  }
+
+  async history(id: string, memberId: string) {
+    const cycle = await this.em.findOne(Cycle, { id });
+    if (!cycle) throw new NotFoundException(`Cycle ${id} not found`);
+    const accessibleTeamIds = await this.workspacesService.getAccessibleTeamIds(memberId);
+    if (!accessibleTeamIds.includes(cycle.teamId)) {
+      throw new NotFoundException(`Cycle ${id} not found`);
+    }
+    const issues = await this.em.find(Issue, { cycleId: cycle.id });
+    await this.recordSnapshot(cycle, deriveCycleProgress(issues));
+    return this.getHistoricalBurnup(cycle);
   }
 
   async findAll(memberId: string, teamId?: string) {

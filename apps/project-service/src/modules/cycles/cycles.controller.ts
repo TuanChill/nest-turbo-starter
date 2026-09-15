@@ -22,6 +22,12 @@ export class CyclesController {
     return this.cyclesService.findOne(id, memberId);
   }
 
+  @ApiOperation({ summary: 'Get persisted historical cycle progress' })
+  @Get(':id/history')
+  history(@Param('id') id: string, @User('id') memberId: string) {
+    return this.cyclesService.history(id, memberId);
+  }
+
   @ApiOperation({ summary: 'Create cycle' })
   @Post()
   create(@Body() dto: CreateCycleDto, @User('id') memberId: string) {
