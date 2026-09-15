@@ -54,8 +54,8 @@ done
 echo "Reclaiming unused Docker build cache and images..."
 # Keep running containers and all named volumes (including PostgreSQL data),
 # while preventing repeated image builds from exhausting the host disk.
-docker builder prune -af
-docker image prune -af
+docker builder prune -af --filter until=168h
+docker image prune -af --filter until=168h
 
 echo "Building backend images..."
 "${COMPOSE[@]}" build auth-service user-service notification-service project-service apisix adc
