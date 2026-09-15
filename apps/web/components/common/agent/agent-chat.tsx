@@ -3,20 +3,16 @@
 import { InlineText } from '@/components/common/issues/details/content-blocks';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import {
-   DropdownMenu,
-   DropdownMenuContent,
-   DropdownMenuItem,
-   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { useAgentExamples } from '@/hooks/queries/use-agent-query';
 import { cn } from '@/lib/utils';
-import { agentExamples, agentSkills } from '@/mock-data/agent';
 import { useAuthStore } from '@/store/auth-store';
 import { useAgentChatStore } from '@/store/agent-chat-store';
-import { ArrowUp, Blocks, Bot, ChevronDown, Paperclip, X } from 'lucide-react';
+import { ArrowUp, Bot, Box, Search, Workflow, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
-/** Streams the canned reply into the assistant message, word by word. */
+const exampleIcons = { Box, Search, Workflow } as const;
+
+/** Renders a live Agent response incrementally while preserving message state. */
 function useStreamReply() {
    const { appendToMessage, finishMessage } = useAgentChatStore();
    const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -116,23 +112,8 @@ function ChatComposer({
                large ? 'min-h-16' : 'min-h-12'
             )}
          />
-         <div className="flex items-center justify-between px-2.5 pb-2.5">
-            <DropdownMenu>
-               <DropdownMenuTrigger className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground px-1.5 py-1 rounded-md outline-none transition-colors">
-                  <Blocks className="size-3.5" />
-                  Skills
-                  <ChevronDown className="size-3" />
-               </DropdownMenuTrigger>
-               <DropdownMenuContent align="start" className="w-48">
-                  {agentSkills.map((skill) => (
-                     <DropdownMenuItem key={skill}>{skill}</DropdownMenuItem>
-                  ))}
-               </DropdownMenuContent>
-            </DropdownMenu>
+         <div className="flex items-center justify-end px-2.5 pb-2.5">
             <div className="flex items-center gap-1">
-               <Button variant="ghost" size="icon" className="size-7 text-muted-foreground">
-                  <Paperclip className="size-4" />
-               </Button>
                <Button
                   size="icon"
                   className="size-7 rounded-full"
@@ -148,14 +129,10 @@ function ChatComposer({
    );
 }
 
-/**
- * Functional mock of the Linear Agent page: ask anything, get a canned
- * (deterministic) reply streamed word by word. Conversations live in a
- * client store and can be revisited from the header dropdown.
- */
 export default function AgentChat() {
    const { chats, activeChatId, sendMessage } = useAgentChatStore();
    const currentUser = useAuthStore((state) => state.user);
+   const { data: examples = [], isLoading, isError, error, refetch } = useAgentExamples();
    const stream = useStreamReply();
    const [bannerDismissed, setBannerDismissed] = useState(false);
    const [examplesDismissed, setExamplesDismissed] = useState(false);
@@ -166,6 +143,32 @@ export default function AgentChat() {
    useEffect(() => {
       scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
    }, [activeChat?.messages]);
+
+   if (isLoading) {
+      return (
+         <div className="w-full h-full flex items-center justify-center p-6">
+            <p className="text-sm text-muted-foreground">Checking Agent availability…</p>
+         </div>
+      );
+   }
+
+   if (isError) {
+      return (
+         <div className="w-full h-full flex items-center justify-center p-6">
+            <div className="max-w-md space-y-3 text-center">
+               <h2 className="text-sm font-semibold">Agent is not available</h2>
+               <p className="text-xs text-muted-foreground">
+                  {error instanceof Error
+                     ? error.message
+                     : 'The workspace Agent integration is not configured.'}
+               </p>
+               <Button size="sm" variant="secondary" onClick={() => void refetch()}>
+                  Retry
+               </Button>
+            </div>
+         </div>
+      );
+   }
 
    const handleSend = async (input: string) => {
       const { chatId, assistantMessageId, reply } = await sendMessage(input);
@@ -212,20 +215,24 @@ export default function AgentChat() {
                         </button>
                      </div>
                      <div className="grid sm:grid-cols-3 gap-3">
-                        {agentExamples.map((example) => (
-                           <button
-                              key={example.id}
-                              type="button"
-                              onClick={() => handleSend(example.prompt)}
-                              className="border rounded-lg p-4 text-left hover:bg-accent/40 transition-colors"
-                           >
-                              <example.icon className="size-4 text-muted-foreground" />
-                              <p className="mt-6 text-sm font-medium">{example.title}</p>
-                              <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
-                                 {example.description}
-                              </p>
-                           </button>
-                        ))}
+                        {examples.map((example) => {
+                           const Icon =
+                              exampleIcons[example.icon as keyof typeof exampleIcons] ?? Bot;
+                           return (
+                              <button
+                                 key={example.id}
+                                 type="button"
+                                 onClick={() => handleSend(example.prompt)}
+                                 className="border rounded-lg p-4 text-left hover:bg-accent/40 transition-colors"
+                              >
+                                 <Icon className="size-4 text-muted-foreground" />
+                                 <p className="mt-6 text-sm font-medium">{example.title}</p>
+                                 <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
+                                    {example.description}
+                                 </p>
+                              </button>
+                           );
+                        })}
                      </div>
                   </div>
                )}

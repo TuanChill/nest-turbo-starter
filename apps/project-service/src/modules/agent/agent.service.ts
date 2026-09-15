@@ -73,6 +73,12 @@ export class AgentService {
   }
 
   getExamples() {
+    if (this.configService.get<string>('appCommon.nodeEnv') === 'production') {
+      throw new NotImplementedException(
+        'Workspace agent integration is not configured for production',
+      );
+    }
+
     return [
       {
         id: 'create-project',

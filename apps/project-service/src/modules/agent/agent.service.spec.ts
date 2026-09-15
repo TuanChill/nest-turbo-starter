@@ -13,4 +13,13 @@ describe('AgentService', () => {
       NotImplementedException,
     );
   });
+
+  it('does not expose canned example prompts in production', () => {
+    const config = {
+      get: jest.fn().mockReturnValue('production'),
+    } as unknown as ConfigService;
+    const service = new AgentService(config);
+
+    expect(() => service.getExamples()).toThrow(NotImplementedException);
+  });
 });
