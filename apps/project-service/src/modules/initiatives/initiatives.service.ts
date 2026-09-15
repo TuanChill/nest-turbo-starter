@@ -21,6 +21,7 @@ import {
   WorkspaceMember,
 } from '../../data-access';
 import { assertMutuallyExclusiveLabelSelection } from '../labels/label-rules';
+import { requireWorkspaceSelection } from '../workspaces/workspace-selection';
 import { WorkspacesService } from '../workspaces/workspaces.service';
 
 const HEALTH_DATA: Record<
@@ -162,10 +163,7 @@ export class InitiativesService {
       }
       return workspace.id;
     }
-    if (workspaceIds.length === 0) {
-      throw new NotFoundException('No accessible workspace found');
-    }
-    return workspaceIds[0];
+    return requireWorkspaceSelection(workspaceIds);
   }
 
   private async validateProjectIds(
