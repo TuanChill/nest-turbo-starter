@@ -27,6 +27,10 @@ import { useMembers } from '@/hooks/queries/use-members-query';
 import { useInitiatives } from '@/hooks/queries/use-initiatives-query';
 import { useLabels } from '@/hooks/queries/use-labels-query';
 import {
+   useCreateProjectFromTemplate,
+   useProjectTemplates,
+} from '@/hooks/queries/use-project-templates-query';
+import {
    Boxes,
    Check,
    Code,
@@ -48,6 +52,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { renderPriorityIcon } from '@/lib/priority-utils';
+import { useParams } from 'next/navigation';
 
 interface CreateProjectDialogProps {
    trigger?: React.ReactNode;
@@ -108,10 +113,13 @@ export function CreateProjectDialog({
    const setOpen = isControlled ? setControlledOpen! : setInternalOpen;
 
    const createProjectMutation = useCreateProject();
+   const createFromTemplateMutation = useCreateProjectFromTemplate();
+   const { orgId } = useParams<{ orgId: string }>();
    const { data: teams = [] } = useTeams();
    const { data: members = [] } = useMembers();
    const { data: initiatives = [] } = useInitiatives();
    const { data: labels = [] } = useLabels('project');
+   const { data: templates = [] } = useProjectTemplates(orgId);
 
    const [name, setName] = React.useState('');
    const [teamId, setTeamId] = React.useState(defaultTeamId || (teams[0]?.id ?? 'CORE'));
@@ -124,6 +132,7 @@ export function CreateProjectDialog({
    const [targetDate, setTargetDate] = React.useState('');
    const [initiativeId, setInitiativeId] = React.useState<string>('none');
    const [selectedLabelIds, setSelectedLabelIds] = React.useState<string[]>([]);
+   const [selectedTemplateId, setSelectedTemplateId] = React.useState('none');
    const [summary, setSummary] = React.useState('');
    const [isSubmitting, setIsSubmitting] = React.useState(false);
 
@@ -144,6 +153,22 @@ export function CreateProjectDialog({
       setSelectedLabelIds((prev) =>
          prev.includes(labelId) ? prev.filter((id) => id !== labelId) : [...prev, labelId]
       );
+   };
+
+   const applyTemplate = (templateId: string) => {
+      setSelectedTemplateId(templateId);
+      if (templateId === 'none') return;
+      const template = templates.find((item) => item.id === templateId);
+      if (!template) return;
+      const config = template.config.project ?? {};
+      if (template.scope === 'team' && template.teamId) setTeamId(template.teamId);
+      if (config.statusId) setStatusId(config.statusId);
+      if (config.priorityId) setPriorityId(config.priorityId);
+      if (config.healthId) setHealthId(config.healthId);
+      if (config.leadId) setLeadId(config.leadId);
+      if (config.initiativeId) setInitiativeId(config.initiativeId);
+      if (config.labelIds) setSelectedLabelIds(config.labelIds);
+      if (config.summary) setSummary(config.summary);
    };
 
    const handleSubmit = async (e: React.FormEvent) => {
@@ -174,20 +199,30 @@ export function CreateProjectDialog({
             icon: selectedIcon,
             startDate: startDate || new Date().toISOString().split('T')[0],
             targetDate: targetDate || undefined,
-            initiative: initiativeId !== 'none' ? initiativeId : undefined,
+            initiativeId: initiativeId !== 'none' ? initiativeId : undefined,
             labelIds: selectedLabelIds,
             summary: summary.trim() || undefined,
          };
 
-         await createProjectMutation.mutateAsync(
-            payload as unknown as Partial<import('@/mock-data/projects').Project>
-         );
+         if (selectedTemplateId !== 'none') {
+            await createFromTemplateMutation.mutateAsync({
+               id: selectedTemplateId,
+               name: trimmedName,
+               teamId,
+               overrides: payload,
+            });
+         } else {
+            await createProjectMutation.mutateAsync(
+               payload as unknown as Partial<import('@/mock-data/projects').Project>
+            );
+         }
 
          toast.success(`Project "${trimmedName}" created successfully`);
          setName('');
          setSummary('');
          setTargetDate('');
          setSelectedLabelIds([]);
+         setSelectedTemplateId('none');
          setOpen(false);
       } catch (err: unknown) {
          console.error('Failed to create project:', err);
@@ -250,6 +285,40 @@ export function CreateProjectDialog({
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
+                     <div className="space-y-1.5">
+                        <Label htmlFor="proj-template" className="text-xs font-medium">
+                           Template
+                        </Label>
+                        <Select
+                           value={selectedTemplateId}
+                           onValueChange={applyTemplate}
+                           disabled={isSubmitting}
+                        >
+                           <SelectTrigger id="proj-template" className="h-9 text-xs">
+                              <SelectValue placeholder="Start from template" />
+                           </SelectTrigger>
+                           <SelectContent className="bg-popover border-border/60">
+                              <SelectItem value="none" className="text-xs">
+                                 Blank project
+                              </SelectItem>
+                              {templates
+                                 .filter(
+                                    (template) =>
+                                       template.scope === 'workspace' || template.teamId === teamId
+                                 )
+                                 .map((template) => (
+                                    <SelectItem
+                                       key={template.id}
+                                       value={template.id}
+                                       className="text-xs"
+                                    >
+                                       {template.name}
+                                       {template.scope === 'team' ? ' · Team' : ''}
+                                    </SelectItem>
+                                 ))}
+                           </SelectContent>
+                        </Select>
+                     </div>
                      {/* Team selector */}
                      <div className="space-y-1.5">
                         <Label htmlFor="proj-team" className="text-xs font-medium">

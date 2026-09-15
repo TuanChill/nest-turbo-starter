@@ -13,6 +13,7 @@ import {
   Member,
   Project,
   ProjectLabel,
+  ProjectMember,
   ProjectMilestone,
   ProjectUpdate,
   toSafeMember,
@@ -116,6 +117,7 @@ export class ProjectsService {
     membersMap: Map<string, any>,
     labelsMap: Map<string, any>,
     projectLabels: ProjectLabel[],
+    projectMembers: ProjectMember[],
     issues: Issue[],
   ) {
     const lead = project.leadId ? membersMap.get(project.leadId) : membersMap.get('ln');
@@ -123,6 +125,10 @@ export class ProjectsService {
       .filter((pl) => pl.projectId === project.id)
       .map((pl) => pl.labelId);
     const labels = labelIds.map((lid) => labelsMap.get(lid)).filter(Boolean);
+    const members = projectMembers
+      .filter((pm) => pm.projectId === project.id)
+      .map((pm) => membersMap.get(pm.memberId))
+      .filter(Boolean);
 
     const status = STATUS_DATA[project.statusId] || {
       id: project.statusId,
@@ -169,6 +175,7 @@ export class ProjectsService {
       health,
       teamId: project.teamId,
       labels,
+      members,
       initiative: project.initiativeId,
       healthUpdatedAgoDays,
       summary: project.summary,
@@ -192,6 +199,7 @@ export class ProjectsService {
     const members = await this.em.find(Member, {});
     const labels = await this.em.find(Label, { scope: { $in: ['project', 'both'] } });
     const projectLabels = await this.em.find(ProjectLabel, {});
+    const projectMembers = await this.em.find(ProjectMember, {});
     const issues = await this.em.find(Issue, {
       projectId: { $in: projects.map((p) => p.id) },
     });
@@ -212,6 +220,7 @@ export class ProjectsService {
         membersMap,
         labelsMap,
         projectLabels,
+        projectMembers,
         issuesByProject.get(p.id) ?? [],
       ),
     );
@@ -227,12 +236,20 @@ export class ProjectsService {
     const members = await this.em.find(Member, {});
     const labels = await this.em.find(Label, { scope: { $in: ['project', 'both'] } });
     const projectLabels = await this.em.find(ProjectLabel, { projectId: id });
+    const projectMembers = await this.em.find(ProjectMember, { projectId: id });
     const issues = await this.em.find(Issue, { projectId: id });
 
     const membersMap = new Map(members.map((m) => [m.id, toSafeMember(m)]));
     const labelsMap = new Map(labels.map((l) => [l.id, l]));
 
-    return this.transformProject(project, membersMap, labelsMap, projectLabels, issues);
+    return this.transformProject(
+      project,
+      membersMap,
+      labelsMap,
+      projectLabels,
+      projectMembers,
+      issues,
+    );
   }
 
   async findDetail(id: string, memberId?: string) {

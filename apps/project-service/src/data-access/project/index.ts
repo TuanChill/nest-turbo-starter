@@ -1,4 +1,6 @@
 export * from './project.entity';
 export * from './project-milestone.entity';
+export * from './project-member.entity';
+export * from './project-template.entity';
 export * from './project-update.entity';
 export * from './project.repository';

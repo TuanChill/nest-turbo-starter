@@ -22,6 +22,13 @@ export const projectKeys = {
    activity: (id: string) => [...projectKeys.detail(id), 'activity'] as const,
 };
 
+export const projectTemplateKeys = {
+   all: ['project-templates'] as const,
+   lists: () => [...projectTemplateKeys.all, 'list'] as const,
+   list: (workspaceId?: string, teamId?: string) =>
+      [...projectTemplateKeys.lists(), { workspaceId, teamId }] as const,
+};
+
 export const teamKeys = {
    all: ['teams'] as const,
    lists: () => [...teamKeys.all, 'list'] as const,

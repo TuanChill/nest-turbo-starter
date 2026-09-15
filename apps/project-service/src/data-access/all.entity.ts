@@ -7,7 +7,9 @@ import { Issue } from './issue/issue.entity';
 import { IssueLabel, Label, ProjectLabel } from './label/label.entity';
 import { Member } from './member/member.entity';
 import { Notification } from './notification/notification.entity';
+import { ProjectMember } from './project/project-member.entity';
 import { ProjectMilestone } from './project/project-milestone.entity';
+import { ProjectTemplate } from './project/project-template.entity';
 import { ProjectUpdate } from './project/project-update.entity';
 import { Project } from './project/project.entity';
 import { Review } from './review/review.entity';
@@ -41,6 +43,8 @@ export const ALL_ENTITIES = [
   ProjectLabel,
   Project,
   ProjectMilestone,
+  ProjectMember,
+  ProjectTemplate,
   ProjectUpdate,
   Cycle,
   Issue,

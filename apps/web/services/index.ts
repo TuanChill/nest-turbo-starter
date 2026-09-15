@@ -4,6 +4,7 @@ export * from './issues.service';
 export * from './projects.service';
 export * from './teams.service';
 export * from './initiatives.service';
+export * from './project-templates.service';
 export * from './views.service';
 export * from './documents.service';
 export * from './members.service';
