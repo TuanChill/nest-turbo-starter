@@ -12,14 +12,18 @@ jest.mock('../../data-access', () => {
   }
   return {
     FileAttachment: EntityDouble,
-    Issue: class Issue extends EntityDouble {},
-    Project: class Project extends EntityDouble {},
-    Team: class Team extends EntityDouble {},
+    Issue: class FakeIssue extends EntityDouble {},
+    Project: class FakeProject extends EntityDouble {},
+    Team: class FakeTeam extends EntityDouble {},
   };
 });
 
 jest.mock('@app/core', () => ({
   AwsS3Service: class AwsS3Service {},
+}));
+
+jest.mock('@mikro-orm/core', () => ({
+  EntityManager: class EntityManager {},
 }));
 
 jest.mock('../workspaces/workspaces.service', () => ({

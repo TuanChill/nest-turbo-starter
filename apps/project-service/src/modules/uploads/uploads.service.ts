@@ -1,5 +1,5 @@
 import { AwsS3Service } from '@app/core';
-import type { EntityManager } from '@mikro-orm/core';
+import { EntityManager } from '@mikro-orm/core';
 import {
   BadRequestException,
   Injectable,
