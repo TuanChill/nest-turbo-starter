@@ -52,6 +52,8 @@ export interface Project {
    initiative?: string;
    /** Days since the last health update (undefined = no update yet). */
    healthUpdatedAgoDays?: number;
+   /** Subscription state for the authenticated member. */
+   isSubscribed?: boolean;
 }
 
 type BaseProject = Omit<

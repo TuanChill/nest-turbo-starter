@@ -5,4 +5,5 @@ export * from './project-member.entity';
 export * from './project-template.entity';
 export * from './project-team.entity';
 export * from './project-update.entity';
+export * from './project-subscription.entity';
 export * from './project.repository';

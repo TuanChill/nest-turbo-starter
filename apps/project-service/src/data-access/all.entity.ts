@@ -18,6 +18,7 @@ import { Notification } from './notification/notification.entity';
 import { ProjectActivity } from './project/project-activity.entity';
 import { ProjectMember } from './project/project-member.entity';
 import { ProjectMilestone } from './project/project-milestone.entity';
+import { ProjectSubscription } from './project/project-subscription.entity';
 import { ProjectTeam } from './project/project-team.entity';
 import { ProjectTemplate } from './project/project-template.entity';
 import { ProjectUpdate } from './project/project-update.entity';
@@ -60,6 +61,7 @@ export const ALL_ENTITIES = [
   ProjectTemplate,
   ProjectTeam,
   ProjectUpdate,
+  ProjectSubscription,
   Cycle,
   CycleHistory,
   FileAttachment,

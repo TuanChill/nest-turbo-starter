@@ -27,6 +27,31 @@ export function useProject(id: string, enabled = true) {
    });
 }
 
+export function useProjectSubscription(id: string, enabled = true) {
+   return useQuery({
+      queryKey: projectKeys.subscription(id),
+      queryFn: () => projectsService.getSubscription(id),
+      enabled: Boolean(id) && enabled,
+   });
+}
+
+export function useToggleProjectSubscription() {
+   const queryClient = useQueryClient();
+
+   return useMutation({
+      mutationFn: ({ id, subscribed }: { id: string; subscribed: boolean }) =>
+         subscribed ? projectsService.subscribe(id) : projectsService.unsubscribe(id),
+      onSuccess: (result, { id }) => {
+         queryClient.setQueryData(projectKeys.subscription(id), result);
+         queryClient.invalidateQueries({ queryKey: projectKeys.detail(id) });
+         queryClient.invalidateQueries({ queryKey: projectKeys.lists() });
+      },
+      onError: (error: Error) => {
+         toast.error(error.message || 'Failed to update project subscription');
+      },
+   });
+}
+
 export function useProjectOverview(id: string, enabled = true) {
    return useQuery({
       queryKey: projectKeys.overview(id),

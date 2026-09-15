@@ -46,6 +46,26 @@ export class ProjectsController {
   }
 
   @ApiOperation({
+    summary: 'Get the authenticated member subscription state for a project',
+  })
+  @Get(':id/subscription')
+  getSubscription(@Param('id') id: string, @User('id') memberId: string) {
+    return this.projectsService.getSubscription(id, memberId);
+  }
+
+  @ApiOperation({ summary: 'Subscribe the authenticated member to a project' })
+  @Post(':id/subscription')
+  subscribe(@Param('id') id: string, @User('id') memberId: string) {
+    return this.projectsService.subscribe(id, memberId);
+  }
+
+  @ApiOperation({ summary: 'Unsubscribe the authenticated member from a project' })
+  @Delete(':id/subscription')
+  unsubscribe(@Param('id') id: string, @User('id') memberId: string) {
+    return this.projectsService.unsubscribe(id, memberId);
+  }
+
+  @ApiOperation({
     summary: 'Get project detail (summary, milestones, updates, activity)',
   })
   @Get(':id/detail')

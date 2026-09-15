@@ -21,6 +21,26 @@ export const projectsService = {
       return apiClient<Project>(`/circle/api/projects/${id}`);
    },
 
+   async getSubscription(id: string): Promise<{ projectId: string; subscribed: boolean }> {
+      return apiClient<{ projectId: string; subscribed: boolean }>(
+         `/circle/api/projects/${id}/subscription`
+      );
+   },
+
+   async subscribe(id: string): Promise<{ projectId: string; subscribed: boolean }> {
+      return apiClient<{ projectId: string; subscribed: boolean }>(
+         `/circle/api/projects/${id}/subscription`,
+         { method: 'POST' }
+      );
+   },
+
+   async unsubscribe(id: string): Promise<{ projectId: string; subscribed: boolean }> {
+      return apiClient<{ projectId: string; subscribed: boolean }>(
+         `/circle/api/projects/${id}/subscription`,
+         { method: 'DELETE' }
+      );
+   },
+
    async createProject(payload: Partial<Project>): Promise<Project> {
       return apiClient<Project>('/circle/api/projects', {
          method: 'POST',

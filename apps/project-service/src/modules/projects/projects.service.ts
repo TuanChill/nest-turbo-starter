@@ -20,6 +20,7 @@ import {
   ProjectLabel,
   ProjectMember,
   ProjectMilestone,
+  ProjectSubscription,
   ProjectTeam,
   ProjectUpdate,
   Team,
@@ -275,6 +276,7 @@ export class ProjectsService {
     projectMembers: ProjectMember[],
     issues: Issue[],
     projectTeamIds: string[] = [],
+    isSubscribed = false,
   ) {
     const labelIds = projectLabels
       .filter((pl) => pl.projectId === project.id)
@@ -340,6 +342,7 @@ export class ProjectsService {
       summary: project.summary,
       description: project.description,
       resources: project.resources,
+      isSubscribed,
     };
   }
 
@@ -472,6 +475,13 @@ export class ProjectsService {
       projectId: { $in: projectIds },
       teamId: { $in: visibleTeamIds },
     });
+    const subscriptions = await this.em.find(ProjectSubscription, {
+      projectId: { $in: projectIds },
+      memberId,
+    });
+    const subscribedProjectIds = new Set(
+      subscriptions.map((subscription) => subscription.projectId),
+    );
 
     const membersMap = new Map(members.map((m) => [m.id, toSafeMember(m)]));
     const labelsMap = new Map(labels.map((l) => [l.id, l]));
@@ -492,6 +502,7 @@ export class ProjectsService {
         projectMembers,
         issuesByProject.get(p.id) ?? [],
         projectTeamIdsByProject.get(p.id) ?? [],
+        subscribedProjectIds.has(p.id),
       ),
     );
   }
@@ -546,6 +557,10 @@ export class ProjectsService {
 
     const membersMap = new Map(members.map((m) => [m.id, toSafeMember(m)]));
     const labelsMap = new Map(labels.map((l) => [l.id, l]));
+    const subscription = await this.em.findOne(ProjectSubscription, {
+      projectId: id,
+      memberId: memberId ?? '',
+    });
 
     return this.transformProject(
       project,
@@ -555,7 +570,49 @@ export class ProjectsService {
       projectMembers,
       issues,
       projectTeamIds,
+      Boolean(subscription),
     );
+  }
+
+  async getSubscription(projectId: string, memberId: string) {
+    const project = await this.em.findOne(Project, { id: projectId });
+    if (!project) throw new NotFoundException(`Project ${projectId} not found`);
+    await this.assertProjectAccess(memberId, project);
+    const subscription = await this.em.findOne(ProjectSubscription, {
+      projectId,
+      memberId,
+    });
+    return { projectId, subscribed: Boolean(subscription) };
+  }
+
+  async subscribe(projectId: string, memberId: string) {
+    const project = await this.em.findOne(Project, { id: projectId });
+    if (!project) throw new NotFoundException(`Project ${projectId} not found`);
+    await this.assertProjectAccess(memberId, project);
+    const existing = await this.em.findOne(ProjectSubscription, {
+      projectId,
+      memberId,
+    });
+    if (!existing) {
+      this.em.persist(new ProjectSubscription({ projectId, memberId }));
+      await this.em.flush();
+    }
+    return { projectId, subscribed: true };
+  }
+
+  async unsubscribe(projectId: string, memberId: string) {
+    const project = await this.em.findOne(Project, { id: projectId });
+    if (!project) throw new NotFoundException(`Project ${projectId} not found`);
+    await this.assertProjectAccess(memberId, project);
+    const existing = await this.em.findOne(ProjectSubscription, {
+      projectId,
+      memberId,
+    });
+    if (existing) {
+      this.em.remove(existing);
+      await this.em.flush();
+    }
+    return { projectId, subscribed: false };
   }
 
   async findDetail(id: string, memberId?: string) {

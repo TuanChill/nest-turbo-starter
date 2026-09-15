@@ -8,12 +8,21 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { renderProjectIcon } from '@/lib/project-utils';
 import { cn } from '@/lib/utils';
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
+import {
+   useProjectSubscription,
+   useToggleProjectSubscription,
+} from '@/hooks/queries/use-projects-query';
 
 interface HealthPopoverProps {
    project: Project;
 }
 
 export function HealthPopover({ project }: HealthPopoverProps) {
+   const { orgId } = useParams<{ orgId: string }>();
+   const { data: subscription } = useProjectSubscription(project.id);
+   const subscriptionMutation = useToggleProjectSubscription();
    const getHealthIcon = (healthId: string) => {
       switch (healthId) {
          case 'on-track':
@@ -54,16 +63,32 @@ export function HealthPopover({ project }: HealthPopoverProps) {
                   <h4 className="font-medium text-sm">{project.name}</h4>
                </div>
                <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="sm" className="h-7 px-2 text-xs">
-                     Subscribe
+                  <Button
+                     variant="ghost"
+                     size="sm"
+                     className="h-7 px-2 text-xs"
+                     disabled={subscriptionMutation.isPending}
+                     onClick={() =>
+                        subscriptionMutation.mutate({
+                           id: project.id,
+                           subscribed: !(subscription?.subscribed ?? project.isSubscribed ?? false),
+                        })
+                     }
+                  >
+                     {(subscription?.subscribed ?? project.isSubscribed)
+                        ? 'Unsubscribe'
+                        : 'Subscribe'}
                   </Button>
                   <Button
+                     asChild
                      variant="outline"
                      size="sm"
                      className="h-7 px-2 text-xs flex items-center gap-1"
                   >
-                     <Bell className="size-3" />
-                     New update
+                     <Link href={`/${orgId}/project/${project.id}/activity`}>
+                        <Bell className="size-3" />
+                        New update
+                     </Link>
                   </Button>
                </div>
             </div>
