@@ -18,6 +18,8 @@ export interface LinearEditorProps {
    onChange?: (markdown: string) => void;
    onBlur?: (markdown: string) => void;
    onSave?: (markdown: string) => void;
+   /** Keep content read-only until the user clicks it, like Linear's issue editor. */
+   mode?: 'always' | 'click-to-edit';
    autoSaveDelay?: number;
    placeholder?: string;
    editable?: boolean;
@@ -31,6 +33,7 @@ export function LinearEditor({
    onChange,
    onBlur,
    onSave,
+   mode = 'always',
    autoSaveDelay = 1000,
    placeholder = "Add description or type '/' for commands...",
    editable = true,
@@ -39,6 +42,7 @@ export function LinearEditor({
    minHeight = 'min-h-[70px]',
 }: LinearEditorProps) {
    const [isMounted, setIsMounted] = React.useState(false);
+   const [isEditing, setIsEditing] = React.useState(mode === 'always' && editable);
    const [slashState, setSlashState] = React.useState<SlashCommandState>({
       isOpen: false,
       query: '',
@@ -51,6 +55,8 @@ export function LinearEditor({
    const lastReportedValue = React.useRef<string>(value);
    const lastSavedValue = React.useRef<string>(value);
    const saveTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+   const isClickToEdit = mode === 'click-to-edit';
+   const editorIsEditable = editable && (!isClickToEdit || isEditing);
 
    const triggerSave = React.useCallback(
       (md: string) => {
@@ -138,7 +144,7 @@ export function LinearEditor({
             slashCommandExt,
          ],
          content: value,
-         editable,
+         editable: editorIsEditable,
          autofocus: autoFocus ? 'end' : false,
          editorProps: {
             attributes: {
@@ -188,9 +194,12 @@ export function LinearEditor({
             lastReportedValue.current = md;
             onBlur?.(md);
             triggerSave(md);
+            if (isClickToEdit) {
+               setIsEditing(false);
+            }
          },
       },
-      [isMounted, scheduleSave, triggerSave]
+      [isMounted, scheduleSave, triggerSave, isClickToEdit]
    );
 
    // Sync value if changed from outside
@@ -206,10 +215,23 @@ export function LinearEditor({
    // Sync editable state
    React.useEffect(() => {
       if (!editor || editor.isDestroyed) return;
-      if (editor.isEditable !== editable) {
-         editor.setEditable(editable);
+      if (editor.isEditable !== editorIsEditable) {
+         editor.setEditable(editorIsEditable);
       }
-   }, [editor, editable]);
+   }, [editor, editorIsEditable]);
+
+   const startEditing = React.useCallback(() => {
+      if (!editor || editor.isDestroyed || !editable) return;
+      if (isClickToEdit) {
+         setIsEditing(true);
+      }
+      requestAnimationFrame(() => {
+         if (!editor.isDestroyed) {
+            editor.setEditable(true);
+            editor.commands.focus('end');
+         }
+      });
+   }, [editor, editable, isClickToEdit]);
 
    const closeSlashMenu = React.useCallback(() => {
       setSlashState({
@@ -241,10 +263,25 @@ export function LinearEditor({
 
    return (
       <div
-         className={cn('relative w-full linear-tiptap-editor cursor-text', className)}
+         className={cn(
+            'relative w-full linear-tiptap-editor',
+            editable && 'cursor-text',
+            isClickToEdit && !isEditing && 'linear-tiptap-view',
+            className
+         )}
+         role={isClickToEdit && editable ? 'button' : undefined}
+         tabIndex={isClickToEdit && editable ? 0 : undefined}
          onClick={() => {
-            if (editor && !editor.isFocused && editable) {
+            if (isClickToEdit && !isEditing) {
+               startEditing();
+            } else if (editor && !editor.isFocused && editable) {
                editor.commands.focus();
+            }
+         }}
+         onKeyDown={(event) => {
+            if (isClickToEdit && !isEditing && (event.key === 'Enter' || event.key === ' ')) {
+               event.preventDefault();
+               startEditing();
             }
          }}
       >
@@ -254,7 +291,7 @@ export function LinearEditor({
             onClose={closeSlashMenu}
             onKeyDownRef={onKeyDownRef}
          />
-         {editable && <LinearBubbleMenu editor={editor} />}
+         {editorIsEditable && <LinearBubbleMenu editor={editor} />}
       </div>
    );
 }

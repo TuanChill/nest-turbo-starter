@@ -233,6 +233,20 @@ input[type='search'] {
    word-break: break-word;
 }
 
+.linear-tiptap-view {
+   min-height: 40px;
+}
+
+.linear-tiptap-view:hover .ProseMirror {
+   border-radius: 0.375rem;
+}
+
+.linear-tiptap-view .ProseMirror:empty::before {
+   content: 'Add description...';
+   color: var(--muted-foreground);
+   opacity: 0.7;
+}
+
 .linear-tiptap-editor .ProseMirror p {
    margin: 0.35rem 0;
 }
@@ -385,4 +399,3 @@ input[type='search'] {
    pointer-events: none;
    height: 0;
 }
-

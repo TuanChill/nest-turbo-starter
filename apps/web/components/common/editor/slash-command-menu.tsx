@@ -129,6 +129,12 @@ export function SlashCommandMenu({ state, onClose, onKeyDownRef }: SlashCommandM
          ref={menuRef}
          style={{ top: `${coords.top}px`, left: `${coords.left}px` }}
          className="fixed z-50 w-64 max-h-72 overflow-y-auto rounded-lg border border-border/70 bg-popover/95 p-1 text-popover-foreground shadow-2xl backdrop-blur-md animate-in fade-in-50 zoom-in-95 duration-150"
+         onMouseDown={(event) => {
+            // Keep the editor focused while selecting a block from the menu.
+            if ((event.target as HTMLElement).closest('button')) {
+               event.preventDefault();
+            }
+         }}
       >
          <div className="px-2 py-1 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
             Basic Blocks

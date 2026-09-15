@@ -119,6 +119,12 @@ export function LinearBubbleMenu({ editor }: LinearBubbleMenuProps) {
       <div
          style={{ top: `${position.top}px`, left: `${position.left}px` }}
          className="fixed z-50 flex items-center gap-0.5 rounded-lg border border-border/80 bg-popover/95 p-1 text-popover-foreground shadow-xl backdrop-blur-md animate-in fade-in-50 zoom-in-95 duration-100 select-none"
+         onMouseDown={(event) => {
+            // Formatting should not blur the editor before the button's action runs.
+            if ((event.target as HTMLElement).closest('button')) {
+               event.preventDefault();
+            }
+         }}
       >
          {isLinkPromptOpen ? (
             <form onSubmit={handleSetLink} className="flex items-center gap-1 px-1">

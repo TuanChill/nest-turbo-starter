@@ -332,6 +332,7 @@ export default function IssueDetails() {
                   <LinearEditor
                      value={initialDescriptionMarkdown}
                      onSave={handleSaveDescription}
+                     mode="click-to-edit"
                      placeholder="Add description or type '/' for commands..."
                      className="px-2 py-1 -mx-2 rounded hover:bg-accent/20 transition-colors"
                   />
