@@ -27,19 +27,10 @@ import {
    Tag,
    Folder,
    CalendarClock,
-   Pencil,
-   Link as LinkIcon,
-   Repeat2,
-   Copy as CopyIcon,
-   PlusSquare,
    Flag,
-   ArrowRightLeft,
-   AlarmClock,
    Trash2,
    CheckCircle2,
    Clock,
-   FileText,
-   MessageSquare,
    Clipboard,
 } from 'lucide-react';
 import React, { useState } from 'react';
@@ -139,18 +130,6 @@ export function IssueContextMenu({ issue }: IssueContextMenuProps) {
       toast.success('Due date set to 7 days from now');
    };
 
-   const handleAddLink = () => {
-      toast.success('Link added');
-   };
-
-   const handleMakeCopy = () => {
-      toast.success('Issue copied');
-   };
-
-   const handleCreateRelated = () => {
-      toast.success('Related issue created');
-   };
-
    const handleMarkAs = (statusId: string) => {
       if (!issueId) return;
       const newStatus = status.find((s) => s.id === statusId);
@@ -160,18 +139,10 @@ export function IssueContextMenu({ issue }: IssueContextMenuProps) {
       }
    };
 
-   const handleMove = () => {
-      toast.success('Issue moved');
-   };
-
    const handleCopy = () => {
       if (!issue) return;
       navigator.clipboard.writeText(issue.title);
       toast.success('Copied to clipboard');
-   };
-
-   const handleRemindMe = () => {
-      toast.success('Reminder set');
    };
 
    const handleDelete = async () => {
@@ -301,42 +272,10 @@ export function IssueContextMenu({ issue }: IssueContextMenuProps) {
                   <ContextMenuShortcut>D</ContextMenuShortcut>
                </ContextMenuItem>
 
-               <ContextMenuItem>
-                  <Pencil className="size-4" /> Rename...
-                  <ContextMenuShortcut>R</ContextMenuShortcut>
-               </ContextMenuItem>
-
                <ContextMenuSeparator />
-
-               <ContextMenuItem onClick={handleAddLink}>
-                  <LinkIcon className="size-4" /> Add link...
-                  <ContextMenuShortcut>Ctrl L</ContextMenuShortcut>
-               </ContextMenuItem>
-
-               <ContextMenuSub>
-                  <ContextMenuSubTrigger>
-                     <Repeat2 className="mr-2 size-4" /> Convert into
-                  </ContextMenuSubTrigger>
-                  <ContextMenuSubContent className="w-48">
-                     <ContextMenuItem>
-                        <FileText className="size-4" /> Document
-                     </ContextMenuItem>
-                     <ContextMenuItem>
-                        <MessageSquare className="size-4" /> Comment
-                     </ContextMenuItem>
-                  </ContextMenuSubContent>
-               </ContextMenuSub>
-
-               <ContextMenuItem onClick={handleMakeCopy}>
-                  <CopyIcon className="size-4" /> Make a copy...
-               </ContextMenuItem>
             </ContextMenuGroup>
 
             <ContextMenuSeparator />
-
-            <ContextMenuItem onClick={handleCreateRelated}>
-               <PlusSquare className="size-4" /> Create related
-            </ContextMenuItem>
 
             <ContextMenuSub>
                <ContextMenuSubTrigger>
@@ -346,31 +285,17 @@ export function IssueContextMenu({ issue }: IssueContextMenuProps) {
                   <ContextMenuItem onClick={() => handleMarkAs('done')}>
                      <CheckCircle2 className="size-4" /> Completed
                   </ContextMenuItem>
-                  <ContextMenuItem onClick={() => handleMarkAs('duplicate')}>
-                     <CopyIcon className="size-4" /> Duplicate
-                  </ContextMenuItem>
                   <ContextMenuItem onClick={() => handleMarkAs('canceled')}>
                      <Clock className="size-4" /> Won&apos;t Fix
                   </ContextMenuItem>
                </ContextMenuSubContent>
             </ContextMenuSub>
 
-            <ContextMenuItem onClick={handleMove}>
-               <ArrowRightLeft className="size-4" /> Move
-            </ContextMenuItem>
-
             <ContextMenuSeparator />
 
             <ContextMenuItem onClick={handleCopy}>
                <Clipboard className="size-4" /> Copy
             </ContextMenuItem>
-
-            <ContextMenuItem onClick={handleRemindMe}>
-               <AlarmClock className="size-4" /> Remind me
-               <ContextMenuShortcut>H</ContextMenuShortcut>
-            </ContextMenuItem>
-
-            <ContextMenuSeparator />
 
             <ContextMenuItem variant="destructive" onClick={() => setDeleteDialogOpen(true)}>
                <Trash2 className="size-4" /> Delete...

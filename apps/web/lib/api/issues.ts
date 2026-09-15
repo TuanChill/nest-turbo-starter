@@ -1,6 +1,6 @@
 import { apiClient } from './client';
-import { Issue } from '@/mock-data/issues';
-import { ContentBlock, IssueDetail } from '@/mock-data/issue-details';
+import type { Issue } from '@/mock-data/issues';
+import type { ContentBlock, IssueDetail } from '@/mock-data/issue-details';
 
 export interface IssueFilterParams {
    teamId?: string;
@@ -43,7 +43,7 @@ export interface UpdateIssuePayload {
    priorityId?: string;
    assigneeId?: string | null;
    teamId?: string;
-   projectId?: string;
+   projectId?: string | null;
    cycleId?: string;
    parentIssueId?: string;
    labelIds?: string[];

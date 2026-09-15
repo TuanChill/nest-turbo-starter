@@ -141,7 +141,7 @@ export class UpdateIssueDto {
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
-  projectId?: string;
+  projectId?: string | null;
 
   @ApiPropertyOptional()
   @IsString()

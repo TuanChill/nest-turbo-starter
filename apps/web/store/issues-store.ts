@@ -14,6 +14,7 @@ import { issueKeys } from '@/hooks/queries/keys';
 import { getQueryClient } from '@/providers/query-provider';
 import { groupIssuesByStatus } from '@/lib/issue-grouping';
 import { create } from 'zustand';
+import { toast } from 'sonner';
 
 interface FilterOptions {
    status?: string[];
@@ -145,7 +146,8 @@ export const useIssuesStore = create<IssuesState>((set, get) => ({
          if (updatedIssue.assignee !== undefined)
             payload.assigneeId = updatedIssue.assignee?.id ?? null;
          if (updatedIssue.cycleId !== undefined) payload.cycleId = updatedIssue.cycleId;
-         if (updatedIssue.project !== undefined) payload.projectId = updatedIssue.project?.id;
+         if (updatedIssue.project !== undefined)
+            payload.projectId = updatedIssue.project?.id ?? null;
          if (updatedIssue.labels !== undefined)
             payload.labelIds = updatedIssue.labels.map((l) => l.id);
          if (updatedIssue.rank !== undefined) payload.rank = updatedIssue.rank;
@@ -157,10 +159,17 @@ export const useIssuesStore = create<IssuesState>((set, get) => ({
          getQueryClient().invalidateQueries({ queryKey: issueKeys.lists() });
       } catch (err) {
          console.error(`Failed to update issue ${identifier} on API:`, err);
+         set({
+            issues: previousIssues,
+            issuesByStatus: groupIssuesByStatus(previousIssues),
+            error: err instanceof Error ? err.message : 'Could not update issue',
+         });
+         toast.error(err instanceof Error ? err.message : 'Could not update issue');
       }
    },
 
    deleteIssue: async (id: string) => {
+      const previousIssues = get().issues;
       const targetIssue = get().issues.find((i) => i.id === id || i.identifier === id);
       const identifier = targetIssue?.identifier || id;
 
@@ -179,6 +188,12 @@ export const useIssuesStore = create<IssuesState>((set, get) => ({
          getQueryClient().invalidateQueries({ queryKey: issueKeys.lists() });
       } catch (err) {
          console.error(`Failed to delete issue ${identifier} on API:`, err);
+         set({
+            issues: previousIssues,
+            issuesByStatus: groupIssuesByStatus(previousIssues),
+            error: err instanceof Error ? err.message : 'Could not delete issue',
+         });
+         toast.error(err instanceof Error ? err.message : 'Could not delete issue');
       }
    },
 
