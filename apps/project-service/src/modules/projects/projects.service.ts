@@ -7,6 +7,7 @@ import {
   CreateProjectUpdateDto,
   UpdateProjectDto,
 } from './dto/project.dto';
+import { isProjectScopeVisible } from './project-scope';
 import {
   Initiative,
   Issue,
@@ -354,15 +355,18 @@ export class ProjectsService {
     if (query?.health) where.healthId = query.health;
 
     const projects = await this.em.find(Project, where);
-    const projectIds = projects.map((project) => project.id);
+    const candidateProjectIds = projects.map((project) => project.id);
     const projectTeamLinks = await this.em.find(ProjectTeam, {
-      projectId: { $in: projectIds },
+      projectId: { $in: candidateProjectIds },
     });
-    const projectTeamIdsByProject = new Map<string, string[]>();
+    const candidateTeamIdsByProject = new Map<string, string[]>();
+    for (const project of projects) {
+      candidateTeamIdsByProject.set(project.id, [project.teamId]);
+    }
     for (const link of projectTeamLinks) {
-      const ids = projectTeamIdsByProject.get(link.projectId) ?? [];
+      const ids = candidateTeamIdsByProject.get(link.projectId) ?? [];
       ids.push(link.teamId);
-      projectTeamIdsByProject.set(link.projectId, ids);
+      candidateTeamIdsByProject.set(link.projectId, ids);
     }
     const allProjectTeamIds = [
       ...new Set([
@@ -373,8 +377,40 @@ export class ProjectsService {
     const teams = await this.em.find(Team, {
       id: { $in: allProjectTeamIds },
     });
+    const workspaceByTeamId = new Map(teams.map((team) => [team.id, team.workspaceId]));
+    const accessibleTeamIdSet = new Set(accessibleTeamIds);
+    const visibleProjects = projects.filter((project) =>
+      isProjectScopeVisible(
+        [...new Set(candidateTeamIdsByProject.get(project.id) ?? [])],
+        workspaceByTeamId,
+        accessibleTeamIdSet,
+      ),
+    );
+    const projectIds = visibleProjects.map((project) => project.id);
+    const visibleProjectIds = new Set(projectIds);
+    const visibleProjectTeamLinks = projectTeamLinks.filter((link) =>
+      visibleProjectIds.has(link.projectId),
+    );
+    const projectTeamIdsByProject = new Map<string, string[]>();
+    for (const link of visibleProjectTeamLinks) {
+      const ids = projectTeamIdsByProject.get(link.projectId) ?? [];
+      ids.push(link.teamId);
+      projectTeamIdsByProject.set(link.projectId, ids);
+    }
+    const visibleTeamIds = [
+      ...new Set(
+        visibleProjects.flatMap(
+          (project) => projectTeamIdsByProject.get(project.id) ?? [project.teamId],
+        ),
+      ),
+    ];
     const workspaceIds = [
-      ...new Set(teams.map((team) => team.workspaceId).filter(Boolean)),
+      ...new Set(
+        teams
+          .filter((team) => visibleTeamIds.includes(team.id))
+          .map((team) => team.workspaceId)
+          .filter(Boolean),
+      ),
     ];
     const projectLabels = await this.em.find(ProjectLabel, {
       projectId: { $in: projectIds },
@@ -385,7 +421,7 @@ export class ProjectsService {
     const candidateMemberIds = [
       ...new Set([
         ...projectMembers.map((link) => link.memberId),
-        ...projects
+        ...visibleProjects
           .map((project) => project.leadId)
           .filter((id): id is string => Boolean(id)),
       ]),
@@ -405,7 +441,7 @@ export class ProjectsService {
       ...(workspaceIds.length ? { workspaceId: { $in: workspaceIds } } : {}),
     });
     const issues = await this.em.find(Issue, {
-      projectId: { $in: projects.map((p) => p.id) },
+      projectId: { $in: projectIds },
     });
 
     const membersMap = new Map(members.map((m) => [m.id, toSafeMember(m)]));
@@ -418,7 +454,7 @@ export class ProjectsService {
       issuesByProject.set(issue.projectId, bucket);
     }
 
-    return projects.map((p) =>
+    return visibleProjects.map((p) =>
       this.transformProject(
         p,
         membersMap,
@@ -444,6 +480,15 @@ export class ProjectsService {
     }
 
     const teams = await this.em.find(Team, { id: { $in: projectTeamIds } });
+    const workspaceByTeamId = new Map(
+      teams.map((candidate) => [candidate.id, candidate.workspaceId]),
+    );
+    if (
+      teams.length !== new Set(projectTeamIds).size ||
+      !isProjectScopeVisible(projectTeamIds, workspaceByTeamId, new Set(projectTeamIds))
+    ) {
+      throw new NotFoundException(`Project ${id} not found`);
+    }
     const team = teams.find((candidate) => candidate.id === project.teamId);
     if (!team) throw new NotFoundException(`Project ${id} not found`);
     const projectLabels = await this.em.find(ProjectLabel, { projectId: id });
