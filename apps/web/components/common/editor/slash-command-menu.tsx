@@ -36,10 +36,24 @@ export function SlashCommandMenu({ state, onClose, onKeyDownRef }: SlashCommandM
    // Compute position relative to viewport
    React.useEffect(() => {
       if (!isOpen || !clientRect) {
-         setCoords(null);
-         return;
+         if (!isOpen) {
+            setCoords(null);
+            return;
+         }
       }
-      const rect = clientRect();
+
+      const selectionRect = () => {
+         const selection = window.getSelection();
+         if (!selection || selection.rangeCount === 0) return null;
+
+         const range = selection.getRangeAt(0);
+         const rect = range.getBoundingClientRect();
+         if (rect.width > 0 || rect.height > 0) return rect;
+
+         return range.getClientRects()[0] ?? null;
+      };
+
+      const rect = clientRect?.() ?? selectionRect();
       if (!rect) {
          setCoords(null);
          return;
