@@ -15,9 +15,14 @@ import { useIssues } from '@/hooks/queries/use-issues-query';
 import {
    useCreateLabel,
    useCreateLabelGroup,
+   useDeleteLabel,
+   useDeleteLabelGroup,
    useLabelGroups,
    useLabels,
+   useUpdateLabel,
+   useUpdateLabelGroup,
 } from '@/hooks/queries/use-labels-query';
+import type { LabelGroup, LabelItem } from '@/services/labels.service';
 import { Loader2 } from 'lucide-react';
 import { FormEvent, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
@@ -57,6 +62,10 @@ export default function IssueLabelsSettings() {
    const { data: labels = [] } = useLabels();
    const createLabel = useCreateLabel();
    const createLabelGroup = useCreateLabelGroup();
+   const updateLabel = useUpdateLabel();
+   const deleteLabel = useDeleteLabel();
+   const updateLabelGroup = useUpdateLabelGroup();
+   const deleteLabelGroup = useDeleteLabelGroup();
    const { data: groups = [] } = useLabelGroups('issue');
    const { orgId } = useParams<{ orgId: string }>();
 
@@ -66,6 +75,14 @@ export default function IssueLabelsSettings() {
    const [newLabelGroupId, setNewLabelGroupId] = useState('');
    const [isGroupOpen, setIsGroupOpen] = useState(false);
    const [newGroupName, setNewGroupName] = useState('');
+   const [newGroupMutuallyExclusive, setNewGroupMutuallyExclusive] = useState(false);
+   const [editingLabel, setEditingLabel] = useState<LabelItem | null>(null);
+   const [editLabelName, setEditLabelName] = useState('');
+   const [editLabelColor, setEditLabelColor] = useState(LABEL_COLOR_OPTIONS[0]);
+   const [editLabelGroupId, setEditLabelGroupId] = useState('');
+   const [editingGroup, setEditingGroup] = useState<LabelGroup | null>(null);
+   const [editGroupName, setEditGroupName] = useState('');
+   const [editGroupMutuallyExclusive, setEditGroupMutuallyExclusive] = useState(false);
 
    const handleCreateLabel = async (event: FormEvent) => {
       event.preventDefault();
@@ -126,6 +143,44 @@ export default function IssueLabelsSettings() {
                </div>
             </div>
 
+            {groups.length > 0 && (
+               <div className="flex flex-wrap gap-2 py-3 border-b">
+                  {groups.map((group) => (
+                     <div
+                        key={group.id}
+                        className="inline-flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-xs"
+                     >
+                        <span>{group.name}</span>
+                        {group.mutuallyExclusive && (
+                           <span className="text-muted-foreground">exclusive</span>
+                        )}
+                        <button
+                           type="button"
+                           className="text-muted-foreground hover:text-foreground"
+                           onClick={() => {
+                              setEditingGroup(group);
+                              setEditGroupName(group.name);
+                              setEditGroupMutuallyExclusive(group.mutuallyExclusive);
+                           }}
+                        >
+                           Edit
+                        </button>
+                        <button
+                           type="button"
+                           className="text-destructive hover:text-destructive/80"
+                           onClick={() => {
+                              if (window.confirm(`Delete label group "${group.name}"?`)) {
+                                 deleteLabelGroup.mutate(group.id);
+                              }
+                           }}
+                        >
+                           Delete
+                        </button>
+                     </div>
+                  ))}
+               </div>
+            )}
+
             {/* Header */}
             <div className="flex items-center px-2 py-1.5 text-xs text-muted-foreground border-b">
                <div className="flex-1 min-w-0">Name ↓</div>
@@ -164,6 +219,35 @@ export default function IssueLabelsSettings() {
                      <div className="w-[80px] text-xs text-muted-foreground">
                         {formatDate(label.createdAt)}
                      </div>
+                     <div className="flex items-center gap-1 ml-3">
+                        <Button
+                           type="button"
+                           size="xs"
+                           variant="ghost"
+                           onClick={() => {
+                              setEditingLabel(label);
+                              setEditLabelName(label.name);
+                              setEditLabelColor(label.color);
+                              setEditLabelGroupId(label.groupId ?? '');
+                           }}
+                        >
+                           Edit
+                        </Button>
+                        <Button
+                           type="button"
+                           size="xs"
+                           variant="ghost"
+                           className="text-destructive"
+                           disabled={deleteLabel.isPending}
+                           onClick={() => {
+                              if (window.confirm(`Delete label "${label.name}"?`)) {
+                                 deleteLabel.mutate(label.id);
+                              }
+                           }}
+                        >
+                           Delete
+                        </Button>
+                     </div>
                   </div>
                </div>
             ))}
@@ -171,6 +255,150 @@ export default function IssueLabelsSettings() {
                <p className="text-sm text-muted-foreground py-6">No labels match your filter.</p>
             )}
          </div>
+
+         <Dialog
+            open={Boolean(editingLabel)}
+            onOpenChange={(open) => !open && setEditingLabel(null)}
+         >
+            <DialogContent className="sm:max-w-[420px]">
+               <form
+                  onSubmit={async (event) => {
+                     event.preventDefault();
+                     if (!editingLabel || !editLabelName.trim()) return;
+                     await updateLabel.mutateAsync({
+                        id: editingLabel.id,
+                        payload: {
+                           name: editLabelName.trim(),
+                           color: editLabelColor,
+                           scope: editingLabel.scope ?? 'issue',
+                           groupId: editLabelGroupId || undefined,
+                        },
+                     });
+                     setEditingLabel(null);
+                  }}
+               >
+                  <DialogHeader>
+                     <DialogTitle>Edit issue label</DialogTitle>
+                     <DialogDescription>Update the label and reassign its group.</DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                     <div className="space-y-1.5">
+                        <FormLabel htmlFor="edit-issue-label-name">Name</FormLabel>
+                        <Input
+                           id="edit-issue-label-name"
+                           value={editLabelName}
+                           onChange={(event) => setEditLabelName(event.target.value)}
+                           disabled={updateLabel.isPending}
+                           autoFocus
+                           required
+                        />
+                     </div>
+                     <div className="space-y-1.5">
+                        <FormLabel>Color</FormLabel>
+                        <div className="flex flex-wrap gap-2">
+                           {LABEL_COLOR_OPTIONS.map((color) => (
+                              <button
+                                 key={color}
+                                 type="button"
+                                 onClick={() => setEditLabelColor(color)}
+                                 aria-label={color}
+                                 className={`size-7 rounded-full ${editLabelColor === color ? 'ring-2 ring-offset-2 ring-offset-background ring-foreground' : ''}`}
+                                 style={{ backgroundColor: color }}
+                              />
+                           ))}
+                        </div>
+                     </div>
+                     <div className="space-y-1.5">
+                        <FormLabel htmlFor="edit-issue-label-group">Group</FormLabel>
+                        <select
+                           id="edit-issue-label-group"
+                           value={editLabelGroupId}
+                           onChange={(event) => setEditLabelGroupId(event.target.value)}
+                           className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                        >
+                           <option value="">No group</option>
+                           {groups.map((group) => (
+                              <option key={group.id} value={group.id}>
+                                 {group.name}
+                              </option>
+                           ))}
+                        </select>
+                     </div>
+                  </div>
+                  <DialogFooter>
+                     <Button type="button" variant="ghost" onClick={() => setEditingLabel(null)}>
+                        Cancel
+                     </Button>
+                     <Button
+                        type="submit"
+                        disabled={updateLabel.isPending || !editLabelName.trim()}
+                     >
+                        {updateLabel.isPending ? 'Saving...' : 'Save changes'}
+                     </Button>
+                  </DialogFooter>
+               </form>
+            </DialogContent>
+         </Dialog>
+
+         <Dialog
+            open={Boolean(editingGroup)}
+            onOpenChange={(open) => !open && setEditingGroup(null)}
+         >
+            <DialogContent className="sm:max-w-[420px]">
+               <form
+                  onSubmit={async (event) => {
+                     event.preventDefault();
+                     if (!editingGroup || !editGroupName.trim()) return;
+                     await updateLabelGroup.mutateAsync({
+                        id: editingGroup.id,
+                        payload: {
+                           name: editGroupName.trim(),
+                           scope: 'issue',
+                           mutuallyExclusive: editGroupMutuallyExclusive,
+                        },
+                     });
+                     setEditingGroup(null);
+                  }}
+               >
+                  <DialogHeader>
+                     <DialogTitle>Edit issue label group</DialogTitle>
+                     <DialogDescription>
+                        Rename the group or change its selection rule.
+                     </DialogDescription>
+                  </DialogHeader>
+                  <div className="py-4 space-y-3">
+                     <FormLabel htmlFor="edit-issue-label-group-name">Name</FormLabel>
+                     <Input
+                        id="edit-issue-label-group-name"
+                        value={editGroupName}
+                        onChange={(event) => setEditGroupName(event.target.value)}
+                        disabled={updateLabelGroup.isPending}
+                        autoFocus
+                        required
+                     />
+                     <label className="flex items-center gap-2 text-sm">
+                        <input
+                           type="checkbox"
+                           checked={editGroupMutuallyExclusive}
+                           onChange={(event) => setEditGroupMutuallyExclusive(event.target.checked)}
+                        />
+                        Mutually exclusive
+                     </label>
+                  </div>
+                  <DialogFooter>
+                     <Button type="button" variant="ghost" onClick={() => setEditingGroup(null)}>
+                        Cancel
+                     </Button>
+                     <Button
+                        type="submit"
+                        disabled={updateLabelGroup.isPending || !editGroupName.trim()}
+                     >
+                        {updateLabelGroup.isPending ? 'Saving...' : 'Save changes'}
+                     </Button>
+                  </DialogFooter>
+               </form>
+            </DialogContent>
+         </Dialog>
 
          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogContent className="sm:max-w-[420px]">
@@ -263,8 +491,10 @@ export default function IssueLabelsSettings() {
                         workspaceId: orgId,
                         name,
                         scope: 'issue',
+                        mutuallyExclusive: newGroupMutuallyExclusive,
                      });
                      setNewGroupName('');
+                     setNewGroupMutuallyExclusive(false);
                      setIsGroupOpen(false);
                   }}
                >
@@ -282,6 +512,14 @@ export default function IssueLabelsSettings() {
                         autoFocus
                         required
                      />
+                     <label className="flex items-center gap-2 text-sm pt-2">
+                        <input
+                           type="checkbox"
+                           checked={newGroupMutuallyExclusive}
+                           onChange={(event) => setNewGroupMutuallyExclusive(event.target.checked)}
+                        />
+                        Mutually exclusive
+                     </label>
                   </div>
                   <DialogFooter>
                      <Button
