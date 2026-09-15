@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils';
-import { useIssuesStore } from '@/store/issues-store';
+import { useAuthStore } from '@/store/auth-store';
 import { useRightPanelStore } from '@/store/right-panel-store';
 import { useSearchStore } from '@/store/search-store';
 import { BarChart3, PanelRight, SearchIcon } from 'lucide-react';
@@ -93,17 +93,13 @@ function HeaderNav() {
 function HeaderOptions() {
    const [tab, setTab] = useMyIssuesTab();
    const { data: serverIssues = [] } = useIssues();
-   const { issues: storeIssues } = useIssuesStore();
+   const currentUserId = useAuthStore((state) => state.user?.id ?? null);
    const { openPanel, togglePanel } = useRightPanelStore();
 
-   const issues = useMemo(() => {
-      const ids = new Set(serverIssues.map((i) => i.id));
-      const idents = new Set(serverIssues.map((i) => i.identifier));
-      const extras = storeIssues.filter((i) => !ids.has(i.id) && !idents.has(i.identifier));
-      return [...serverIssues, ...extras];
-   }, [serverIssues, storeIssues]);
-
-   const count = scopeMyIssues(issues, tab).length;
+   const count = useMemo(
+      () => scopeMyIssues(serverIssues, tab, currentUserId).length,
+      [serverIssues, tab, currentUserId]
+   );
 
    return (
       <div className="w-full flex justify-between items-center border-b py-1.5 px-6 h-10">
