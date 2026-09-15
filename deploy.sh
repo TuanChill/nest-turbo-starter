@@ -60,8 +60,45 @@ echo "Reclaiming unused Docker build cache and images..."
 docker builder prune -af --filter until=168h
 docker image prune -af --filter until=168h
 
-echo "Building backend images..."
-"${COMPOSE[@]}" build auth-service user-service notification-service project-service apisix adc
+changed_files="$(git diff --name-only "${DEPLOY_REF}^" "${DEPLOY_REF}" || true)"
+build_targets=()
+build_all=false
+
+add_build_target() {
+  local target="$1"
+  local existing
+  for existing in "${build_targets[@]}"; do
+    [[ "$existing" == "$target" ]] && return
+  done
+  build_targets+=("$target")
+}
+
+while IFS= read -r changed_file; do
+  case "$changed_file" in
+    apps/auth-service/*) add_build_target auth-service ;;
+    apps/user-service/*) add_build_target user-service ;;
+    apps/notification-service/*) add_build_target notification-service ;;
+    apps/project-service/*) add_build_target project-service ;;
+    .docker/compose/nodejs/*|libs/common/*|libs/core/*|package.json|pnpm-lock.yaml|pnpm-workspace.yaml|turbo.json)
+      build_all=true
+      ;;
+    .docker/compose/apisix/*|docker-compose.yml|docker-compose.prod.yml)
+      add_build_target apisix
+      add_build_target adc
+      ;;
+  esac
+done <<< "$changed_files"
+
+if [[ "$build_all" == true ]]; then
+  build_targets=(auth-service user-service notification-service project-service apisix adc)
+fi
+
+if [[ "${#build_targets[@]}" -gt 0 ]]; then
+  echo "Building backend images: ${build_targets[*]}"
+  "${COMPOSE[@]}" build "${build_targets[@]}"
+else
+  echo "No backend image changes detected; reusing existing images."
+fi
 
 echo "Applying database migrations..."
 "${COMPOSE[@]}" run --rm --no-deps -e COREPACK_ENABLE_DOWNLOAD_PROMPT=0 project-service pnpm --filter=project-service migration:up
