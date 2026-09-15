@@ -21,7 +21,10 @@ interface HealthPopoverProps {
 
 export function HealthPopover({ project }: HealthPopoverProps) {
    const { orgId } = useParams<{ orgId: string }>();
-   const { data: subscription } = useProjectSubscription(project.id);
+   const { data: subscription } = useProjectSubscription(
+      project.id,
+      project.isSubscribed === undefined
+   );
    const subscriptionMutation = useToggleProjectSubscription();
    const getHealthIcon = (healthId: string) => {
       switch (healthId) {
