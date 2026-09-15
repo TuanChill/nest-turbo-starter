@@ -9,7 +9,7 @@ import {
    SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { Issue } from '@/mock-data/issues';
+import type { Issue } from '@/mock-data/issues';
 import { priorities } from '@/mock-data/priorities';
 import { Status, workflowOrderedStatus } from '@/mock-data/status';
 import { useRightPanelStore } from '@/store/right-panel-store';

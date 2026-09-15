@@ -2,7 +2,7 @@
 
 import { cn } from '@/lib/utils';
 import { useIssues } from '@/hooks/queries/use-issues-query';
-import { ContentBlock } from '@/mock-data/issue-details';
+import type { ContentBlock } from '@/mock-data/issue-details';
 import { Check, ImageIcon, Play } from 'lucide-react';
 import { renderStatusIcon } from '@/lib/status-utils';
 import Link from 'next/link';

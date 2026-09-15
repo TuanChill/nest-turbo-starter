@@ -44,11 +44,11 @@ import {
 } from 'lucide-react';
 import React, { useState } from 'react';
 import { useIssuesStore } from '@/store/issues-store';
-import { Issue } from '@/mock-data/issues';
+import type { Issue } from '@/mock-data/issues';
 import { status } from '@/mock-data/status';
 import { priorities } from '@/mock-data/priorities';
-import { labels } from '@/mock-data/labels';
 import { useMembers } from '@/hooks/queries/use-members-query';
+import { useLabels } from '@/hooks/queries/use-labels-query';
 import { useProjects } from '@/hooks/queries/use-projects-query';
 import { useCycles } from '@/hooks/queries/use-cycles-query';
 import { useDeleteIssue } from '@/hooks/queries/use-issues-query';
@@ -70,6 +70,7 @@ export function IssueContextMenu({ issue }: IssueContextMenuProps) {
       updateIssue,
    } = useIssuesStore();
    const { data: members = [] } = useMembers();
+   const { data: labels = [] } = useLabels('issue');
    const { data: projects = [] } = useProjects();
    const { data: cycles = [] } = useCycles(issue?.teamId);
    const deleteIssueMutation = useDeleteIssue();

@@ -1,8 +1,8 @@
 'use client';
 
-import { IssueDetail } from '@/mock-data/issue-details';
-import { Issue } from '@/mock-data/issues';
-import { LabelInterface } from '@/mock-data/labels';
+import type { IssueDetail } from '@/mock-data/issue-details';
+import type { Issue } from '@/mock-data/issues';
+import type { LabelInterface } from '@/mock-data/labels';
 import { GitPullRequestArrow } from 'lucide-react';
 import { AssigneeUser } from '../assignee-user';
 import { CycleSelector } from '../cycle-selector';

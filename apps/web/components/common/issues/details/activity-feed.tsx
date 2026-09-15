@@ -3,7 +3,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Command, CommandGroup, CommandItem, CommandList } from '@/components/ui/command';
-import { ActivityItem } from '@/mock-data/issue-details';
+import type { ActivityItem } from '@/mock-data/issue-details';
 import type { Member } from '@/services/members.service';
 import { useAuthStore } from '@/store/auth-store';
 import { addIssueComment, addIssueReaction } from '@/lib/api/issues';
