@@ -49,7 +49,7 @@ export default function Projects({ teamId }: { teamId?: string }) {
    const { openPanel, togglePanel } = useRightPanelStore();
    const [tab, setTab] = useQueryState('tab', parseAsStringLiteral(TABS).withDefault('all'));
    const viewType = viewTypes[tab];
-   const { data: projects = [], isLoading } = useProjects(teamId);
+   const { data: projects = [], isLoading, isError, error, refetch } = useProjects(teamId);
    const { data: teams = [] } = useTeams();
 
    const displayed = useMemo(() => {
@@ -127,6 +127,22 @@ export default function Projects({ teamId }: { teamId?: string }) {
                      <Skeleton className="size-6 rounded-full" />
                   </div>
                ))}
+            </div>
+         </div>
+      );
+   }
+
+   if (isError) {
+      return (
+         <div className="flex h-full items-center justify-center p-6">
+            <div className="max-w-md space-y-3 text-center">
+               <h2 className="text-sm font-semibold">Could not load projects</h2>
+               <p className="text-xs text-muted-foreground">
+                  {error instanceof Error ? error.message : 'The projects request failed.'}
+               </p>
+               <Button size="sm" variant="secondary" onClick={() => void refetch()}>
+                  Retry
+               </Button>
             </div>
          </div>
       );

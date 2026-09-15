@@ -20,6 +20,7 @@ import {
   Notification,
   PrLink,
   Project,
+  ProjectTeam,
   Team,
   TeamMember,
   toSafeMember,
@@ -137,6 +138,26 @@ export class IssuesService {
         `Assignee ${assigneeId} is not a member of team ${teamId}`,
       );
     }
+  }
+
+  private async getProjectTeamIds(projectId: string, primaryTeamId: string) {
+    const links = await this.em.find(ProjectTeam, { projectId });
+    return [...new Set([primaryTeamId, ...links.map((link) => link.teamId)])];
+  }
+
+  private async validateProjectForTeam(
+    projectId: string,
+    teamId: string,
+    actorId: string,
+  ) {
+    const project = await this.em.findOne(Project, { id: projectId });
+    if (!project) throw new NotFoundException(`Project ${projectId} not found`);
+    const projectTeamIds = await this.getProjectTeamIds(project.id, project.teamId);
+    if (!projectTeamIds.includes(teamId)) {
+      throw new BadRequestException('Project and issue must share a project team');
+    }
+    await this.assertTeamAccess(actorId, teamId, `Team ${teamId} not found`);
+    return project;
   }
 
   private async getMemberIdsForTeam(teamId: string) {
@@ -349,19 +370,40 @@ export class IssuesService {
       scope: { $in: ['issue', 'both'] },
       ...(workspaceIds.length ? { workspaceId: { $in: workspaceIds } } : {}),
     });
+    const issueProjectIds = issues
+      .map((issue) => issue.projectId)
+      .filter((id): id is string => Boolean(id));
     const projects = await this.em.find(Project, {
-      id: {
-        $in: issues
-          .map((issue) => issue.projectId)
-          .filter((id): id is string => Boolean(id)),
-      },
+      id: { $in: issueProjectIds },
+    });
+    const projectTeams = await this.em.find(ProjectTeam, {
+      projectId: { $in: issueProjectIds },
       teamId: { $in: [...new Set(issues.map((issue) => issue.teamId))] },
     });
+    const projectTeamKeys = new Set(
+      projectTeams.map((projectTeam) => `${projectTeam.projectId}:${projectTeam.teamId}`),
+    );
+    const validProjectIds = new Set(
+      issues
+        .filter((issue) => {
+          if (!issue.projectId) return false;
+          const project = projects.find((candidate) => candidate.id === issue.projectId);
+          return Boolean(
+            project &&
+              (project.teamId === issue.teamId ||
+                projectTeamKeys.has(`${project.id}:${issue.teamId}`)),
+          );
+        })
+        .map((issue) => issue.projectId)
+        .filter((id): id is string => Boolean(id)),
+    );
     const issueLabels = await this.em.find(IssueLabel, { issueId: { $in: issueIds } });
 
     const membersMap = new Map(members.map((m) => [m.id, toSafeMember(m)]));
     const labelsMap = new Map(labels.map((l) => [l.id, l]));
-    const projectsMap = new Map(projects.map((p) => [p.id, p]));
+    const projectsMap = new Map(
+      projects.filter((project) => validProjectIds.has(project.id)).map((p) => [p.id, p]),
+    );
 
     // subissues mapping
     const subissuesMap = new Map<string, string[]>();
@@ -434,17 +476,22 @@ export class IssuesService {
       scope: { $in: ['issue', 'both'] },
       ...(team?.workspaceId ? { workspaceId: team.workspaceId } : {}),
     });
-    const projects = await this.em.find(Project, {
-      id: issue.projectId ? issue.projectId : { $in: [] },
-      teamId: issue.teamId,
-    });
+    const projects = issue.projectId
+      ? await this.em.find(Project, { id: issue.projectId })
+      : [];
+    const project = projects[0];
+    const projectTeamIds = project
+      ? await this.getProjectTeamIds(project.id, project.teamId)
+      : [];
+    const visibleProjects =
+      project && projectTeamIds.includes(issue.teamId) ? [project] : [];
     const issueLabels = await this.em.find(IssueLabel, {
       $or: [{ issueId: issue.id }, { issueId: issue.identifier }],
     });
 
     const membersMap = new Map(members.map((m) => [m.id, toSafeMember(m)]));
     const labelsMap = new Map(labels.map((l) => [l.id, l]));
-    const projectsMap = new Map(projects.map((p) => [p.id, p]));
+    const projectsMap = new Map(visibleProjects.map((p) => [p.id, p]));
 
     const subIssues = await this.em.find(Issue, {
       $or: [{ parentIssueId: issue.id }, { parentIssueId: issue.identifier }],
@@ -606,13 +653,23 @@ export class IssuesService {
 
     if (projectId) {
       const proj = await this.em.findOne(Project, { id: projectId });
-      if (!proj?.teamId || !accessibleTeamIds.includes(proj.teamId)) {
+      if (!proj) {
         throw new NotFoundException(`Project ${projectId} not found`);
       }
-      if (teamId && teamId !== proj.teamId) {
-        throw new BadRequestException('Project and team must belong to the same team');
+      const projectTeamIds = await this.getProjectTeamIds(proj.id, proj.teamId);
+      const visibleProjectTeamIds = projectTeamIds.filter((id) =>
+        accessibleTeamIds.includes(id),
+      );
+      if (visibleProjectTeamIds.length === 0) {
+        throw new NotFoundException(`Project ${projectId} not found`);
       }
-      teamId = proj.teamId;
+      if (teamId && !projectTeamIds.includes(teamId)) {
+        throw new BadRequestException('Project and issue must share a project team');
+      }
+      if (teamId && !accessibleTeamIds.includes(teamId)) {
+        throw new NotFoundException(`Team ${teamId} not found`);
+      }
+      teamId = teamId || visibleProjectTeamIds[0];
     }
 
     // An omitted team is resolved to the caller's first accessible team. An
@@ -751,15 +808,7 @@ export class IssuesService {
 
     const nextProjectId = dto.projectId !== undefined ? dto.projectId : issue.projectId;
     if (nextProjectId) {
-      const targetProject = await this.em.findOne(Project, { id: nextProjectId });
-      if (!targetProject?.teamId || targetProject.teamId !== nextTeamId) {
-        throw new BadRequestException('Project and issue must belong to the same team');
-      }
-      await this.assertTeamAccess(
-        actorId,
-        targetProject.teamId,
-        `Issue ${identifierOrId} not found`,
-      );
+      await this.validateProjectForTeam(nextProjectId, nextTeamId, actorId);
     }
 
     const nextCycleId = dto.cycleId !== undefined ? dto.cycleId : issue.cycleId;

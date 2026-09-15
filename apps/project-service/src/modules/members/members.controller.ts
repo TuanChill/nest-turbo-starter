@@ -24,25 +24,29 @@ export class MembersController {
 
   @ApiOperation({ summary: 'Get workspace member by ID' })
   @Get(':id')
-  findOne(@Param('id') id: string): Promise<any> {
-    return this.membersService.findOne(id);
+  findOne(@Param('id') id: string, @User('id') requesterId: string): Promise<any> {
+    return this.membersService.findOne(id, requesterId);
   }
 
   @ApiOperation({ summary: 'Create new member' })
   @Post()
-  create(@Body() dto: CreateMemberDto): Promise<any> {
-    return this.membersService.create(dto);
+  create(@Body() dto: CreateMemberDto, @User('id') actorId: string): Promise<any> {
+    return this.membersService.create(dto, actorId);
   }
 
   @ApiOperation({ summary: 'Update member' })
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateMemberDto): Promise<any> {
-    return this.membersService.update(id, dto);
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateMemberDto,
+    @User('id') actorId: string,
+  ): Promise<any> {
+    return this.membersService.update(id, dto, actorId);
   }
 
   @ApiOperation({ summary: 'Get teams of a member' })
   @Get(':id/teams')
-  getTeams(@Param('id') id: string): Promise<any[]> {
-    return this.membersService.getMemberTeams(id);
+  getTeams(@Param('id') id: string, @User('id') requesterId: string): Promise<any[]> {
+    return this.membersService.getMemberTeams(id, requesterId);
   }
 }

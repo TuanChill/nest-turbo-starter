@@ -1,7 +1,15 @@
 import { EntityManager } from '@mikro-orm/core';
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateNotificationDto, MarkReadDto } from './dto/inbox.dto';
-import { Issue, Member, Notification, toSafeMember } from '../../data-access';
+import {
+  Issue,
+  Member,
+  Notification,
+  Team,
+  TeamMember,
+  toSafeMember,
+  WorkspaceMember,
+} from '../../data-access';
 import { IssuesService } from '../issues/issues.service';
 
 function formatTimestamp(date: Date): string {
@@ -28,19 +36,30 @@ export class InboxService {
       { orderBy: { createdAt: 'DESC' } },
     );
 
-    const members = await this.em.find(Member, {});
-    const membersMap = new Map(members.map((m) => [m.id, toSafeMember(m)]));
-
     const results = await Promise.allSettled(
       notifications.map(async (notif) => {
-        const issue = await this.issuesService.findOne(notif.issueIdentifier);
-        const user = membersMap.get(notif.actorId) || membersMap.get('ln');
+        const issue = await this.issuesService.findOne(notif.issueIdentifier, userId);
+        const team = await this.em.findOne(Team, { id: issue.teamId });
+        const actor = await this.em.findOne(Member, { id: notif.actorId });
+        let actorIsVisible = false;
+        if (team && actor) {
+          const [teamMembership, workspaceMembership] = await Promise.all([
+            this.em.findOne(TeamMember, { teamId: team.id, memberId: actor.id }),
+            team.workspaceId
+              ? this.em.findOne(WorkspaceMember, {
+                  workspaceId: team.workspaceId,
+                  memberId: actor.id,
+                })
+              : null,
+          ]);
+          actorIsVisible = Boolean(teamMembership || workspaceMembership);
+        }
         return {
           ...issue,
           id: notif.id,
           content: notif.content,
           type: notif.type,
-          user,
+          user: actorIsVisible && actor ? toSafeMember(actor) : null,
           timestamp: formatTimestamp(notif.createdAt),
           notificationCreatedAt: notif.createdAt.toISOString(),
           read: notif.read,
@@ -119,12 +138,37 @@ export class InboxService {
     await this.em.flush();
   }
 
-  async create(dto: CreateNotificationDto) {
+  async create(dto: CreateNotificationDto, actorId: string) {
+    if (dto.actorId !== actorId) {
+      throw new BadRequestException(
+        'Notification actor must be the authenticated member',
+      );
+    }
+    const issue = await this.issuesService.findOne(dto.issueIdentifier, actorId);
+    const recipientId = dto.userId ?? actorId;
+    const recipient = await this.em.findOne(Member, { id: recipientId });
+    if (!recipient) throw new NotFoundException(`Member ${recipientId} not found`);
+
+    const team = await this.em.findOne(Team, { id: issue.teamId });
+    if (!team) throw new NotFoundException(`Team ${issue.teamId} not found`);
+    const [teamMembership, workspaceMembership] = await Promise.all([
+      this.em.findOne(TeamMember, { teamId: team.id, memberId: recipientId }),
+      team.workspaceId
+        ? this.em.findOne(WorkspaceMember, {
+            workspaceId: team.workspaceId,
+            memberId: recipientId,
+          })
+        : null,
+    ]);
+    if (!teamMembership && !workspaceMembership) {
+      throw new NotFoundException(`Member ${recipientId} not found`);
+    }
+
     const notif = new Notification({
       id: `notification-${Date.now()}`,
       issueIdentifier: dto.issueIdentifier,
-      userId: dto.userId || 'ln',
-      actorId: dto.actorId,
+      userId: recipientId,
+      actorId,
       type: dto.type,
       content: dto.content,
       read: dto.read || false,

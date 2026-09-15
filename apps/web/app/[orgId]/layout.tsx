@@ -16,6 +16,10 @@ export default function WorkspaceOrgLayout({ children }: { children: React.React
    const { data: workspaces, isLoading, isFetching, isFetched } = useWorkspaces();
    const { initNotifications, isInitialized: notificationsInitialized } = useNotificationsStore();
 
+   const matchingWorkspace = workspaces?.find(
+      (ws) => ws.slug === currentOrgId || ws.id === currentOrgId
+   );
+
    React.useEffect(() => {
       if (isAuthenticated && !notificationsInitialized) {
          initNotifications();
@@ -54,6 +58,13 @@ export default function WorkspaceOrgLayout({ children }: { children: React.React
          saveActiveWorkspace(matchingWorkspace.slug);
       }
    }, [workspaces, isLoading, isFetching, isFetched, isAuthenticated, currentOrgId, router]);
+
+   // Do not render workspace-scoped children until the authenticated workspace
+   // has been resolved. This prevents child queries from firing against a
+   // legacy/foreign orgId (for example /my-workspace) before the redirect runs.
+   if (isAuthenticated && (!isFetched || isLoading || !workspaces?.length || !matchingWorkspace)) {
+      return null;
+   }
 
    return <>{children}</>;
 }

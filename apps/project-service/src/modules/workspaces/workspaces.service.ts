@@ -9,6 +9,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
 import { JoinWorkspaceDto } from './dto/join-workspace.dto';
 import { Member, Team, TeamMember, Workspace, WorkspaceMember } from '../../data-access';
+import { canAccessWorkspace } from '../access-control';
 
 @Injectable()
 export class WorkspacesService {
@@ -199,6 +200,18 @@ export class WorkspacesService {
     const isOwner = resolvedMemberId
       ? ws.ownerId === resolvedMemberId || (member && ws.ownerId === member.id)
       : false;
+
+    if (
+      (memberId || memberEmail) &&
+      !canAccessWorkspace(
+        currentMemberMembership ? [ws.id] : [],
+        ws.id,
+        isOwner ? resolvedMemberId : null,
+        resolvedMemberId || '',
+      )
+    ) {
+      throw new NotFoundException(`Workspace "${idOrSlug}" not found`);
+    }
 
     return {
       ...ws,

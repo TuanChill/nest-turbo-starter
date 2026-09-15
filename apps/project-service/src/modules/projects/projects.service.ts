@@ -495,7 +495,19 @@ export class ProjectsService {
       { projectId: id },
       { orderBy: { createdAt: 'DESC' } },
     );
-    const members = await this.em.find(Member, {});
+    const detailTeam = await this.em.findOne(Team, { id: baseProject.teamId });
+    const teamWorkspaceIds = detailTeam?.workspaceId ? [detailTeam.workspaceId] : [];
+    const detailWorkspaceMemberIds = teamWorkspaceIds.length
+      ? await this.em.find(WorkspaceMember, {
+          workspaceId: { $in: teamWorkspaceIds },
+        })
+      : [];
+    const detailMemberIds = [
+      ...new Set(detailWorkspaceMemberIds.map((membership) => membership.memberId)),
+    ];
+    const members = await this.em.find(Member, {
+      id: detailMemberIds.length ? { $in: detailMemberIds } : { $in: [] },
+    });
     const membersMap = new Map(members.map((m) => [m.id, toSafeMember(m)]));
     const activities = await this.em.find(
       ProjectActivity,

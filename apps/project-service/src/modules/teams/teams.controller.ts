@@ -40,8 +40,8 @@ export class TeamsController {
 
   @ApiOperation({ summary: 'Get team members' })
   @Get(':id/members')
-  findMembers(@Param('id') id: string) {
-    return this.teamsService.findMembers(id);
+  findMembers(@Param('id') id: string, @User('id') memberId: string) {
+    return this.teamsService.findMembers(id, memberId);
   }
 
   @ApiOperation({ summary: 'Create new team' })

@@ -7,8 +7,10 @@ import {
   Team,
   TeamMember,
   toSafeMember,
+  Workspace,
   WorkspaceMember,
 } from '../../data-access';
+import { allMembersBelongToWorkspace, canAccessTeam } from '../access-control';
 import { WorkspacesService } from '../workspaces/workspaces.service';
 
 export interface PublicMember {
@@ -38,9 +40,20 @@ export class TeamsService {
     notFoundMessage: string,
   ) {
     const accessibleTeamIds = await this.workspacesService.getAccessibleTeamIds(memberId);
-    if (!accessibleTeamIds.includes(teamId)) {
+    if (!canAccessTeam(accessibleTeamIds, teamId)) {
       throw new NotFoundException(notFoundMessage);
     }
+  }
+
+  private async resolveWorkspaceId(memberId: string, requestedWorkspaceId: string) {
+    const accessibleWorkspaceIds =
+      await this.workspacesService.getAccessibleWorkspaceIds(memberId);
+    const workspace = await this.em.findOne(Workspace, {
+      $or: [{ id: requestedWorkspaceId }, { slug: requestedWorkspaceId }],
+    });
+    return workspace && accessibleWorkspaceIds.includes(workspace.id)
+      ? workspace.id
+      : null;
   }
 
   private toPublicMember(member: Member): PublicMember {
@@ -62,7 +75,13 @@ export class TeamsService {
   async findAll(memberId?: string, workspaceId?: string) {
     let filter: any = {};
     if (workspaceId) {
-      filter = { workspaceId };
+      if (memberId) {
+        const resolvedWorkspaceId = await this.resolveWorkspaceId(memberId, workspaceId);
+        if (!resolvedWorkspaceId) return [];
+        filter = { workspaceId: resolvedWorkspaceId };
+      } else {
+        filter = { workspaceId };
+      }
     } else if (memberId) {
       // Find all workspaces where memberId is a member
       const userWorkspaces = await this.em.find(WorkspaceMember, { memberId });
@@ -117,6 +136,9 @@ export class TeamsService {
   async findOne(id: string, memberId?: string) {
     const team = await this.em.findOne(Team, { id });
     if (!team) throw new NotFoundException(`Team ${id} not found`);
+    if (memberId) {
+      await this.assertTeamAccess(memberId, id, `Team ${id} not found`);
+    }
 
     const teamMembers = await this.em.find(TeamMember, { teamId: id });
     const members = await this.em.find(Member, {
@@ -142,12 +164,11 @@ export class TeamsService {
   }
 
   async create(dto: CreateTeamDto, currentMemberId: string) {
+    let resolvedWorkspaceId: string | undefined;
     if (dto.workspaceId) {
-      const membership = await this.em.findOne(WorkspaceMember, {
-        workspaceId: dto.workspaceId,
-        memberId: currentMemberId,
-      });
-      if (!membership) {
+      resolvedWorkspaceId =
+        (await this.resolveWorkspaceId(currentMemberId, dto.workspaceId)) || undefined;
+      if (!resolvedWorkspaceId) {
         throw new NotFoundException(`Workspace ${dto.workspaceId} not found`);
       }
     }
@@ -161,6 +182,7 @@ export class TeamsService {
     const { memberIds, ...teamData } = dto;
     const team = new Team({
       ...teamData,
+      ...(resolvedWorkspaceId ? { workspaceId: resolvedWorkspaceId } : {}),
       id,
       icon: dto.icon || '⚡',
       color: dto.color || '#5e6ad2',
@@ -172,6 +194,25 @@ export class TeamsService {
     const membersToEnroll = new Set<string>(memberIds || []);
     if (team.joined && currentMemberId) {
       membersToEnroll.add(currentMemberId);
+    }
+
+    if (team.workspaceId && membersToEnroll.size > 0) {
+      const workspaceMembers = await this.em.find(WorkspaceMember, {
+        workspaceId: team.workspaceId,
+        memberId: { $in: [...membersToEnroll] },
+      });
+      const validMemberIds = new Set(
+        workspaceMembers.map((membership) => membership.memberId),
+      );
+      const invalidMemberIds = [...membersToEnroll].filter(
+        (memberId) => !validMemberIds.has(memberId),
+      );
+      if (
+        invalidMemberIds.length > 0 ||
+        !allMembersBelongToWorkspace([...validMemberIds], [...membersToEnroll])
+      ) {
+        throw new NotFoundException(`Member(s) ${invalidMemberIds.join(', ')} not found`);
+      }
     }
 
     for (const memberId of membersToEnroll) {
@@ -201,6 +242,7 @@ export class TeamsService {
   async toggleJoin(id: string, currentMemberId: string) {
     const team = await this.em.findOne(Team, { id });
     if (!team) throw new NotFoundException(`Team ${id} not found`);
+    await this.assertTeamAccess(currentMemberId, id, `Team ${id} not found`);
 
     const existingTm = await this.em.findOne(TeamMember, {
       teamId: id,
@@ -229,6 +271,14 @@ export class TeamsService {
     if (!team) throw new NotFoundException(`Team ${teamId} not found`);
     await this.assertTeamAccess(actorId, teamId, `Team ${teamId} not found`);
 
+    if (team.workspaceId) {
+      const member = await this.em.findOne(WorkspaceMember, {
+        workspaceId: team.workspaceId,
+        memberId: dto.memberId,
+      });
+      if (!member) throw new NotFoundException(`Member ${dto.memberId} not found`);
+    }
+
     const existing = await this.em.findOne(TeamMember, {
       teamId,
       memberId: dto.memberId,
@@ -242,7 +292,7 @@ export class TeamsService {
       this.em.persist(tm);
       await this.em.flush();
     }
-    return this.findOne(teamId);
+    return this.findOne(teamId, actorId);
   }
 
   async removeMember(teamId: string, memberId: string, actorId: string) {
@@ -252,10 +302,11 @@ export class TeamsService {
       this.em.remove(tm);
       await this.em.flush();
     }
-    return this.findOne(teamId);
+    return this.findOne(teamId, actorId);
   }
 
-  async findMembers(teamId: string) {
+  async findMembers(teamId: string, memberId: string) {
+    await this.assertTeamAccess(memberId, teamId, `Team ${teamId} not found`);
     const teamMembers = await this.em.find(TeamMember, { teamId });
     const memberIds = teamMembers.map((tm) => tm.memberId);
     const members = await this.em.find(Member, { id: { $in: memberIds } });

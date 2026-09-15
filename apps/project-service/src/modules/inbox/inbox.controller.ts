@@ -57,7 +57,7 @@ export class InboxController {
 
   @ApiOperation({ summary: 'Create new notification' })
   @Post()
-  create(@Body() dto: CreateNotificationDto) {
-    return this.inboxService.create(dto);
+  create(@Body() dto: CreateNotificationDto, @User('id') actorId: string) {
+    return this.inboxService.create(dto, actorId);
   }
 }
