@@ -4,7 +4,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useTeams } from '@/hooks/queries/use-teams-query';
 import { format, parseISO } from 'date-fns';
 import { renderProjectIcon } from '@/lib/project-utils';
-import { ArrowRight, ChevronDown, FileText, PenLine, Plus } from 'lucide-react';
+import { ArrowRight, ChevronDown, PenLine } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -20,6 +20,7 @@ import type { LabelInterface } from '@/mock-data/labels';
 import { LinearEditor } from '@/components/common/editor/linear-editor';
 import { contentBlocksToMarkdown } from '@/lib/content-blocks-to-markdown';
 import { markdownToContentBlocks } from '@/lib/markdown-to-content-blocks';
+import { ProjectResourcesEditor } from './project-resources-editor';
 
 interface ProjectOverviewProps {
    projectId: string;
@@ -226,9 +227,6 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
                            <span className="w-24 text-muted-foreground shrink-0">Initiatives</span>
                            <span className="inline-flex items-center gap-1.5">
                               📄 {project.initiative}
-                              <button className="text-muted-foreground hover:text-foreground transition-colors">
-                                 <Plus className="size-3.5" />
-                              </button>
                            </span>
                         </div>
                      )}
@@ -259,26 +257,13 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
                         </div>
                      </div>
 
-                     {detail.resources.length > 0 && (
-                        <div className="flex items-center gap-3">
-                           <span className="w-24 text-muted-foreground shrink-0">Resources</span>
-                           <div className="flex items-center gap-2 flex-wrap">
-                              {detail.resources.map((resource) => (
-                                 <a
-                                    key={resource.label}
-                                    href={resource.url}
-                                    className="inline-flex items-center gap-1.5 text-xs border rounded-md px-2 py-1 hover:bg-accent/50 transition-colors"
-                                 >
-                                    <FileText className="size-3.5 text-muted-foreground" />
-                                    {resource.label}
-                                 </a>
-                              ))}
-                              <button className="text-muted-foreground hover:text-foreground transition-colors">
-                                 <Plus className="size-3.5" />
-                              </button>
-                           </div>
-                        </div>
-                     )}
+                     <div className="flex items-center gap-3">
+                        <span className="w-24 text-muted-foreground shrink-0">Resources</span>
+                        <ProjectResourcesEditor
+                           projectId={project.id}
+                           resources={detail.resources}
+                        />
+                     </div>
                   </div>
 
                   {/* Update CTA */}

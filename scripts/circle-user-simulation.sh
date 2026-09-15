@@ -75,6 +75,8 @@ group="$(api POST /labels/groups "$(jq -nc --arg workspaceId "$WORKSPACE_ID" '{w
 group_id="$(jq -er '.id' <<<"$group")"
 label="$(api POST /labels "$(jq -nc --arg workspaceId "$WORKSPACE_ID" --arg id "sim-label-$RUN_ID" --arg groupId "$group_id" '{workspaceId:$workspaceId,id:$id,name:"Simulation label",color:"#5e6ad2",scope:"both",groupId:$groupId}')")"
 label_id="$(jq -er '.id' <<<"$label")"
+second_label="$(api POST /labels "$(jq -nc --arg workspaceId "$WORKSPACE_ID" --arg id "sim-label-secondary-$RUN_ID" --arg groupId "$group_id" '{workspaceId:$workspaceId,id:$id,name:"Simulation secondary label",color:"#f2c94c",scope:"both",groupId:$groupId}')")"
+second_label_id="$(jq -er '.id' <<<"$second_label")"
 
 project="$(api POST /projects "$(jq -nc --arg teamId "$TEAM_ID" --arg labelId "$label_id" '{name:"Circle simulation project",teamId:$teamId,priorityId:"high",healthId:"on-track",labelIds:[$labelId]}')")"
 project_id="$(jq -er '.id' <<<"$project")"
@@ -94,17 +96,41 @@ cycle_id="$(jq -er '.id' <<<"$cycle")"
 root="$(api POST /issues "$(jq -nc --arg teamId "$TEAM_ID" --arg projectId "$project_id" --arg cycleId "$cycle_id" --arg assigneeId "$assignee_id" --arg labelId "$label_id" '{title:"Circle simulation root issue",description:"Authenticated simulation",teamId:$teamId,projectId:$projectId,cycleId:$cycleId,assigneeId:$assigneeId,statusId:"to-do",priorityId:"urgent",labelIds:[$labelId]}')")"
 root_identifier="$(jq -er '.identifier' <<<"$root")"
 root_id="$(jq -er '.id' <<<"$root")"
-child="$(api POST /issues "$(jq -nc --arg teamId "$TEAM_ID" --arg parentIssueId "$root_id" --arg projectId "$project_id" '{title:"Circle simulation child issue",teamId:$teamId,parentIssueId:$parentIssueId,projectId:$projectId,statusId:"to-do",priorityId:"medium"}')")"
+mention_id="$(jq -er '.[1].id // .[0].id' <<<"$team_members")"
+child="$(api POST /issues "$(jq -nc --arg teamId "$TEAM_ID" --arg parentIssueId "$root_id" --arg projectId "$project_id" --arg cycleId "$cycle_id" '{title:"Circle simulation child issue",teamId:$teamId,parentIssueId:$parentIssueId,projectId:$projectId,cycleId:$cycleId,statusId:"to-do",priorityId:"medium"}')")"
 child_identifier="$(jq -er '.identifier' <<<"$child")"
 related="$(api POST /issues "$(jq -nc --arg teamId "$TEAM_ID" '{title:"Circle simulation related issue",teamId:$teamId,statusId:"to-do",priorityId:"low"}')")"
 related_identifier="$(jq -er '.identifier' <<<"$related")"
 
 api POST "/issues/$root_identifier/relations" "$(jq -nc --arg targetIdentifier "$related_identifier" '{targetIdentifier:$targetIdentifier,relationType:"relates_to"}')" >/dev/null
-api POST "/issues/$root_identifier/comments" "$(jq -nc '{textContent:"Simulation comment with persisted activity"}')" >/dev/null
+api POST "/issues/$root_identifier/comments" "$(jq -nc --arg mentionId "$mention_id" '{textContent:("Simulation comment with persisted activity @" + $mentionId)}')" >/dev/null
 detail="$(api GET "/issues/$root_identifier/detail")"
 activity_id="$(jq -er '.activity[0].id' <<<"$detail")"
 api POST "/issues/activities/$activity_id/reactions" '{emoji:"✅"}' >/dev/null
-api PATCH "/issues/$root_identifier" "$(jq -nc --arg assigneeId "$assignee_id" '{statusId:"in-progress",priorityId:"high",assigneeId:$assigneeId}')" >/dev/null
+
+if api PATCH "/issues/$root_identifier" "$(jq -nc --arg labelA "$label_id" --arg labelB "$second_label_id" '{labelIds:[$labelA,$labelB]}')" >/dev/null 2>&1; then
+  echo 'Mutually exclusive label group was not enforced' >&2
+  exit 1
+else
+  echo 'PASS mutually exclusive label group rejected conflicting update'
+fi
+
+api PATCH "/issues/$root_identifier" "$(jq -nc --arg assigneeId "$assignee_id" --arg labelId "$label_id" '{statusId:"in-progress",priorityId:"high",assigneeId:$assigneeId,labelIds:[$labelId]}')" >/dev/null
+
+project_subscription="$(api GET "/projects/$project_id/subscription")"
+assert_json 'project starts unsubscribed' "$project_subscription" '.subscribed == false'
+project_subscription="$(api POST "/projects/$project_id/subscription")"
+assert_json 'project subscription persisted' "$project_subscription" '.subscribed == true'
+
+api POST "/projects/$project_id/updates" '{health:"at-risk",blocks:[{type:"paragraph",text:"Simulation project update"}]}' >/dev/null
+milestone="$(api POST "/projects/$project_id/milestones" '{name:"Simulation milestone",targetDate:"2099-01-07"}')"
+milestone_id="$(jq -er '.milestones | last | .id' <<<"$milestone")"
+api PATCH "/projects/$project_id/milestones/$milestone_id/toggle" >/dev/null
+
+cycle_check="$(api GET "/cycles/$cycle_id")"
+assert_json 'cycle progress is derived from issues' "$cycle_check" '.scope >= 2 and .started >= 1'
+cycle_history="$(api GET "/cycles/$cycle_id/history")"
+assert_json 'cycle history is persisted' "$cycle_history" 'length >= 1'
 
 subscription="$(api GET "/issues/$root_identifier/subscription")"
 assert_json 'issue creator is subscribed' "$subscription" '.subscribed == true'
@@ -118,8 +144,14 @@ cloned_project_id="$(jq -er '.id // .projectId' <<<"$cloned_project")"
 
 project_check="$(api GET "/projects/$project_id")"
 assert_json 'project persisted with live label' "$project_check" '.labels | length > 0'
+detail="$(api GET "/issues/$root_identifier/detail")"
 assert_json 'parent issue and activity persisted' "$detail" --arg child_identifier "$child_identifier" '.subIssueIds | any(.[]; . == $child_identifier) and (.activity | length) > 0'
 assert_json 'relation persisted' "$detail" --arg related_identifier "$related_identifier" '.relations | any(.[]; .identifier == $related_identifier)'
+assert_json 'comment mention and reaction persisted' "$detail" 'any(.activity[]; ((.textContent // .text // "") | contains("Simulation comment"))) and any(.activity[]; ((.reactions // []) | length > 0))'
+project_detail="$(api GET "/projects/$project_id/detail")"
+assert_json 'project update and milestone activity persisted' "$project_detail" '.updates | length >= 1 and .milestones | length >= 1 and .activity | length >= 2'
+inbox="$(api GET /inbox)"
+assert_json 'inbox returns a persisted collection' "$inbox" 'type == "array"'
 clone_check="$(api GET "/projects/$cloned_project_id")"
 assert_json 'project template clone persisted' "$clone_check" '.id != null and .id != ""'
 cloned_issues="$(api GET "/issues?teamId=$TEAM_ID&projectId=$cloned_project_id")"

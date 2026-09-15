@@ -236,7 +236,12 @@ export function InsightsPanel({ issues }: InsightsPanelProps) {
          </div>
 
          <div className="shrink-0 border-t px-4 py-3">
-            <button className="text-xs text-indigo-500 dark:text-indigo-400 hover:underline">
+            <button
+               type="button"
+               disabled
+               title="Workspace-wide display defaults are not available in this deployment"
+               className="text-xs text-muted-foreground/50 cursor-not-allowed"
+            >
                Set default for everyone
             </button>
          </div>

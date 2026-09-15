@@ -14,7 +14,7 @@ import { useProjectsDisplayStore } from '@/store/projects-display-store';
 import { format, parseISO } from 'date-fns';
 import { renderProjectIcon } from '@/lib/project-utils';
 import { renderPriorityIcon } from '@/lib/priority-utils';
-import { ArrowLeft, ArrowRight, Check, ChevronDown, Plus } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, ChevronDown } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ProjectPeekPanel } from './project-peek-panel';
 import { ProjectGroup } from './projects';
@@ -452,9 +452,6 @@ export default function ProjectsTimeline({ groups }: ProjectsTimelineProps) {
                            <span className="text-xs text-muted-foreground">
                               {group.projects.length}
                            </span>
-                           <button className="ml-auto text-muted-foreground hover:text-foreground transition-colors">
-                              <Plus className="size-3.5" />
-                           </button>
                         </div>
                         <div className="py-1">
                            {group.projects.map((project) => (

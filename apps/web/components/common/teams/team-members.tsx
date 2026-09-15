@@ -96,7 +96,13 @@ export default function TeamMembers() {
                      </Command>
                   </PopoverContent>
                </Popover>
-               <Button size="xs" variant="ghost">
+               <Button
+                  size="xs"
+                  variant="ghost"
+                  disabled
+                  aria-label="Member filters unavailable"
+                  title="Member filters are not available in this deployment"
+               >
                   <SlidersHorizontal className="size-4" />
                </Button>
             </div>
@@ -120,9 +126,6 @@ export default function TeamMembers() {
                   </Avatar>
                   <div className="flex flex-col min-w-0">
                      <span className="font-medium truncate">{member.name}</span>
-                     <span className="text-xs text-muted-foreground truncate">
-                        {member.name.split('.')[0]}
-                     </span>
                   </div>
                </div>
                <div className="hidden md:block md:w-[35%] text-muted-foreground truncate">

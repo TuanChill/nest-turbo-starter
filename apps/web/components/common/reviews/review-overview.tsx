@@ -157,7 +157,12 @@ export function ReviewOverview({ review }: { review: Review }) {
                            />
                            {review.deployment.state}
                         </span>
-                        <button className="text-primary text-left hover:underline">
+                        <button
+                           type="button"
+                           disabled
+                           title="Deployment actions are not configured"
+                           className="text-muted-foreground/50 text-left cursor-not-allowed"
+                        >
                            {review.deployment.action}
                         </button>
                      </div>

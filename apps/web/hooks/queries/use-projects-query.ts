@@ -118,6 +118,7 @@ export function useUpdateProject() {
       onSuccess: (updated) => {
          queryClient.invalidateQueries({ queryKey: projectKeys.lists() });
          queryClient.invalidateQueries({ queryKey: projectKeys.detail(updated.id) });
+         queryClient.invalidateQueries({ queryKey: projectKeys.activity(updated.id) });
          toast.success('Project updated');
       },
       onError: (error: Error) => {

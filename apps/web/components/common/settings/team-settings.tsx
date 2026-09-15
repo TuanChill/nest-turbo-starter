@@ -303,9 +303,9 @@ export default function TeamSettings({ teamId }: TeamSettingsProps) {
                         icon={<Radar className="size-4" />}
                         title="Triage"
                         description="Streamline how you handle requests from outside your team"
-                        trailing={<span>Enabled</span>}
+                        trailing={<span>Unavailable</span>}
                         chevron
-                        onClick={() => toast.info('Triage inbox is enabled')}
+                        onClick={() => toast.error('Triage inbox is not configured')}
                      />
                      <Link href={`/${orgId}/team/${team.id}/cycles`} className="block">
                         <SettingsRow

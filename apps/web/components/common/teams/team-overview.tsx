@@ -4,12 +4,14 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { useTeam } from '@/hooks/queries/use-teams-query';
 import { useDocuments } from '@/hooks/queries/use-documents-query';
+import { CreateDocumentDialog } from './create-document-dialog';
 import QueryErrorState from '@/components/common/query-error-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { RiDonutChartFill } from '@remixicon/react';
-import { Box, CopyMinus, Layers, Plus, Settings, SquareStack } from 'lucide-react';
+import { Box, CopyMinus, Layers, Settings, SquareStack } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+import { useState } from 'react';
 
 /**
  * Team Home — "Overview" tab: team identity, pinned resources and
@@ -19,6 +21,7 @@ export default function TeamOverview() {
    const { orgId, teamId } = useParams<{ orgId: string; teamId: string }>();
    const { data: team, isLoading, isError, error, refetch } = useTeam(teamId);
    const { data: folders = [] } = useDocuments(teamId);
+   const [createDocumentOpen, setCreateDocumentOpen] = useState(false);
 
    const pinnedDocuments = folders
       .flatMap((folder) => folder.documents)
@@ -56,17 +59,40 @@ export default function TeamOverview() {
                <h1 className="text-3xl font-semibold">{team.name}</h1>
             </div>
 
-            <p className="mt-4 text-muted-foreground">Add a description...</p>
+            <p className="mt-4 text-muted-foreground">
+               {team.description?.trim() || 'No description set for this team.'}
+            </p>
 
             <div className="mt-12">
                <div className="flex items-center justify-between">
                   <h2 className="text-xl font-semibold">Team resources</h2>
                   <div className="flex items-center gap-1">
-                     <Button variant="ghost" size="icon" className="size-7 rounded-full border">
-                        <Plus className="size-4" />
-                     </Button>
-                     <Button variant="ghost" size="icon" className="size-7 rounded-full border">
-                        <SquareStack className="size-4" />
+                     <CreateDocumentDialog
+                        open={createDocumentOpen}
+                        onOpenChange={setCreateDocumentOpen}
+                        trigger={
+                           <Button
+                              variant="ghost"
+                              size="icon"
+                              className="size-7 rounded-full border"
+                              aria-label="Add team resource"
+                              title="Add team resource"
+                           >
+                              <span className="text-base leading-none">＋</span>
+                           </Button>
+                        }
+                     />
+                     <Button
+                        asChild
+                        variant="ghost"
+                        size="icon"
+                        className="size-7 rounded-full border"
+                        aria-label="Open all team resources"
+                        title="Open all team resources"
+                     >
+                        <Link href={`/${orgId}/team/${team.id}/documents`}>
+                           <SquareStack className="size-4" />
+                        </Link>
                      </Button>
                   </div>
                </div>

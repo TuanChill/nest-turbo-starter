@@ -843,7 +843,7 @@ export class ProjectsService {
     }
 
     await this.em.flush();
-    return this.findOne(id);
+    return this.findOne(id, memberId);
   }
 
   async delete(id: string, memberId: string) {

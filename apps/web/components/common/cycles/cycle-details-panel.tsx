@@ -269,9 +269,15 @@ export function CycleDetailsPanel({ cycle, issues }: CycleDetailsPanelProps) {
                <h2 className="text-lg font-semibold">{cycle.name}</h2>
             </div>
 
-            <button className="flex items-center gap-1.5 mt-3 text-sm text-muted-foreground hover:text-foreground transition-colors">
+            <button
+               type="button"
+               disabled
+               title="Cycle documents and links are not available in this deployment"
+               aria-label="Cycle documents and links unavailable"
+               className="flex items-center gap-1.5 mt-3 text-sm text-muted-foreground/50 cursor-not-allowed"
+            >
                <Plus className="size-4" />
-               Add document or link...
+               Documents and links unavailable
             </button>
          </div>
 

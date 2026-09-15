@@ -53,7 +53,13 @@ export default function ProjectStatusesSettings() {
                <div key={group.label}>
                   <div className="flex items-center justify-between px-4 py-2 bg-accent/30 border-y first:border-t-0 border-border/50">
                      <span className="text-sm text-muted-foreground">{group.label}</span>
-                     <button className="text-muted-foreground hover:text-foreground transition-colors">
+                     <button
+                        type="button"
+                        disabled
+                        aria-label="Adding custom project statuses is unavailable"
+                        title="Custom project statuses are not available in this deployment"
+                        className="text-muted-foreground/50 cursor-not-allowed"
+                     >
                         <Plus className="size-3.5" />
                      </button>
                   </div>

@@ -241,7 +241,12 @@ export function ProjectsDisplayOptions() {
                >
                   Reset
                </button>
-               <button className="text-sm text-indigo-500 dark:text-indigo-400 hover:underline">
+               <button
+                  type="button"
+                  disabled
+                  title="Workspace-wide display defaults are not available in this deployment"
+                  className="text-sm text-muted-foreground/50 cursor-not-allowed"
+               >
                   Set default for everyone
                </button>
             </div>
