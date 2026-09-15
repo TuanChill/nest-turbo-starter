@@ -1,15 +1,21 @@
 import { EntityManager } from '@mikro-orm/core';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { CreateNotificationDto, MarkReadDto } from './dto/inbox.dto';
+import {
+  CreateNotificationDto,
+  MarkReadDto,
+  UpdateNotificationPreferencesDto,
+} from './dto/inbox.dto';
 import {
   Issue,
   Member,
   Notification,
+  NotificationPreference,
   Team,
   TeamMember,
   toSafeMember,
   WorkspaceMember,
 } from '../../data-access';
+import type { NotificationCategories } from '../../data-access';
 import { IssuesService } from '../issues/issues.service';
 
 function formatTimestamp(date: Date): string {
@@ -28,6 +34,89 @@ export class InboxService {
     private readonly em: EntityManager,
     private readonly issuesService: IssuesService,
   ) {}
+
+  private defaultCategories() {
+    return {
+      comments: true,
+      mentions: true,
+      assignments: true,
+      statusChanges: true,
+      projectUpdates: true,
+    };
+  }
+
+  private normalizeCategories(
+    current?: Partial<NotificationCategories>,
+    incoming?: Partial<NotificationCategories>,
+  ): NotificationCategories {
+    const currentValues = (current ?? {}) as Record<string, unknown>;
+    const incomingValues = (incoming ?? {}) as Record<string, unknown>;
+    const defaults = this.defaultCategories();
+    const pick = (key: keyof NotificationCategories) =>
+      typeof incomingValues[key] === 'boolean'
+        ? incomingValues[key]
+        : typeof currentValues[key] === 'boolean'
+          ? currentValues[key]
+          : defaults[key];
+    return {
+      comments: pick('comments') as boolean,
+      mentions: pick('mentions') as boolean,
+      assignments: pick('assignments') as boolean,
+      statusChanges: pick('statusChanges') as boolean,
+      projectUpdates: pick('projectUpdates') as boolean,
+    };
+  }
+
+  private serializePreferences(preferences: NotificationPreference) {
+    return {
+      memberId: preferences.memberId,
+      channels: {
+        desktop: preferences.desktop,
+        mobile: preferences.mobile,
+        email: preferences.email,
+        slack: preferences.slack,
+      },
+      emailFormat: preferences.emailFormat,
+      categories: this.normalizeCategories(preferences.categories),
+    };
+  }
+
+  async getNotificationPreferences(memberId: string) {
+    let preferences = await this.em.findOne(NotificationPreference, { memberId });
+    if (!preferences) {
+      preferences = new NotificationPreference({
+        memberId,
+        categories: this.normalizeCategories(),
+      });
+      this.em.persist(preferences);
+      await this.em.flush();
+    }
+    return this.serializePreferences(preferences);
+  }
+
+  async updateNotificationPreferences(
+    memberId: string,
+    dto: UpdateNotificationPreferencesDto,
+  ) {
+    let preferences = await this.em.findOne(NotificationPreference, { memberId });
+    if (!preferences) {
+      preferences = new NotificationPreference({
+        memberId,
+        categories: this.defaultCategories(),
+      });
+      this.em.persist(preferences);
+    }
+    Object.assign(preferences, {
+      desktop: dto.desktop ?? preferences.desktop,
+      mobile: dto.mobile ?? preferences.mobile,
+      email: dto.email ?? preferences.email,
+      slack: dto.slack ?? preferences.slack,
+      emailFormat: dto.emailFormat ?? preferences.emailFormat,
+      categories: this.normalizeCategories(preferences.categories, dto.categories),
+    });
+    await this.em.flush();
+    return this.serializePreferences(preferences);
+  }
 
   async findAll(userId: string) {
     const notifications = await this.em.find(

@@ -4,11 +4,51 @@ import type { InboxItem } from '@/mock-data/inbox';
 export type { InboxItem };
 export type Notification = InboxItem;
 
+export interface NotificationPreferences {
+   memberId: string;
+   channels: {
+      desktop: boolean;
+      mobile: boolean;
+      email: boolean;
+      slack: boolean;
+   };
+   emailFormat: 'digest' | 'immediate';
+   categories: {
+      comments: boolean;
+      mentions: boolean;
+      assignments: boolean;
+      statusChanges: boolean;
+      projectUpdates: boolean;
+   };
+}
+
+export type NotificationPreferencesPatch = {
+   desktop?: boolean;
+   mobile?: boolean;
+   email?: boolean;
+   slack?: boolean;
+   emailFormat?: NotificationPreferences['emailFormat'];
+   categories?: Partial<NotificationPreferences['categories']>;
+};
+
 export async function getInboxNotifications(): Promise<InboxItem[]> {
    return apiClient<InboxItem[]>('/circle/api/inbox');
 }
 
 export const fetchInbox = getInboxNotifications;
+
+export async function getNotificationPreferences(): Promise<NotificationPreferences> {
+   return apiClient<NotificationPreferences>('/circle/api/inbox/preferences');
+}
+
+export async function updateNotificationPreferences(
+   patch: NotificationPreferencesPatch
+): Promise<NotificationPreferences> {
+   return apiClient<NotificationPreferences>('/circle/api/inbox/preferences', {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+   });
+}
 
 export async function markNotificationAsRead(
    id: string,

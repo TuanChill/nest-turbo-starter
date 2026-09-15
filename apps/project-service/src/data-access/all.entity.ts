@@ -12,6 +12,7 @@ import { Issue } from './issue/issue.entity';
 import { LabelGroup } from './label/label-group.entity';
 import { IssueLabel, Label, ProjectLabel } from './label/label.entity';
 import { Member } from './member/member.entity';
+import { NotificationPreference } from './notification/notification-preference.entity';
 import { Notification } from './notification/notification.entity';
 import { ProjectActivity } from './project/project-activity.entity';
 import { ProjectMember } from './project/project-member.entity';
@@ -71,6 +72,7 @@ export const ALL_ENTITIES = [
   DocumentFolder,
   TeamDocument,
   Notification,
+  NotificationPreference,
   SavedView,
   Review,
 ];

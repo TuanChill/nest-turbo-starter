@@ -1,6 +1,7 @@
 import type { EntityManager } from '@mikro-orm/core';
 import { ProjectTemplatesService } from './project-templates.service';
 import { ProjectTemplate, Team, Workspace, WorkspaceMember } from '../../data-access';
+import type { ProjectTemplateConfig } from '../../data-access';
 
 jest.mock('@mikro-orm/core', () => ({
   EntityManager: class MockEntityManager {},
@@ -44,7 +45,15 @@ jest.mock('../../data-access', () => {
 });
 
 describe('ProjectTemplatesService.instantiate', () => {
-  function buildService(issuesService: { create: jest.Mock }) {
+  function buildService(
+    issuesService: { create: jest.Mock; addRelation?: jest.Mock },
+    config: ProjectTemplateConfig = {
+      issues: [
+        { key: 'root', title: 'Root issue' },
+        { key: 'child', title: 'Child issue', parentKey: 'root' },
+      ],
+    },
+  ) {
     let rolledBack = false;
     const template = new ProjectTemplate({
       id: 'template-1',
@@ -52,12 +61,7 @@ describe('ProjectTemplatesService.instantiate', () => {
       name: 'Launch',
       scope: 'workspace',
       createdBy: 'member-1',
-      config: {
-        issues: [
-          { key: 'root', title: 'Root issue' },
-          { key: 'child', title: 'Child issue', parentKey: 'root' },
-        ],
-      },
+      config,
     });
     const em = {
       findOne: jest.fn(async (entity: unknown) => {
@@ -142,5 +146,56 @@ describe('ProjectTemplatesService.instantiate', () => {
     expect(em.transactional).toHaveBeenCalledTimes(1);
     expect(rolledBack()).toBe(true);
     expect(projectsService.findOne).not.toHaveBeenCalled();
+  });
+
+  it('remaps template issue relations to the newly created identifiers', async () => {
+    const issuesService = {
+      create: jest
+        .fn()
+        .mockResolvedValueOnce({ id: 'issue-root', identifier: 'ENG-101' })
+        .mockResolvedValueOnce({ id: 'issue-other', identifier: 'ENG-102' }),
+      addRelation: jest.fn().mockResolvedValue({}),
+    };
+    const { service } = buildService(issuesService, {
+      issues: [
+        { key: 'root', title: 'Root issue' },
+        { key: 'other', title: 'Other issue' },
+      ],
+      relations: [{ sourceKey: 'root', targetKey: 'other', relationType: 'blocks' }],
+    });
+
+    await service.instantiate(
+      'template-1',
+      { name: 'Launch copy', teamId: 'team-1' },
+      'member-1',
+    );
+
+    expect(issuesService.addRelation).toHaveBeenCalledWith(
+      'ENG-101',
+      { targetIdentifier: 'ENG-102', relationType: 'blocks' },
+      'member-1',
+    );
+  });
+
+  it('rejects relations that reference an issue outside the template', async () => {
+    const issuesService = {
+      create: jest.fn(),
+      addRelation: jest.fn(),
+    };
+    const { service } = buildService(issuesService, {
+      issues: [{ key: 'root', title: 'Root issue' }],
+      relations: [
+        { sourceKey: 'root', targetKey: 'missing', relationType: 'relates_to' },
+      ],
+    });
+
+    await expect(
+      service.instantiate(
+        'template-1',
+        { name: 'Invalid copy', teamId: 'team-1' },
+        'member-1',
+      ),
+    ).rejects.toThrow('Template contains invalid references');
+    expect(issuesService.create).not.toHaveBeenCalled();
   });
 });

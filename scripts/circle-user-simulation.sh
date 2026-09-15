@@ -79,7 +79,7 @@ label_id="$(jq -er '.id' <<<"$label")"
 project="$(api POST /projects "$(jq -nc --arg teamId "$TEAM_ID" --arg labelId "$label_id" '{name:"Circle simulation project",teamId:$teamId,priorityId:"high",healthId:"on-track",labelIds:[$labelId]}')")"
 project_id="$(jq -er '.id' <<<"$project")"
 
-project_template="$(api POST /project-templates "$(jq -nc --arg workspaceId "$WORKSPACE_ID" --arg teamId "$TEAM_ID" --arg labelId "$label_id" '{name:"Circle simulation project template",scope:"team",workspaceId:$workspaceId,teamId:$teamId,config:{project:{priorityId:"medium",healthId:"on-track",labelIds:[$labelId]},milestones:[{key:"milestone",name:"Simulation milestone"}],issues:[{key:"root",title:"Simulation root issue",labelIds:[$labelId]},{key:"child",title:"Simulation child issue",parentKey:"root",labelIds:[$labelId]}]}}')")"
+project_template="$(api POST /project-templates "$(jq -nc --arg workspaceId "$WORKSPACE_ID" --arg teamId "$TEAM_ID" --arg labelId "$label_id" '{name:"Circle simulation project template",scope:"team",workspaceId:$workspaceId,teamId:$teamId,config:{project:{priorityId:"medium",healthId:"on-track",labelIds:[$labelId]},milestones:[{key:"milestone",name:"Simulation milestone"}],issues:[{key:"root",title:"Simulation root issue",labelIds:[$labelId]},{key:"child",title:"Simulation child issue",parentKey:"root",labelIds:[$labelId]}],relations:[{sourceKey:"root",targetKey:"child",relationType:"relates_to"}]}}')")"
 project_template_id="$(jq -er '.id' <<<"$project_template")"
 
 issue_template="$(api POST /issue-templates "$(jq -nc --arg workspaceId "$WORKSPACE_ID" --arg teamId "$TEAM_ID" --arg labelId "$label_id" '{name:"Circle simulation issue template",scope:"team",workspaceId:$workspaceId,teamId:$teamId,config:{title:"Simulation issue",description:"Created by the authenticated user simulation",statusId:"to-do",priorityId:"medium",labelIds:[$labelId]}}')")"
@@ -122,6 +122,11 @@ assert_json 'parent issue and activity persisted' "$detail" --arg child_identifi
 assert_json 'relation persisted' "$detail" --arg related_identifier "$related_identifier" '.relations | any(.[]; .identifier == $related_identifier)'
 clone_check="$(api GET "/projects/$cloned_project_id")"
 assert_json 'project template clone persisted' "$clone_check" '.id != null and .id != ""'
+cloned_issues="$(api GET "/issues?teamId=$TEAM_ID&projectId=$cloned_project_id")"
+cloned_root_identifier="$(jq -er '.[] | select(.title == "Simulation root issue") | .identifier' <<<"$cloned_issues")"
+cloned_child_identifier="$(jq -er '.[] | select(.title == "Simulation child issue") | .identifier' <<<"$cloned_issues")"
+cloned_detail="$(api GET "/issues/$cloned_root_identifier/detail")"
+assert_json 'template clone remaps issue relation' "$cloned_detail" --arg cloned_child_identifier "$cloned_child_identifier" '.relations | any(.[]; .identifier == $cloned_child_identifier)'
 
 echo "PASS authenticated user simulation"
 echo "workspace=$WORKSPACE_ID team=$TEAM_ID project=$project_id clonedProject=$cloned_project_id rootIssue=$root_identifier childIssue=$child_identifier initiative=$initiative_id cycle=$cycle_id issueTemplate=$issue_template_id"

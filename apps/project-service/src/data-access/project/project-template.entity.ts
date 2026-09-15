@@ -9,6 +9,12 @@ import { v7 } from 'uuid';
 
 export type ProjectTemplateScope = 'workspace' | 'team';
 
+export type ProjectTemplateRelationType =
+  | 'blocks'
+  | 'blocked_by'
+  | 'relates_to'
+  | 'duplicate_of';
+
 export interface ProjectTemplateConfig {
   project?: {
     summary?: string;
@@ -48,6 +54,12 @@ export interface ProjectTemplateConfig {
     parentKey?: string;
     dueDate?: string;
     rank?: string;
+  }>;
+  /** Relations between issues in the template, addressed by stable issue keys. */
+  relations?: Array<{
+    sourceKey: string;
+    targetKey: string;
+    relationType: ProjectTemplateRelationType;
   }>;
 }
 

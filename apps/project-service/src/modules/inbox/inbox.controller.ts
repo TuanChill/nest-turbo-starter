@@ -1,7 +1,11 @@
 import { User } from '@app/common';
 import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { CreateNotificationDto, MarkReadDto } from './dto/inbox.dto';
+import {
+  CreateNotificationDto,
+  MarkReadDto,
+  UpdateNotificationPreferencesDto,
+} from './dto/inbox.dto';
 import { InboxService } from './inbox.service';
 
 @ApiTags('Inbox')
@@ -13,6 +17,21 @@ export class InboxController {
   @Get()
   findAll(@User('id') userId: string) {
     return this.inboxService.findAll(userId);
+  }
+
+  @ApiOperation({ summary: 'Get persisted notification preferences' })
+  @Get('preferences')
+  getPreferences(@User('id') userId: string) {
+    return this.inboxService.getNotificationPreferences(userId);
+  }
+
+  @ApiOperation({ summary: 'Update persisted notification preferences' })
+  @Patch('preferences')
+  updatePreferences(
+    @User('id') userId: string,
+    @Body() dto: UpdateNotificationPreferencesDto,
+  ) {
+    return this.inboxService.updateNotificationPreferences(userId, dto);
   }
 
   @ApiOperation({ summary: 'Mark single notification as read/unread' })
