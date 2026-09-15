@@ -120,7 +120,6 @@ export class ProjectsService {
     projectMembers: ProjectMember[],
     issues: Issue[],
   ) {
-    const lead = project.leadId ? membersMap.get(project.leadId) : membersMap.get('ln');
     const labelIds = projectLabels
       .filter((pl) => pl.projectId === project.id)
       .map((pl) => pl.labelId);
@@ -129,6 +128,16 @@ export class ProjectsService {
       .filter((pm) => pm.projectId === project.id)
       .map((pm) => membersMap.get(pm.memberId))
       .filter(Boolean);
+    // A project can outlive a soft-deleted lead. Keep the response shape
+    // renderable so project lists never crash while displaying that project.
+    const lead = (project.leadId
+      ? membersMap.get(project.leadId)
+      : membersMap.get('ln')) ||
+      members[0] || {
+        id: project.leadId || 'unknown',
+        name: 'Unknown member',
+        avatarUrl: null,
+      };
 
     const status = STATUS_DATA[project.statusId] || {
       id: project.statusId,
