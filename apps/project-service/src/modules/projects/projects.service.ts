@@ -8,8 +8,10 @@ import {
   UpdateProjectDto,
 } from './dto/project.dto';
 import {
+  Initiative,
   Issue,
   Label,
+  LabelGroup,
   Member,
   Project,
   ProjectActivity,
@@ -21,6 +23,7 @@ import {
   toSafeMember,
   WorkspaceMember,
 } from '../../data-access';
+import { assertMutuallyExclusiveLabelSelection } from '../labels/label-rules';
 import { WorkspacesService } from '../workspaces/workspaces.service';
 
 // Standard status lookup
@@ -114,6 +117,11 @@ export class ProjectsService {
     if (missingIds.length > 0) {
       throw new BadRequestException(`Unknown project label(s): ${missingIds.join(', ')}`);
     }
+    const groupedLabelIds = new Set(labels.map((label) => label.groupId).filter(Boolean));
+    const exclusiveGroups = await this.em.find(LabelGroup, {
+      id: { $in: [...groupedLabelIds] },
+    });
+    assertMutuallyExclusiveLabelSelection(labels, exclusiveGroups);
     return uniqueLabelIds;
   }
 
@@ -134,6 +142,38 @@ export class ProjectsService {
       );
     }
     return [...new Set(memberIds)];
+  }
+
+  private async validateLeadId(
+    leadId: string | undefined,
+    teamId: string,
+    actorId: string,
+  ) {
+    if (leadId) await this.validateMemberIds([leadId], teamId, actorId);
+  }
+
+  private async validateInitiativeId(
+    initiativeId: string | undefined,
+    teamId: string,
+    actorId: string,
+  ) {
+    if (!initiativeId) return;
+    const [initiative, team] = await Promise.all([
+      this.em.findOne(Initiative, { id: initiativeId }),
+      this.em.findOne(Team, { id: teamId }),
+    ]);
+    const accessibleWorkspaceIds =
+      await this.workspacesService.getAccessibleWorkspaceIds(actorId);
+    if (
+      !initiative ||
+      !team?.workspaceId ||
+      initiative.workspaceId !== team.workspaceId ||
+      !accessibleWorkspaceIds.includes(initiative.workspaceId)
+    ) {
+      throw new BadRequestException(
+        `Initiative ${initiativeId} is not available to project team ${teamId}`,
+      );
+    }
   }
 
   private recordActivity(
@@ -252,10 +292,41 @@ export class ProjectsService {
     if (query?.health) where.healthId = query.health;
 
     const projects = await this.em.find(Project, where);
-    const members = await this.em.find(Member, {});
-    const labels = await this.em.find(Label, { scope: { $in: ['project', 'both'] } });
-    const projectLabels = await this.em.find(ProjectLabel, {});
-    const projectMembers = await this.em.find(ProjectMember, {});
+    const projectIds = projects.map((project) => project.id);
+    const teams = await this.em.find(Team, {
+      id: { $in: [...new Set(projects.map((project) => project.teamId))] },
+    });
+    const workspaceIds = [
+      ...new Set(teams.map((team) => team.workspaceId).filter(Boolean)),
+    ];
+    const projectLabels = await this.em.find(ProjectLabel, {
+      projectId: { $in: projectIds },
+    });
+    const projectMembers = await this.em.find(ProjectMember, {
+      projectId: { $in: projectIds },
+    });
+    const candidateMemberIds = [
+      ...new Set([
+        ...projectMembers.map((link) => link.memberId),
+        ...projects
+          .map((project) => project.leadId)
+          .filter((id): id is string => Boolean(id)),
+      ]),
+    ];
+    const workspaceMemberships = workspaceIds.length
+      ? await this.em.find(WorkspaceMember, {
+          workspaceId: { $in: workspaceIds },
+          memberId: { $in: candidateMemberIds },
+        })
+      : [];
+    const allowedMemberIds = workspaceIds.length
+      ? workspaceMemberships.map((membership) => membership.memberId)
+      : candidateMemberIds;
+    const members = await this.em.find(Member, { id: { $in: allowedMemberIds } });
+    const labels = await this.em.find(Label, {
+      scope: { $in: ['project', 'both'] },
+      ...(workspaceIds.length ? { workspaceId: { $in: workspaceIds } } : {}),
+    });
     const issues = await this.em.find(Issue, {
       projectId: { $in: projects.map((p) => p.id) },
     });
@@ -289,11 +360,30 @@ export class ProjectsService {
       await this.assertTeamAccess(memberId, project.teamId, `Project ${id} not found`);
     }
 
-    const members = await this.em.find(Member, {});
-    const labels = await this.em.find(Label, { scope: { $in: ['project', 'both'] } });
+    const team = await this.em.findOne(Team, { id: project.teamId });
     const projectLabels = await this.em.find(ProjectLabel, { projectId: id });
     const projectMembers = await this.em.find(ProjectMember, { projectId: id });
     const issues = await this.em.find(Issue, { projectId: id });
+    const candidateMemberIds = [
+      ...new Set([
+        ...projectMembers.map((link) => link.memberId),
+        ...(project.leadId ? [project.leadId] : []),
+      ]),
+    ];
+    const workspaceMemberships = team?.workspaceId
+      ? await this.em.find(WorkspaceMember, {
+          workspaceId: team.workspaceId,
+          memberId: { $in: candidateMemberIds },
+        })
+      : [];
+    const allowedMemberIds = team?.workspaceId
+      ? workspaceMemberships.map((membership) => membership.memberId)
+      : candidateMemberIds;
+    const members = await this.em.find(Member, { id: { $in: allowedMemberIds } });
+    const labels = await this.em.find(Label, {
+      scope: { $in: ['project', 'both'] },
+      ...(team?.workspaceId ? { workspaceId: team.workspaceId } : {}),
+    });
 
     const membersMap = new Map(members.map((m) => [m.id, toSafeMember(m)]));
     const labelsMap = new Map(labels.map((l) => [l.id, l]));
@@ -359,6 +449,9 @@ export class ProjectsService {
 
   async create(dto: CreateProjectDto, memberId: string) {
     await this.assertTeamAccess(memberId, dto.teamId, `Team ${dto.teamId} not found`);
+    await this.validateLeadId(dto.leadId || memberId, dto.teamId, memberId);
+    await this.validateInitiativeId(dto.initiativeId, dto.teamId, memberId);
+    if (dto.labelIds !== undefined) await this.validateLabelIds(dto.labelIds, dto.teamId);
 
     let id = dto.id || v7();
     const existing = await this.em.findOne(Project, { id });
@@ -419,6 +512,15 @@ export class ProjectsService {
       await this.assertTeamAccess(memberId, dto.teamId, `Project ${id} not found`);
     }
 
+    const nextTeamId = dto.teamId ?? project.teamId;
+    await this.validateLeadId(dto.leadId, nextTeamId, memberId);
+    await this.validateInitiativeId(
+      dto.initiativeId ?? project.initiativeId,
+      nextTeamId,
+      memberId,
+    );
+    if (dto.labelIds !== undefined) await this.validateLabelIds(dto.labelIds, nextTeamId);
+
     if (dto.name !== undefined) project.name = dto.name;
     if (dto.teamId !== undefined) project.teamId = dto.teamId;
     if (dto.leadId !== undefined) project.leadId = dto.leadId;
@@ -446,7 +548,7 @@ export class ProjectsService {
     }
 
     if (dto.labelIds !== undefined) {
-      const labelIds = await this.validateLabelIds(dto.labelIds, project.teamId);
+      const labelIds = await this.validateLabelIds(dto.labelIds, nextTeamId);
       const existing = await this.em.find(ProjectLabel, { projectId: id });
       for (const e of existing) {
         this.em.remove(e);

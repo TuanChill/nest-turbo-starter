@@ -109,7 +109,7 @@ export class InitiativesService {
       })),
       createdAt: initiative.createdAt
         ? initiative.createdAt.toISOString().split('T')[0]
-        : '2026-04-01',
+        : undefined,
     };
   }
 

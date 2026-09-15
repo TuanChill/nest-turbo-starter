@@ -23,6 +23,7 @@ import {
   Team,
   toSafeMember,
 } from '../../data-access';
+import { assertMutuallyExclusiveLabelSelection } from '../labels/label-rules';
 import { WorkspacesService } from '../workspaces/workspaces.service';
 
 const ALL_STATUSES: Record<
@@ -108,23 +109,11 @@ export class IssuesService {
     if (missingIds.length > 0) {
       throw new BadRequestException(`Unknown issue label(s): ${missingIds.join(', ')}`);
     }
-    const groupedLabelIds = new Map<string, number>();
-    for (const label of labels) {
-      if (label.groupId)
-        groupedLabelIds.set(label.groupId, (groupedLabelIds.get(label.groupId) ?? 0) + 1);
-    }
+    const groupedLabelIds = new Set(labels.map((label) => label.groupId).filter(Boolean));
     const exclusiveGroups = await this.em.find(LabelGroup, {
-      id: { $in: [...groupedLabelIds.keys()] },
-      mutuallyExclusive: true,
+      id: { $in: [...groupedLabelIds] },
     });
-    const invalidGroup = exclusiveGroups.find(
-      (group) => (groupedLabelIds.get(group.id) ?? 0) > 1,
-    );
-    if (invalidGroup) {
-      throw new BadRequestException(
-        `Only one label from the mutually exclusive group "${invalidGroup.name}" can be applied`,
-      );
-    }
+    assertMutuallyExclusiveLabelSelection(labels, exclusiveGroups);
     return uniqueLabelIds;
   }
 
@@ -211,11 +200,11 @@ export class IssuesService {
       labels,
       createdAt: issue.createdAt
         ? issue.createdAt.toISOString().split('T')[0]
-        : '2026-07-01',
+        : undefined,
       cycleId: issue.cycleId ?? '',
       project,
       subissues: subissues.length > 0 ? subissues : undefined,
-      rank: issue.rank || '0|hzzzzz:',
+      rank: issue.rank,
       dueDate: issue.dueDate ? issue.dueDate.toISOString().split('T')[0] : undefined,
     };
   }
@@ -428,11 +417,7 @@ export class IssuesService {
     }
 
     const activityFeed = activities.map((act) => {
-      const actor = membersMap.get(act.actorId) || {
-        id: act.actorId,
-        name: act.actorId,
-        avatarUrl: null,
-      };
+      const actor = membersMap.get(act.actorId) ?? null;
       const timeAgo = formatTimeAgo(act.createdAt);
 
       if (act.kind === 'comment') {
@@ -463,17 +448,7 @@ export class IssuesService {
       };
     });
 
-    // Default description if blocks empty
-    const descriptionBlocks =
-      issue.descriptionBlocks && issue.descriptionBlocks.length > 0
-        ? issue.descriptionBlocks
-        : [
-            { type: 'heading', text: 'Context' },
-            {
-              type: 'paragraph',
-              text: issue.description || issue.title,
-            },
-          ];
+    const descriptionBlocks = issue.descriptionBlocks || [];
 
     return {
       identifier: issue.identifier,
