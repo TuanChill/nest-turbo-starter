@@ -18,6 +18,10 @@ import {
   SignUpDto,
   WorkspaceResponseDto,
 } from './auth.dto';
+import {
+  parseVerifiedGoogleProfile,
+  parseVerifiedGoogleTokenInfo,
+} from './google-profile';
 import { Member, TeamMember, Workspace, WorkspaceMember } from '../../data-access';
 
 @Injectable()
@@ -119,12 +123,11 @@ export class AuthService {
       counter++;
     }
 
-    const avatarUrl = `https://api.dicebear.com/9.x/glass/svg?seed=${encodeURIComponent(email)}`;
     const member = new Member({
       id: memberId,
       name,
       email,
-      avatarUrl,
+      avatarUrl: '',
       passwordHash,
       role: 'Admin',
       status: 'online',
@@ -244,13 +247,10 @@ export class AuthService {
           audience: googleClientId,
         });
         const payload = ticket.getPayload();
-        if (!payload || !payload.email) {
-          throw new UnauthorizedException('Invalid Google ID token payload');
-        }
-        email = payload.email.toLowerCase();
-        name = payload.name || payload.email.split('@')[0];
-        picture =
-          payload.picture || `https://api.dicebear.com/9.x/glass/svg?seed=${email}`;
+        const profile = parseVerifiedGoogleProfile(payload);
+        email = profile.email;
+        name = profile.name;
+        picture = profile.picture;
       } else {
         // OAuth2 access token (e.g. from useGoogleLogin implicit flow: ya29...)
         const tokenInfoRes = await fetch(
@@ -263,40 +263,32 @@ export class AuthService {
           aud?: string;
           azp?: string;
           email?: string;
+          verified_email?: boolean;
         };
-        if (tokenInfo.aud !== googleClientId && tokenInfo.azp !== googleClientId) {
-          this.logger.warn(
-            `Google token client ID mismatch: token aud/azp (${tokenInfo.aud}/${tokenInfo.azp}) vs expected (${googleClientId})`,
-          );
-        }
-        if (!tokenInfo.email) {
-          throw new UnauthorizedException('Invalid Google token: missing email');
-        }
-        email = tokenInfo.email.toLowerCase();
+        email = parseVerifiedGoogleTokenInfo(tokenInfo, googleClientId).email;
 
-        try {
-          const userInfoRes = await fetch(
-            'https://www.googleapis.com/oauth2/v3/userinfo',
-            {
-              headers: { Authorization: `Bearer ${dto.idToken}` },
-            },
-          );
-          if (userInfoRes.ok) {
-            const userInfo = (await userInfoRes.json()) as {
-              name?: string;
-              picture?: string;
-            };
-            name = userInfo.name || email.split('@')[0];
-            picture =
-              userInfo.picture || `https://api.dicebear.com/9.x/glass/svg?seed=${email}`;
-          } else {
-            name = email.split('@')[0];
-            picture = `https://api.dicebear.com/9.x/glass/svg?seed=${email}`;
-          }
-        } catch {
-          name = email.split('@')[0];
-          picture = `https://api.dicebear.com/9.x/glass/svg?seed=${email}`;
+        const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+          headers: { Authorization: `Bearer ${dto.idToken}` },
+        });
+        if (!userInfoRes.ok) {
+          throw new UnauthorizedException('Unable to verify Google profile');
         }
+        const userInfo = (await userInfoRes.json()) as {
+          email?: string;
+          name?: string;
+          picture?: string;
+          email_verified?: boolean;
+        };
+        const profile = parseVerifiedGoogleProfile({
+          ...userInfo,
+          email: userInfo.email || email,
+          email_verified: userInfo.email_verified ?? true,
+        });
+        if (profile.email !== email) {
+          throw new UnauthorizedException('Google profile email mismatch');
+        }
+        name = profile.name;
+        picture = profile.picture;
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Google token verification failed';
@@ -304,11 +296,18 @@ export class AuthService {
       throw new UnauthorizedException(msg || 'Invalid or expired Google Token');
     }
 
-    const memberId =
+    const baseMemberId =
       email
         .split('@')[0]
         .toLowerCase()
         .replace(/[^a-z0-9]/g, '') || 'googleuser';
+    let memberId = baseMemberId;
+    let memberIdCounter = 1;
+    // oxlint-disable-next-line no-await-in-loop -- each candidate depends on the previous ID
+    while (await this.em.findOne(Member, { id: memberId, email: { $ne: email } })) {
+      memberId = `${baseMemberId}${memberIdCounter}`;
+      memberIdCounter++;
+    }
     let teamIds: string[] = [];
     let role = 'Member';
     let status = 'online';
@@ -378,7 +377,10 @@ export class AuthService {
         }
       }
     } catch (dbErr) {
-      this.logger.warn(`Database sync skipped (DB error): ${(dbErr as Error).message}`);
+      this.logger.error(
+        `Google account database sync failed: ${(dbErr as Error).message}`,
+      );
+      throw new UnauthorizedException('Unable to complete Google login');
     }
 
     const effectiveMemberId = member ? member.id : memberId;
