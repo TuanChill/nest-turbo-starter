@@ -183,6 +183,7 @@ services:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:${APISIX_NODE_LISTEN}}
         NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
         NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3001}
+        CIRCLE_BUILD_REVISION: ${CIRCLE_BUILD_REVISION:-local}
     ports:
       - '3001:3001'
     depends_on:

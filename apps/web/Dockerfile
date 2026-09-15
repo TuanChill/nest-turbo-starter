@@ -28,9 +28,13 @@ COPY --from=pruner /work/out/full/ .
 ARG NEXT_PUBLIC_API_URL
 ARG NEXT_PUBLIC_GOOGLE_CLIENT_ID
 ARG NEXT_PUBLIC_SITE_URL
+ARG CIRCLE_BUILD_REVISION=local
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 ENV NEXT_PUBLIC_GOOGLE_CLIENT_ID=${NEXT_PUBLIC_GOOGLE_CLIENT_ID}
 ENV NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL}
+# Include the deployed revision in the build environment so a persisted Next
+# incremental cache can never serve stale application code after a deploy.
+ENV CIRCLE_BUILD_REVISION=${CIRCLE_BUILD_REVISION}
 RUN --mount=type=cache,id=next-cache,target=/work/apps/web/.next/cache \
     pnpm exec turbo run build --filter=web
 

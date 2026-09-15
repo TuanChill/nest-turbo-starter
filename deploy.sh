@@ -41,6 +41,7 @@ fi
 
 export DOCKER_BUILDKIT=1
 export COMPOSE_DOCKER_CLI_BUILD=1
+export CIRCLE_BUILD_REVISION="$DEPLOY_REF"
 # The production host currently runs Docker 20.10 without buildx. Serializing
 # Compose builds avoids the daemon's concurrent BuildKit connection deadlock.
 export COMPOSE_PARALLEL_LIMIT=1
