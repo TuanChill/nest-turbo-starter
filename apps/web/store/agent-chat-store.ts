@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { chatTitleFrom, getAgentReply } from '@/mock-data/agent';
+import { chatTitleFrom } from '@/mock-data/agent';
 import { sendAgentMessage } from '@/lib/api/agent';
 
 export interface AgentMessage {
@@ -42,14 +42,13 @@ export const useAgentChatStore = create<AgentChatState>((set, get) => ({
 
    sendMessage: async (input) => {
       const state = get();
-      let reply = getAgentReply(input);
+      let reply: string;
       try {
          const apiRes = await sendAgentMessage(input);
-         if (apiRes && apiRes.reply) {
-            reply = apiRes.reply;
-         }
+         if (!apiRes?.reply) throw new Error('Agent returned an empty response');
+         reply = apiRes.reply;
       } catch (err) {
-         console.warn('Agent API unreachable, using local fallback reply:', err);
+         reply = err instanceof Error ? err.message : 'Agent is unavailable';
       }
       const assistantMessageId = uid('msg');
       const userMessage: AgentMessage = { id: uid('msg'), role: 'user', content: input };

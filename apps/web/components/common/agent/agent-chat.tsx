@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { agentExamples, agentSkills } from '@/mock-data/agent';
-import { users } from '@/mock-data/users';
+import { useAuthStore } from '@/store/auth-store';
 import { useAgentChatStore } from '@/store/agent-chat-store';
 import { ArrowUp, Blocks, Bot, ChevronDown, Paperclip, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
@@ -155,6 +155,7 @@ function ChatComposer({
  */
 export default function AgentChat() {
    const { chats, activeChatId, sendMessage } = useAgentChatStore();
+   const currentUser = useAuthStore((state) => state.user);
    const stream = useStreamReply();
    const [bannerDismissed, setBannerDismissed] = useState(false);
    const [examplesDismissed, setExamplesDismissed] = useState(false);
@@ -246,8 +247,8 @@ export default function AgentChat() {
                               {message.content}
                            </div>
                            <Avatar className="size-6 mt-1 shrink-0">
-                              <AvatarImage src={users[0].avatarUrl} alt={users[0].name} />
-                              <AvatarFallback>{users[0].name[0]}</AvatarFallback>
+                              <AvatarImage src={currentUser?.avatarUrl} alt={currentUser?.name} />
+                              <AvatarFallback>{currentUser?.name?.[0] ?? '?'}</AvatarFallback>
                            </Avatar>
                         </div>
                      </div>

@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotImplementedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { AgentChatDto } from './dto/agent.dto';
 
 const CANNED_REPLIES = [
@@ -45,7 +46,15 @@ Would you like me to activate this loop for the workspace?`,
 
 @Injectable()
 export class AgentService {
+  constructor(private readonly configService: ConfigService) {}
+
   async chat(dto: AgentChatDto) {
+    if (this.configService.get<string>('appCommon.nodeEnv') === 'production') {
+      throw new NotImplementedException(
+        'Workspace agent integration is not configured for production',
+      );
+    }
+
     const input = dto.message.toLowerCase();
     const matched = CANNED_REPLIES.find((c) =>
       c.keywords.some((kw) => input.includes(kw)),
