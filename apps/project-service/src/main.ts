@@ -6,10 +6,10 @@ import {
   setupSwagger,
 } from '@app/common';
 import { ClassSerializerInterceptor } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { NestFactory, Reflector } from '@nestjs/core';
 import helmet from 'helmet';
 import { WinstonModule } from 'nest-winston';
+// oxlint-disable-next-line import/no-unassigned-import -- Nest decorators require reflect metadata at bootstrap.
 import 'reflect-metadata';
 import { getAppConfig } from './config/app.config';
 import { AppModule } from './modules/app.module';
@@ -26,8 +26,14 @@ async function bootstrap() {
   const reflector = app.get(Reflector);
 
   app.use(helmet());
+  const allowedOrigins = [
+    process.env.FRONTEND_URL,
+    'https://pm.capylabs.io',
+    'http://localhost:3000',
+  ].filter((origin): origin is string => Boolean(origin));
+
   app.enableCors({
-    origin: true,
+    origin: allowedOrigins,
     credentials: true,
   });
 
