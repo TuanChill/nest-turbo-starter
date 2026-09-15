@@ -2,40 +2,29 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
-import type { User } from '@/mock-data/users';
+import type { Member } from '@/services/members.service';
 import { format, parseISO } from 'date-fns';
 import { SquareUser } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 
 interface MemberLineProps {
-   user: User;
+   user: Member;
 }
 
-/** "mason.carter" → "Mason Carter" (Linear shows display name + handle). */
-const displayNameOf = (user: User) =>
-   user.name
-      .split('.')
-      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-      .join(' ');
-
-/** Linear-style joined date: current year → "Mar 17", otherwise "Oct 2023". */
-const joinedLabel = (iso: string) => {
+const joinedLabel = (iso?: string) => {
+   if (!iso) return 'Unknown';
    const date = parseISO(iso);
-   return date.getFullYear() === 2026 ? format(date, 'MMM d') : format(date, 'MMM yyyy');
-};
-
-const hashString = (value: string): number => {
-   let hash = 0;
-   for (let i = 0; i < value.length; i++) hash = (hash * 31 + value.charCodeAt(i)) >>> 0;
-   return hash;
+   if (Number.isNaN(date.getTime())) return 'Unknown';
+   return date.getFullYear() === new Date().getFullYear()
+      ? format(date, 'MMM d')
+      : format(date, 'MMM yyyy');
 };
 
 export default function MemberLine({ user }: MemberLineProps) {
    const { orgId } = useParams<{ orgId: string }>();
    const isApplication = user.role === 'Application';
-   // Like Linear, some accounts show their e-mail as the primary line.
-   const showEmailAsName = !isApplication && hashString(user.id) % 4 === 0;
+   const teamIds = user.teamIds ?? [];
 
    return (
       <Link
@@ -49,10 +38,8 @@ export default function MemberLine({ user }: MemberLineProps) {
                <AvatarFallback>{user.name[0]}</AvatarFallback>
             </Avatar>
             <div className="flex flex-col items-start overflow-hidden">
-               <span className="font-medium truncate w-full">
-                  {showEmailAsName ? user.email : displayNameOf(user)}
-               </span>
-               <span className="text-xs text-muted-foreground truncate w-full">{user.name}</span>
+               <span className="font-medium truncate w-full">{user.name}</span>
+               <span className="text-xs text-muted-foreground truncate w-full">{user.email}</span>
             </div>
          </div>
 
@@ -81,12 +68,12 @@ export default function MemberLine({ user }: MemberLineProps) {
 
          {/* Teams */}
          <div className="hidden md:flex w-[170px] shrink-0 items-center gap-1.5 text-xs text-muted-foreground min-w-0">
-            {user.teamIds.length > 0 && (
+            {teamIds.length > 0 && (
                <>
                   <SquareUser className="size-3.5 shrink-0" />
                   <span className="truncate">
-                     {user.teamIds.slice(0, 2).join(', ')}
-                     {user.teamIds.length > 2 && ` +${user.teamIds.length - 2}`}
+                     {teamIds.slice(0, 2).join(', ')}
+                     {teamIds.length > 2 && ` +${teamIds.length - 2}`}
                   </span>
                </>
             )}

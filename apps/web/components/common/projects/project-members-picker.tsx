@@ -2,7 +2,6 @@
 
 import { useProjectMembers, useUpdateProjectMembers } from '@/hooks/queries/use-projects-query';
 import { useMembers } from '@/hooks/queries/use-members-query';
-import type { User } from '@/mock-data/users';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -18,19 +17,15 @@ import { useState } from 'react';
 
 interface ProjectMembersPickerProps {
    projectId: string;
-   fallbackMembers?: User[];
 }
 
 /** Persisted multi-member picker for a project, scoped by the active workspace. */
-export function ProjectMembersPicker({
-   projectId,
-   fallbackMembers = [],
-}: ProjectMembersPickerProps) {
+export function ProjectMembersPicker({ projectId }: ProjectMembersPickerProps) {
    const [open, setOpen] = useState(false);
-   const { data: persistedMembers } = useProjectMembers(projectId);
+   const { data: persistedMembers = [], isError: membersError } = useProjectMembers(projectId);
    const { data: workspaceMembers = [] } = useMembers();
    const updateMembersMutation = useUpdateProjectMembers();
-   const selectedMembers = persistedMembers ?? fallbackMembers;
+   const selectedMembers = persistedMembers;
    const selectedIds = new Set(selectedMembers.map((member) => member.id));
 
    const toggleMember = (memberId: string) => {
@@ -49,8 +44,12 @@ export function ProjectMembersPicker({
                size="xs"
                className="h-7 px-1.5 gap-1.5 text-left font-normal"
                aria-label="Edit project members"
+               disabled={membersError}
+               title={membersError ? 'Project members are unavailable' : undefined}
             >
-               {selectedMembers.length > 0 ? (
+               {membersError ? (
+                  <span className="text-destructive">Members unavailable</span>
+               ) : selectedMembers.length > 0 ? (
                   <>
                      <span className="flex -space-x-1.5">
                         {selectedMembers.slice(0, 3).map((member) => (
@@ -77,7 +76,13 @@ export function ProjectMembersPicker({
             <Command>
                <CommandInput placeholder="Search workspace members..." />
                <CommandList>
-                  <CommandEmpty>No workspace members found.</CommandEmpty>
+                  {membersError ? (
+                     <div className="px-3 py-4 text-sm text-destructive">
+                        Project members could not be loaded.
+                     </div>
+                  ) : (
+                     <CommandEmpty>No workspace members found.</CommandEmpty>
+                  )}
                   {workspaceMembers.map((member) => {
                      const selected = selectedIds.has(member.id);
                      return (

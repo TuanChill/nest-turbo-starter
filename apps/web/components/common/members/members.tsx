@@ -5,20 +5,20 @@ import MemberLine from './member-line';
 import { useMembersFilterStore } from '@/store/members-filter-store';
 import { ArrowDown } from 'lucide-react';
 import { useMemo } from 'react';
-import type { User } from '@/mock-data/users';
 import { Skeleton } from '@/components/ui/skeleton';
+import QueryErrorState from '@/components/common/query-error-state';
 
 export default function Members() {
    const { filters, sort } = useMembersFilterStore();
-   const { data: members = [], isLoading } = useMembers();
+   const { data: members = [], isLoading, isError, error, refetch } = useMembers();
 
    const displayed = useMemo(() => {
-      let list = (members as unknown as User[]).slice();
+      let list = members.slice();
 
       // filter by role (called Status in UI)
       if (filters.role.length > 0) {
          const roles = new Set(filters.role);
-         list = list.filter((u) => roles.has(u.role));
+         list = list.filter((u) => roles.has(u.role as (typeof filters.role)[number]));
       }
 
       // sorting
@@ -64,6 +64,10 @@ export default function Members() {
             ))}
          </div>
       );
+   }
+
+   if (isError) {
+      return <QueryErrorState subject="members" error={error} onRetry={refetch} />;
    }
 
    return (

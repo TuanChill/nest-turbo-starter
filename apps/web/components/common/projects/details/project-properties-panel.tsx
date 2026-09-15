@@ -270,7 +270,7 @@ export function ProjectPropertiesPanel({ project, detail, issues }: ProjectPrope
                   <LeadSelector lead={project.lead} onLeadChange={handleLeadChange} />
                </PropertyRow>
                <PropertyRow label="Members">
-                  <ProjectMembersPicker projectId={project.id} fallbackMembers={project.members} />
+                  <ProjectMembersPicker projectId={project.id} />
                </PropertyRow>
                <PropertyRow label="Dates">
                   <span className="inline-flex items-center gap-1">
