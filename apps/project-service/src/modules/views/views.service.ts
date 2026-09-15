@@ -1,7 +1,14 @@
 import { EntityManager } from '@mikro-orm/core';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateViewDto, UpdateViewDto } from './dto/view.dto';
-import { Member, SavedView, Team, toSafeMember, Workspace } from '../../data-access';
+import {
+  Member,
+  SavedView,
+  Team,
+  toSafeMember,
+  Workspace,
+  WorkspaceMember,
+} from '../../data-access';
 import { WorkspacesService } from '../workspaces/workspaces.service';
 
 @Injectable()
@@ -103,7 +110,15 @@ export class ViewsService {
     if (projectId) where.projectId = projectId;
 
     const views = await this.em.find(SavedView, where);
-    const members = await this.em.find(Member, {});
+    const ownerIds = [...new Set(views.map((view) => view.ownerId))];
+    const memberships = await this.em.find(WorkspaceMember, {
+      workspaceId: { $in: accessibleWorkspaceIds },
+      memberId: { $in: ownerIds },
+    });
+    const visibleOwnerIds = [
+      ...new Set(memberships.map((membership) => membership.memberId)),
+    ];
+    const members = await this.em.find(Member, { id: { $in: visibleOwnerIds } });
     const membersMap = new Map(members.map((m) => [m.id, toSafeMember(m)]));
 
     return views.map((v) => this.transformView(v, membersMap));
@@ -116,7 +131,13 @@ export class ViewsService {
       await this.assertViewAccess(memberId, view, `View ${id} not found`);
     }
 
-    const members = await this.em.find(Member, {});
+    const memberships = await this.em.find(WorkspaceMember, {
+      workspaceId: view.workspaceId,
+      memberId: view.ownerId,
+    });
+    const members = memberships.length
+      ? await this.em.find(Member, { id: view.ownerId })
+      : [];
     const membersMap = new Map(members.map((m) => [m.id, toSafeMember(m)]));
 
     return this.transformView(view, membersMap);

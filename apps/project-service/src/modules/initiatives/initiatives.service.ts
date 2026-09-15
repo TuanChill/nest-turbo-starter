@@ -67,6 +67,16 @@ export class InitiativesService {
     private readonly workspacesService: WorkspacesService,
   ) {}
 
+  private async getWorkspaceMembers(workspaceIds: string[]) {
+    if (workspaceIds.length === 0) return new Map<string, any>();
+    const memberships = await this.em.find(WorkspaceMember, {
+      workspaceId: { $in: workspaceIds },
+    });
+    const memberIds = [...new Set(memberships.map((membership) => membership.memberId))];
+    const members = await this.em.find(Member, { id: { $in: memberIds } });
+    return new Map(members.map((member) => [member.id, toSafeMember(member)]));
+  }
+
   private transformInitiative(
     initiative: Initiative,
     membersMap: Map<string, any>,
@@ -284,8 +294,7 @@ export class InitiativesService {
     const initiatives = await this.em.find(Initiative, {
       workspaceId: { $in: workspaceIds },
     });
-    const members = await this.em.find(Member, {});
-    const membersMap = new Map(members.map((m) => [m.id, toSafeMember(m)]));
+    const membersMap = await this.getWorkspaceMembers(workspaceIds);
     const projectsByInitiative = await this.loadProjects(initiatives);
     const activitiesByInitiative = await this.loadActivities(initiatives);
     const updatesByInitiative = await this.loadUpdates(initiatives);
@@ -311,8 +320,7 @@ export class InitiativesService {
     if (!initiative) throw new NotFoundException(`Initiative ${id} not found`);
     await this.assertWorkspaceAccess(memberId, initiative);
 
-    const members = await this.em.find(Member, {});
-    const membersMap = new Map(members.map((m) => [m.id, toSafeMember(m)]));
+    const membersMap = await this.getWorkspaceMembers([initiative.workspaceId]);
     const projectsByInitiative = await this.loadProjects([initiative]);
     const activitiesByInitiative = await this.loadActivities([initiative]);
     const updatesByInitiative = await this.loadUpdates([initiative]);

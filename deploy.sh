@@ -79,6 +79,7 @@ while IFS= read -r changed_file; do
     apps/user-service/*) add_build_target user-service ;;
     apps/notification-service/*) add_build_target notification-service ;;
     apps/project-service/*) add_build_target project-service ;;
+    apps/web/*|deploy.sh) add_build_target web ;;
     .docker/compose/nodejs/*|libs/common/*|libs/core/*|package.json|pnpm-lock.yaml|pnpm-workspace.yaml|turbo.json)
       build_all=true
       ;;
@@ -90,7 +91,7 @@ while IFS= read -r changed_file; do
 done <<< "$changed_files"
 
 if [[ "$build_all" == true ]]; then
-  build_targets=(auth-service user-service notification-service project-service apisix adc)
+  build_targets=(auth-service user-service notification-service project-service web apisix adc)
 fi
 
 if [[ "${#build_targets[@]}" -gt 0 ]]; then
@@ -104,7 +105,7 @@ echo "Applying database migrations..."
 "${COMPOSE[@]}" run --rm --no-deps -e COREPACK_ENABLE_DOWNLOAD_PROMPT=0 project-service pnpm --filter=project-service migration:up
 
 echo "Starting backend services and API gateway..."
-"${COMPOSE[@]}" up -d --remove-orphans auth-service user-service notification-service project-service apisix apisix-homepage
+"${COMPOSE[@]}" up -d --remove-orphans auth-service user-service notification-service project-service web apisix apisix-homepage
 
 apisix_profile="$(awk -F= '$1 == "APISIX_PROFILE" { value=$2 } END { print value }' .env)"
 apisix_profile="${apisix_profile:-dev}"
