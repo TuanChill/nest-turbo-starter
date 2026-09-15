@@ -54,6 +54,7 @@ import { InitiativeStatusIcon } from './initiative-status-icon';
 import { InitiativesSidePanel } from './initiatives-side-panel';
 import { renderPriorityIcon } from '@/lib/priority-utils';
 import { Skeleton } from '@/components/ui/skeleton';
+import QueryErrorState from '@/components/common/query-error-state';
 
 const TABS = ['active', 'planned', 'all'] as const;
 
@@ -417,7 +418,7 @@ export default function Initiatives() {
    const { filters } = useInitiativesFilterStore();
    const { grouping, ordering, displayProperties } = useInitiativesDisplayStore();
    const [showPanel, setShowPanel] = useState(true);
-   const { data: initiatives = [], isLoading } = useInitiatives();
+   const { data: initiatives = [], isLoading, isError, error, refetch } = useInitiatives();
 
    const displayed = useMemo(() => {
       let list = initiatives.slice();
@@ -471,6 +472,10 @@ export default function Initiatives() {
             ))}
          </div>
       );
+   }
+
+   if (isError) {
+      return <QueryErrorState subject="initiatives" error={error} onRetry={refetch} />;
    }
 
    return (

@@ -18,6 +18,7 @@ import { SearchIssues } from './search-issues';
 
 import { useIssues } from '@/hooks/queries/use-issues-query';
 import { useViews } from '@/hooks/queries/use-views-query';
+import QueryErrorState from '@/components/common/query-error-state';
 
 interface AllIssuesProps {
    /**
@@ -35,7 +36,7 @@ export default function AllIssues({ categories }: AllIssuesProps) {
    const { viewType, setViewType } = useViewStore();
    const { filters, setFilters } = useFilterStore();
    const { setDisplaySettings } = useDisplaySettingsStore();
-   const { data: serverIssues = [] } = useIssues();
+   const { data: serverIssues = [], isError, error, refetch } = useIssues();
    const { issues: storeIssues = [] } = useIssuesStore();
    const { openPanel } = useRightPanelStore();
    const { data: views = [] } = useViews({ teamId });
@@ -84,6 +85,10 @@ export default function AllIssues({ categories }: AllIssuesProps) {
       () => applyIssueFilters(scopedIssues, filters),
       [scopedIssues, filters]
    );
+
+   if (isError) {
+      return <QueryErrorState subject="issues" error={error} onRetry={refetch} />;
+   }
 
    if (isSearching) {
       return (

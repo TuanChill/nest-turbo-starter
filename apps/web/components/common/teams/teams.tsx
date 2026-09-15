@@ -8,11 +8,12 @@ import { Filter } from '@/components/layout/headers/teams/filter';
 import TeamLine from './team-line';
 import { TeamsDisplayOptions } from './teams-display-options';
 import { Skeleton } from '@/components/ui/skeleton';
+import QueryErrorState from '@/components/common/query-error-state';
 
 export default function Teams() {
    const { filters } = useTeamsFilterStore();
    const { ordering, displayProperties } = useTeamsDisplayStore();
-   const { data: teams = [], isLoading } = useTeams();
+   const { data: teams = [], isLoading, isError, error, refetch } = useTeams();
 
    const displayed = useMemo(() => {
       let list = teams.slice();
@@ -58,6 +59,10 @@ export default function Teams() {
             ))}
          </div>
       );
+   }
+
+   if (isError) {
+      return <QueryErrorState subject="teams" error={error} onRetry={refetch} />;
    }
 
    return (

@@ -6,13 +6,14 @@ import { Fragment } from 'react';
 import CycleLine from './cycle-line';
 import { CycleBurnupChart, CycleProgressLegend } from './cycle-burnup-chart';
 import { Skeleton } from '@/components/ui/skeleton';
+import QueryErrorState from '@/components/common/query-error-state';
 
 /**
  * Cycles timeline: a date rail on the left and one row per cycle,
  * newest first. The current cycle is expanded with its burn-up chart.
  */
 export default function Cycles({ teamId }: { teamId?: string }) {
-   const { data: cycles = [], isLoading } = useCycles(teamId);
+   const { data: cycles = [], isLoading, isError, error, refetch } = useCycles(teamId);
 
    if (isLoading) {
       return (
@@ -32,6 +33,10 @@ export default function Cycles({ teamId }: { teamId?: string }) {
             ))}
          </div>
       );
+   }
+
+   if (isError) {
+      return <QueryErrorState subject="cycles" error={error} onRetry={refetch} />;
    }
 
    if (cycles.length === 0) {
