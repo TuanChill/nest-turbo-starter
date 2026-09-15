@@ -35,6 +35,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { LinearEditor } from '@/components/common/editor/linear-editor';
 import { contentBlocksToMarkdown } from '@/lib/content-blocks-to-markdown';
+import QueryErrorState from '@/components/common/query-error-state';
 
 function IssueDetailsSkeleton() {
    return (
@@ -115,12 +116,19 @@ function IssueDetailsSkeleton() {
  */
 export default function IssueDetails() {
    const { orgId, issueId } = useParams<{ orgId: string; issueId: string }>();
-   const { data: issue, isLoading: isIssueLoading } = useIssue(issueId);
+   const {
+      data: issue,
+      isLoading: isIssueLoading,
+      isError: isIssueError,
+      error: issueError,
+      refetch: refetchIssue,
+   } = useIssue(issueId);
    const {
       data: detailData,
       isLoading: isDetailLoading,
       isError: isDetailError,
       error: detailError,
+      refetch: refetchDetail,
    } = useIssueDetail(issueId);
    const { data: allIssues = [] } = useIssues();
    const { data: members = [] } = useMembers();
@@ -209,14 +217,13 @@ export default function IssueDetails() {
       return <IssueDetailsSkeleton />;
    }
 
+   if (isIssueError) {
+      return <QueryErrorState subject="issue" error={issueError} onRetry={refetchIssue} />;
+   }
+
    if (isDetailError) {
       return (
-         <div className="flex flex-col items-center justify-center h-full gap-3 text-sm text-muted-foreground">
-            <p className="text-base font-medium text-foreground">Unable to load issue activity</p>
-            <p className="text-xs">
-               {detailError instanceof Error ? detailError.message : 'Please try again.'}
-            </p>
-         </div>
+         <QueryErrorState subject="issue activity" error={detailError} onRetry={refetchDetail} />
       );
    }
 
