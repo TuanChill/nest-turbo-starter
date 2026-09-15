@@ -97,7 +97,8 @@ const BIWEEKLY_DATES: ScaleDate[] = WEEKLY_DATES.filter((_, index) => index % 2 
 const offsetForTime = (time: number, monthWidth: number): number =>
    ((time - RANGE_START) / (RANGE_END - RANGE_START)) * totalWidthOf(monthWidth);
 
-const offsetFor = (iso: string, monthWidth: number): number => {
+const offsetFor = (iso: string | undefined, monthWidth: number): number => {
+   if (!iso) return 0;
    const time = Date.UTC(
       Number(iso.slice(0, 4)),
       Number(iso.slice(5, 7)) - 1,
@@ -117,6 +118,7 @@ const barBounds = (project: Project, monthWidth: number) => {
 };
 
 const dateRangeLabel = (project: Project) => {
+   if (!project.startDate) return 'No dates';
    const startLabel = format(parseISO(project.startDate), 'MMM d');
    if (!project.targetDate || project.targetDate === project.startDate) return startLabel;
    return `${startLabel} - ${format(parseISO(project.targetDate), 'MMM d')}`;
@@ -199,7 +201,7 @@ function TimelineBar({
             style={{ left, width }}
          >
             <span className="truncate font-medium">{project.name}</span>
-            {displayProperties.lead && (
+            {displayProperties.lead && project.lead && (
                <Avatar className="size-4 shrink-0">
                   <AvatarImage src={project.lead.avatarUrl} alt={project.lead.name} />
                   <AvatarFallback>{project.lead.name[0]}</AvatarFallback>
@@ -490,7 +492,7 @@ export default function ProjectsTimeline({ groups }: ProjectsTimelineProps) {
                                              project.priority?.id,
                                              cn('size-3 shrink-0 text-muted-foreground')
                                           )}
-                                       {displayProperties.lead && (
+                                       {displayProperties.lead && project.lead && (
                                           <Avatar className="size-4 shrink-0">
                                              <AvatarImage
                                                 src={project.lead.avatarUrl}

@@ -4,8 +4,8 @@ import { format, parseISO } from 'date-fns';
 import { Area, ComposedChart, Line, ResponsiveContainer, XAxis } from 'recharts';
 
 interface ProjectProgressChartProps {
-   startDate: string;
-   endDate: string;
+   startDate?: string;
+   endDate?: string;
    scope: number;
    started: number;
    completed: number;
@@ -80,8 +80,8 @@ export function ProjectProgressChart({
             </ComposedChart>
          </ResponsiveContainer>
          <div className="flex justify-between text-[11px] text-muted-foreground mt-0.5">
-            <span>{format(parseISO(startDate), 'MMM d')}</span>
-            <span>{format(parseISO(endDate), 'MMM d')}</span>
+            <span>{startDate ? format(parseISO(startDate), 'MMM d') : 'No start date'}</span>
+            <span>{endDate ? format(parseISO(endDate), 'MMM d') : 'No target date'}</span>
          </div>
       </div>
    );

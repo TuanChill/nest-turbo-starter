@@ -74,14 +74,24 @@ export function HealthPopover({ project }: HealthPopoverProps) {
                      <span className="text-sm">{project.health.name}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                     <Avatar className="size-5">
-                        <AvatarImage src={project.lead.avatarUrl} alt={project.lead.name} />
-                        <AvatarFallback>{project.lead.name.charAt(0)}</AvatarFallback>
-                     </Avatar>
-                     <span className="text-xs text-muted-foreground">{project.lead.name}</span>
+                     {project.lead ? (
+                        <>
+                           <Avatar className="size-5">
+                              <AvatarImage src={project.lead.avatarUrl} alt={project.lead.name} />
+                              <AvatarFallback>{project.lead.name.charAt(0)}</AvatarFallback>
+                           </Avatar>
+                           <span className="text-xs text-muted-foreground">
+                              {project.lead.name}
+                           </span>
+                        </>
+                     ) : (
+                        <span className="text-xs text-muted-foreground">No lead</span>
+                     )}
                      <span className="text-xs text-muted-foreground">·</span>
                      <span className="text-xs text-muted-foreground">
-                        {new Date(project.startDate).toLocaleDateString()}
+                        {project.startDate
+                           ? new Date(project.startDate).toLocaleDateString()
+                           : 'No start date'}
                      </span>
                   </div>
                </div>

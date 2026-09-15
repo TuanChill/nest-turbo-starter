@@ -115,12 +115,16 @@ function ProjectsSection({ initiative }: { initiative: Initiative }) {
                         {renderPriorityIcon(project.priority?.id, 'size-4 text-muted-foreground')}
                      </span>
                      <span className="hidden md:block w-12 shrink-0">
-                        <Avatar className="size-5">
-                           <AvatarImage src={project.lead.avatarUrl} alt={project.lead.name} />
-                           <AvatarFallback className="text-[9px]">
-                              {project.lead.name[0]}
-                           </AvatarFallback>
-                        </Avatar>
+                        {project.lead ? (
+                           <Avatar className="size-5">
+                              <AvatarImage src={project.lead.avatarUrl} alt={project.lead.name} />
+                              <AvatarFallback className="text-[9px]">
+                                 {project.lead.name[0]}
+                              </AvatarFallback>
+                           </Avatar>
+                        ) : (
+                           <span className="text-xs text-muted-foreground">—</span>
+                        )}
                      </span>
                      <span className="hidden md:flex items-center gap-1 w-24 shrink-0 text-xs text-muted-foreground">
                         {project.targetDate ? (

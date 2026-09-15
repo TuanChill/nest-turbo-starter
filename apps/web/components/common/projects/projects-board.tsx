@@ -75,7 +75,7 @@ function ProjectCard({ project }: { project: Project }) {
                   {format(parseISO(project.targetDate), 'MMM d')}
                </span>
             )}
-            {displayProperties.lead && (
+            {displayProperties.lead && project.lead && (
                <Avatar className="size-4 ml-auto shrink-0">
                   <AvatarImage src={project.lead.avatarUrl} alt={project.lead.name} />
                   <AvatarFallback>{project.lead.name[0]}</AvatarFallback>

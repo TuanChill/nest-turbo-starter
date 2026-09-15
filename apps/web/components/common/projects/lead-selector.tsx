@@ -17,19 +17,19 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useEffect, useId, useState } from 'react';
 
 interface LeadSelectorProps {
-   lead: User;
+   lead?: User | null;
    onLeadChange?: (userId: string) => void;
 }
 
 export function LeadSelector({ lead, onLeadChange }: LeadSelectorProps) {
    const id = useId();
    const [open, setOpen] = useState<boolean>(false);
-   const [value, setValue] = useState<string>(lead.id);
+   const [value, setValue] = useState<string>(lead?.id ?? '');
    const { data: users = [] } = useMembers();
 
    useEffect(() => {
-      setValue(lead.id);
-   }, [lead.id]);
+      setValue(lead?.id ?? '');
+   }, [lead?.id]);
 
    const handleLeadChange = (userId: string) => {
       setValue(userId);

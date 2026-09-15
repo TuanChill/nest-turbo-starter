@@ -85,7 +85,7 @@ export default function Projects({ teamId }: { teamId?: string }) {
                return (a.targetDate ?? '').localeCompare(b.targetDate ?? '');
             case 'start-date':
             default:
-               return a.startDate.localeCompare(b.startDate);
+               return (a.startDate ?? '').localeCompare(b.startDate ?? '');
          }
       };
       return list.sort(compare);

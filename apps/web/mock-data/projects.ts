@@ -35,10 +35,10 @@ export interface Project {
    percentComplete: number;
    /** Live count of issues in this project (server-computed). */
    issueCount?: number;
-   startDate: string;
+   startDate?: string;
    /** Planned completion date (Linear "Target date"). */
    targetDate?: string;
-   lead: User;
+   lead?: User | null;
    priority: Priority;
    health: Health;
    /** Rich project overview content, stored as structured blocks by the API. */

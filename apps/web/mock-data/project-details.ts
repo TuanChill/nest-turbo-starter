@@ -29,7 +29,7 @@ export const projectUpdateHealthColor: Record<ProjectUpdateHealth, string> = {
 /** A posted project update (the "Activity" tab timeline). */
 export interface ProjectUpdate {
    id: string;
-   author: User;
+   author?: User | null;
    date: string; // ISO date
    health: ProjectUpdateHealth;
    blocks: ContentBlock[];
