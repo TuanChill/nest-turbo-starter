@@ -79,12 +79,12 @@ export class UpdateInitiativeDto {
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
-  description?: string;
+  description?: string | null;
 
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
-  icon?: string;
+  icon?: string | null;
 
   @ApiPropertyOptional({ enum: ['active', 'planned', 'completed'] })
   @IsEnum(['active', 'planned', 'completed'])
@@ -99,12 +99,12 @@ export class UpdateInitiativeDto {
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
-  ownerId?: string;
+  ownerId?: string | null;
 
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
-  target?: string;
+  target?: string | null;
 
   @ApiPropertyOptional()
   @IsString()

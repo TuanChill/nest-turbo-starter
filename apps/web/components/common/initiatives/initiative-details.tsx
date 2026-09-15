@@ -22,6 +22,7 @@ import { useParams } from 'next/navigation';
 import { parseAsStringLiteral, useQueryState } from 'nuqs';
 import { useMemo, useState } from 'react';
 import { AddProjectToInitiativePopover } from './add-project-to-initiative-popover';
+import { EditInitiativeDialog } from './edit-initiative-dialog';
 import { InitiativeProgressPanel } from './initiative-progress-panel';
 import { InitiativeStatusIcon } from './initiative-status-icon';
 
@@ -157,6 +158,7 @@ function Overview({ initiative }: { initiative: Initiative }) {
    const { data: liveProjects = [] } = useProjects();
    const postUpdate = usePostInitiativeUpdate();
    const [isUpdateEditorOpen, setIsUpdateEditorOpen] = useState(false);
+   const [isEditOpen, setIsEditOpen] = useState(false);
    const [updateText, setUpdateText] = useState('');
    const [updateHealth, setUpdateHealth] = useState<
       'no-update' | 'on-track' | 'at-risk' | 'off-track'
@@ -186,7 +188,12 @@ function Overview({ initiative }: { initiative: Initiative }) {
                   {initiative.icon}
                </span>
                <div className="flex flex-col gap-2">
-                  <h1 className="text-2xl font-semibold">{initiative.name}</h1>
+                  <div className="flex items-start justify-between gap-3">
+                     <h1 className="text-2xl font-semibold">{initiative.name}</h1>
+                     <Button size="sm" variant="outline" onClick={() => setIsEditOpen(true)}>
+                        Edit initiative
+                     </Button>
+                  </div>
                   <p className="text-sm text-muted-foreground">
                      {initiative.description ?? 'Add a short summary…'}
                   </p>
@@ -330,6 +337,11 @@ function Overview({ initiative }: { initiative: Initiative }) {
                </div>
 
                <ProjectsSection initiative={initiative} />
+               <EditInitiativeDialog
+                  initiative={initiative}
+                  open={isEditOpen}
+                  onOpenChange={setIsEditOpen}
+               />
             </div>
          </div>
 

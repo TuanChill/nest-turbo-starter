@@ -195,7 +195,7 @@ export class InitiativesService {
     return uniqueProjectIds;
   }
 
-  private async validateOwnerId(ownerId: string | undefined, workspaceId: string) {
+  private async validateOwnerId(ownerId: string | null | undefined, workspaceId: string) {
     if (!ownerId) return;
     const membership = await this.em.findOne(WorkspaceMember, {
       workspaceId,
@@ -391,15 +391,16 @@ export class InitiativesService {
     await this.assertWorkspaceAccess(memberId, initiative);
 
     if (dto.name !== undefined) initiative.name = dto.name;
-    if (dto.description !== undefined) initiative.description = dto.description;
-    if (dto.icon !== undefined) initiative.icon = dto.icon;
+    if (dto.description !== undefined)
+      initiative.description = dto.description ?? undefined;
+    if (dto.icon !== undefined) initiative.icon = dto.icon ?? '🎯';
     if (dto.status !== undefined) initiative.status = dto.status;
     if (dto.priorityId !== undefined) initiative.priorityId = dto.priorityId;
     if (dto.ownerId !== undefined) {
       await this.validateOwnerId(dto.ownerId, initiative.workspaceId);
-      initiative.ownerId = dto.ownerId;
+      initiative.ownerId = dto.ownerId ?? undefined;
     }
-    if (dto.target !== undefined) initiative.target = dto.target;
+    if (dto.target !== undefined) initiative.target = dto.target ?? undefined;
     if (dto.resources !== undefined) initiative.resources = dto.resources;
     if (dto.labelIds !== undefined) {
       initiative.labelIds = await this.validateLabelIds(

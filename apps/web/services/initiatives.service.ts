@@ -39,12 +39,12 @@ export interface Initiative {
 export interface InitiativeMutationPayload {
    workspaceId?: string;
    name?: string;
-   description?: string;
-   icon?: string;
+   description?: string | null;
+   icon?: string | null;
    status?: InitiativeStatus;
    priorityId?: string;
-   ownerId?: string;
-   target?: string;
+   ownerId?: string | null;
+   target?: string | null;
    healthId?: string;
    projectIds?: string[];
    labelIds?: string[];
