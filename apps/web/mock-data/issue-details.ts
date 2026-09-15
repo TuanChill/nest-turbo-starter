@@ -25,6 +25,7 @@ export type ContentBlock =
 export interface CommentReaction {
    emoji: string;
    count: number;
+   userIds?: string[];
 }
 
 export type ActivityItem =

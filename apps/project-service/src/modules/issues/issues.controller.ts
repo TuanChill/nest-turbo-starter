@@ -155,6 +155,16 @@ export class IssuesController {
     return this.issuesService.addReaction(activityId, dto, memberId);
   }
 
+  @ApiOperation({ summary: 'Remove the authenticated member reaction' })
+  @Delete('activities/:activityId/reactions/:emoji')
+  removeReaction(
+    @Param('activityId') activityId: string,
+    @Param('emoji') emoji: string,
+    @User('id') memberId: string,
+  ) {
+    return this.issuesService.removeReaction(activityId, emoji, memberId);
+  }
+
   @ApiOperation({ summary: 'Add relation between issues (blocks, relates_to, etc.)' })
   @Post(':identifier/relations')
   addRelation(

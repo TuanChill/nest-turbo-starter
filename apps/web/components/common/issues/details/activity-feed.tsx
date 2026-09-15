@@ -6,7 +6,7 @@ import { Command, CommandGroup, CommandItem, CommandList } from '@/components/ui
 import type { ActivityItem } from '@/mock-data/issue-details';
 import type { Member } from '@/services/members.service';
 import { useAuthStore } from '@/store/auth-store';
-import { addIssueComment, addIssueReaction } from '@/lib/api/issues';
+import { addIssueComment, addIssueReaction, removeIssueReaction } from '@/lib/api/issues';
 import { toast } from 'sonner';
 import {
    Ban,
@@ -215,6 +215,12 @@ export function ActivityFeed({
 
    const handleReact = async (activityId: string, emoji: string) => {
       if (!user) return;
+      const currentItem = items.find((item) => item.id === activityId);
+      const currentReaction =
+         currentItem?.kind === 'comment'
+            ? currentItem.reactions?.find((reaction) => reaction.emoji === emoji)
+            : undefined;
+      const hasReacted = Boolean(currentReaction?.userIds?.includes(user.id));
       // Optimistic update
       const previousItems = items;
       setItems((prev) =>
@@ -222,20 +228,33 @@ export function ActivityFeed({
             if (item.id !== activityId || item.kind !== 'comment') return item;
             const reactions = item.reactions ? [...item.reactions] : [];
             const existing = reactions.find((r) => r.emoji === emoji);
-            if (existing) {
-               existing.count += 1;
+            if (hasReacted && existing) {
+               const userIds = (existing.userIds || []).filter((userId) => userId !== user.id);
+               if (userIds.length === 0) {
+                  return { ...item, reactions: reactions.filter((r) => r.emoji !== emoji) };
+               }
+               existing.userIds = userIds;
+               existing.count = userIds.length;
+            } else if (existing) {
+               const userIds = [...(existing.userIds || []), user.id];
+               existing.userIds = userIds;
+               existing.count = userIds.length;
             } else {
-               reactions.push({ emoji, count: 1 });
+               reactions.push({ emoji, count: 1, userIds: [user.id] });
             }
             return { ...item, reactions };
          })
       );
 
       try {
-         await addIssueReaction(activityId, emoji, user.id);
+         if (hasReacted) {
+            await removeIssueReaction(activityId, emoji);
+         } else {
+            await addIssueReaction(activityId, emoji, user.id);
+         }
       } catch (err) {
          setItems(previousItems);
-         console.error('Failed to post reaction:', err);
+         toast.error(err instanceof Error ? err.message : 'Failed to update reaction');
       }
    };
 

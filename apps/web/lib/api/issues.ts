@@ -121,6 +121,18 @@ export async function addIssueReaction(
    });
 }
 
+export async function removeIssueReaction(
+   activityId: string,
+   emoji: string
+): Promise<{ id: string; reactions: Array<{ emoji: string; count: number; userIds: string[] }> }> {
+   return apiClient<{
+      id: string;
+      reactions: Array<{ emoji: string; count: number; userIds: string[] }>;
+   }>(`/issues/activities/${activityId}/reactions/${encodeURIComponent(emoji)}`, {
+      method: 'DELETE',
+   });
+}
+
 export async function addIssueRelation(
    identifier: string,
    targetIdentifier: string,

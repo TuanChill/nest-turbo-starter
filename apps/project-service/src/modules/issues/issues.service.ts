@@ -1281,6 +1281,38 @@ export class IssuesService {
     return act;
   }
 
+  async removeReaction(activityId: string, emoji: string, memberId: string) {
+    const act = await this.em.findOne(IssueActivity, { id: activityId });
+    if (!act) throw new NotFoundException(`Activity ${activityId} not found`);
+
+    const issue = await this.em.findOne(Issue, { identifier: act.issueIdentifier });
+    if (!issue) throw new NotFoundException(`Activity ${activityId} not found`);
+    await this.assertTeamAccess(
+      memberId,
+      issue.teamId,
+      `Activity ${activityId} not found`,
+    );
+
+    const reactions = Array.isArray(act.reactions) ? act.reactions : [];
+    const found = reactions.find((reaction: any) => reaction.emoji === emoji);
+    if (!found || !Array.isArray(found.userIds)) return act;
+
+    const remainingUserIds = found.userIds.filter(
+      (userId: string) => userId !== memberId,
+    );
+    const nextReactions = reactions
+      .map((reaction: any) =>
+        reaction.emoji === emoji
+          ? { ...reaction, userIds: remainingUserIds, count: remainingUserIds.length }
+          : reaction,
+      )
+      .filter((reaction: any) => reaction.emoji !== emoji || reaction.count > 0);
+
+    act.reactions = nextReactions;
+    await this.em.flush();
+    return act;
+  }
+
   async addRelation(identifierOrId: string, dto: AddRelationDto, memberId: string) {
     const issue = await this.em.findOne(Issue, {
       $or: [{ identifier: identifierOrId }, { id: identifierOrId }],

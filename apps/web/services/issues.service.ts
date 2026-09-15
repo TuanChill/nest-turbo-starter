@@ -144,6 +144,21 @@ export const issuesService = {
       });
    },
 
+   async removeReaction(
+      activityId: string,
+      emoji: string
+   ): Promise<{
+      id: string;
+      reactions: Array<{ emoji: string; count: number; userIds: string[] }>;
+   }> {
+      return apiClient<{
+         id: string;
+         reactions: Array<{ emoji: string; count: number; userIds: string[] }>;
+      }>(`/issues/activities/${activityId}/reactions/${encodeURIComponent(emoji)}`, {
+         method: 'DELETE',
+      });
+   },
+
    async addRelation(
       identifier: string,
       targetIdentifier: string,
