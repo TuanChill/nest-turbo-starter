@@ -16,6 +16,7 @@ export class SesMailerService {
   private sesClient: SESClient | null = null;
   private readonly senderEmail: string;
   private readonly region: string;
+  private readonly configurationError: string | null;
 
   constructor() {
     this.region =
@@ -27,6 +28,11 @@ export class SesMailerService {
       process.env.SES_ACCESS_KEY_ID || process.env.AWS_SES_ACCESS_KEY_ID;
     const secretAccessKey =
       process.env.SES_SECRET_ACCESS_KEY || process.env.AWS_SES_ACCESS_SECRET_ACCESS_KEY;
+
+    this.configurationError =
+      accessKeyId && secretAccessKey
+        ? null
+        : 'SES credentials are not configured; invitation email was not sent';
 
     if (accessKeyId && secretAccessKey) {
       try {
@@ -44,9 +50,7 @@ export class SesMailerService {
         this.logger.error('Failed to initialize SES client:', err);
       }
     } else {
-      this.logger.warn(
-        'SES credentials not found in env, email dispatch will be simulated in logs.',
-      );
+      this.logger.warn(this.configurationError);
     }
   }
 
@@ -93,10 +97,8 @@ export class SesMailerService {
     `;
 
     if (!this.sesClient) {
-      this.logger.log(
-        `[SIMULATED SES EMAIL] To: ${options.to} | Subject: You've been invited to ${org} on Circle | URL: ${joinUrl}`,
-      );
-      return true;
+      this.logger.warn(this.configurationError ?? 'SES client is unavailable');
+      return false;
     }
 
     try {
