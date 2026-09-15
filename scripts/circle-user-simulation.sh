@@ -102,17 +102,24 @@ related_identifier="$(jq -er '.identifier' <<<"$related")"
 api POST "/issues/$root_identifier/relations" "$(jq -nc --arg targetIdentifier "$related_identifier" '{targetIdentifier:$targetIdentifier,relationType:"relates_to"}')" >/dev/null
 api POST "/issues/$root_identifier/comments" "$(jq -nc '{textContent:"Simulation comment with persisted activity"}')" >/dev/null
 detail="$(api GET "/issues/$root_identifier/detail")"
-activity_id="$(jq -er '.activities[0].id' <<<"$detail")"
+activity_id="$(jq -er '.activity[0].id' <<<"$detail")"
 api POST "/issues/activities/$activity_id/reactions" '{emoji:"✅"}' >/dev/null
 api PATCH "/issues/$root_identifier" "$(jq -nc --arg assigneeId "$assignee_id" '{statusId:"in-progress",priorityId:"high",assigneeId:$assigneeId}')" >/dev/null
+
+subscription="$(api GET "/issues/$root_identifier/subscription")"
+assert_json 'issue creator is subscribed' "$subscription" '.subscribed == true'
+unsubscribed="$(api DELETE "/issues/$root_identifier/subscription")"
+assert_json 'issue unsubscribe persisted' "$unsubscribed" '.subscribed == false'
+resubscribed="$(api POST "/issues/$root_identifier/subscription")"
+assert_json 'issue resubscribe persisted' "$resubscribed" '.subscribed == true'
 
 cloned_project="$(api POST "/projects/from-template/$project_template_id" "$(jq -nc --arg teamId "$TEAM_ID" '{name:"Circle simulation cloned project",teamId:$teamId}')")"
 cloned_project_id="$(jq -er '.id // .projectId' <<<"$cloned_project")"
 
 project_check="$(api GET "/projects/$project_id")"
 assert_json 'project persisted with live label' "$project_check" '.labels | length > 0'
-assert_json 'parent issue and activity persisted' "$detail" --arg child_identifier "$child_identifier" '.subIssues | any(.[]; .identifier == $child_identifier) and (.activities | length) > 0'
-assert_json 'relation persisted' "$detail" --arg related_identifier "$related_identifier" '.relations | any(.[]; .targetIdentifier == $related_identifier or .sourceIdentifier == $related_identifier)'
+assert_json 'parent issue and activity persisted' "$detail" --arg child_identifier "$child_identifier" '.subIssueIds | any(.[]; . == $child_identifier) and (.activity | length) > 0'
+assert_json 'relation persisted' "$detail" --arg related_identifier "$related_identifier" '.relations | any(.[]; .identifier == $related_identifier)'
 clone_check="$(api GET "/projects/$cloned_project_id")"
 assert_json 'project template clone persisted' "$clone_check" '.id != null and .id != ""'
 

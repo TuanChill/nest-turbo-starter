@@ -70,6 +70,7 @@ Reference set: [Linear Docs](https://linear.app/docs), [Projects](https://linear
 - SES invite delivery no longer logs a simulated email or returns success without credentials; missing SES configuration is an explicit unavailable delivery result covered by a service regression test.
 - The integrations settings route no longer renders a hard-coded provider catalog or fake enabled cards; it shows an explicit unavailable state until provider connection and permission APIs exist.
 - Issue subscriptions are now persisted in `issue_subscriptions`, automatically added for issue creators, assignees and mentioned commenters, included in notification recipient resolution, and exposed through authenticated issue subscription endpoints. The My Issues “Subscribed” tab and issue context menu consume the persisted state instead of treating creator/assignee records as subscriptions.
+- The authenticated simulation harness now asserts the live detail response fields (`activity`, `subIssueIds`, and relation `identifier`) and covers the persisted issue subscription lifecycle (read, unsubscribe, resubscribe); `bash -n scripts/circle-user-simulation.sh` passes. It still requires an explicit bearer token and workspace/team context for execution.
 
 ## Verification evidence (2026-09-15)
 
