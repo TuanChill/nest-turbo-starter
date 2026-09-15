@@ -33,13 +33,15 @@ import { saveActiveWorkspace } from '@/lib/utils/workspace-persistence';
 export function OrgSwitcher() {
    const router = useRouter();
    const params = useParams<{ orgId?: string }>();
-   const currentOrgId = params?.orgId || 'circle-workspace';
+   const currentOrgId = params?.orgId;
 
    const { user, logout } = useAuthStore();
    const { data: workspaces, isLoading } = useWorkspaces();
    const { openModal } = useCreateIssueStore();
    const [dialogOpen, setDialogOpen] = React.useState(false);
    const [defaultTab, setDefaultTab] = React.useState<'create' | 'join'>('create');
+
+   if (!currentOrgId) return null;
 
    // Determine active workspace
    const activeWorkspace =

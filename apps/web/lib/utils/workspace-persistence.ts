@@ -4,7 +4,6 @@ import { getCookie, removeCookie, setCookie } from './cookies';
 export const ACTIVE_WORKSPACE_COOKIE = 'lastWorkspace';
 export const LEGACY_WORKSPACE_COOKIE = 'defaultWorkspace';
 export const WORKSPACE_STORAGE_KEY = 'circle_last_workspace';
-export const FALLBACK_WORKSPACE_SLUG = 'circle-workspace';
 
 /**
  * Persists the active workspace slug to cookies (365 days) and localStorage.

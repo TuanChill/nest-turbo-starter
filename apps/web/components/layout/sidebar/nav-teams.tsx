@@ -40,11 +40,13 @@ import { ROUTES } from '@/constants/routes';
 
 export function NavTeams() {
    const params = useParams<{ orgId?: string }>();
-   const orgId = params?.orgId || 'circle-workspace';
+   const orgId = params?.orgId;
    const pathname = usePathname();
    const { data: teams = [] } = useTeams();
    const updateTeamMutation = useUpdateTeam();
    const joinedTeams = teams.filter((t) => t.joined);
+
+   if (!orgId) return null;
 
    const toggleJoin = (teamId: string) => {
       const team = teams.find((t) => t.id === teamId);
