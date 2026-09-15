@@ -5,8 +5,7 @@ import {
    CreateIssuePayload,
    UpdateIssuePayload,
 } from '@/services/issues.service';
-import { Issue } from '@/mock-data/issues';
-import { ContentBlock, IssueDetail } from '@/mock-data/issue-details';
+import type { ContentBlock, IssueDetail } from '@/mock-data/issue-details';
 import { issueKeys } from './keys';
 import { toast } from 'sonner';
 

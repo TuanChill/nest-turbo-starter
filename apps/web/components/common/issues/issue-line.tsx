@@ -1,6 +1,6 @@
 'use client';
 
-import { Issue } from '@/mock-data/issues';
+import type { Issue } from '@/mock-data/issues';
 import { useCycles } from '@/hooks/queries/use-cycles-query';
 import { useDisplaySettingsStore } from '@/store/display-settings-store';
 import { format } from 'date-fns';

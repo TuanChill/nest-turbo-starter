@@ -1,6 +1,6 @@
 import { apiClient } from './api-client';
-import { Issue } from '@/mock-data/issues';
-import { ContentBlock, IssueDetail } from '@/mock-data/issue-details';
+import type { Issue } from '@/mock-data/issues';
+import type { ContentBlock, IssueDetail } from '@/mock-data/issue-details';
 
 export interface IssueFilterParams {
    teamId?: string;

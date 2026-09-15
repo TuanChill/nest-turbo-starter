@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { getNotificationIcon } from '@/lib/notification-utils';
 import { renderStatusIcon } from '@/lib/status-utils';
 import { renderPriorityIcon } from '@/lib/priority-utils';
-import { InboxItem } from '@/mock-data/inbox';
+import type { InboxItem } from '@/mock-data/inbox';
 import { useIssueDetail, useIssues } from '@/hooks/queries/use-issues-query';
 import { useMembers } from '@/hooks/queries/use-members-query';
 import { useNotificationsStore } from '@/store/notifications-store';

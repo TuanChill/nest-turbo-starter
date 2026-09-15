@@ -1,7 +1,7 @@
 'use client';
 
 import { cn } from '@/lib/utils';
-import { Issue } from '@/mock-data/issues';
+import type { Issue } from '@/mock-data/issues';
 import { useTeams } from '@/hooks/queries/use-teams-query';
 import { useRightPanelStore } from '@/store/right-panel-store';
 import { X } from 'lucide-react';
