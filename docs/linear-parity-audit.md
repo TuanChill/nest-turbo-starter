@@ -32,6 +32,8 @@ Reference set: [Linear Docs](https://linear.app/docs), [Projects](https://linear
 - Production deployment now rebuilds and restarts the `web` service when frontend files or the deployment script change; the prior backend-only deployment path could leave `pm.capylabs.io` on an older frontend build.
 - Document and review responses no longer substitute the seeded `ln` member when an author/creator is missing. Documents restrict creator enrichment to the visible team/workspace. Reviews now carry workspace scope through `Migration20260916100000` and enforce it on list/read/update.
 - Issue creation now rejects unknown status/priority IDs and validates cycle and parent-issue team membership before persistence.
+- The public seed endpoint now returns not-found in production. My Issues counts and lists use only authenticated-user/server issue data; they no longer fall back to the first mock user or local mock records. Template queries also wait for a verified workspace ID during legacy-route redirects.
+- Deployment locking now waits for an active deploy to finish for up to ten minutes so a queued release does not fail immediately on a held remote lock.
 
 ## Verification evidence (2026-09-15)
 
