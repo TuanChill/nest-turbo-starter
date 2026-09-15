@@ -22,9 +22,8 @@ fi
 # temporary pack under .git, so cleanup that only runs after checkout cannot
 # recover from a full production disk. Keep running containers and named
 # volumes (including PostgreSQL data) intact.
-echo "Reclaiming unused Docker build cache and images before fetch..."
+echo "Reclaiming unused Docker build cache before fetch..."
 docker builder prune -af --filter until=168h
-docker image prune -af --filter until=168h
 git gc --prune=now
 
 echo "Fetching the requested revision..."
