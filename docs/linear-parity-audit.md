@@ -40,6 +40,7 @@ Reference set: [Linear Docs](https://linear.app/docs), [Projects](https://linear
 - Issue creation no longer falls back to the arbitrary `ENG`/`CORE` team IDs. It now requires an actual route/project-selected team and shows an error before sending an invalid request.
 - Backend issue and document-folder creation now reject missing team context instead of selecting the first accessible team or legacy `ENG`/`CORE` IDs; the document dialog scopes folder queries to the current team.
 - Team/project/issue headers no longer fabricate a `CORE` team while live data is loading or missing. Team lists use persisted cycle and created/updated timestamps, and onboarding rejects an unusable team key instead of silently substituting `ENG`.
+- Initiative reads now discard persisted project links whose primary team is missing or belongs to another workspace, and initiative creation requires explicit workspace context instead of choosing the first accessible workspace.
 
 ## Verification evidence (2026-09-15)
 

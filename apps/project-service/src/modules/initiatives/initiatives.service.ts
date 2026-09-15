@@ -6,6 +6,7 @@ import {
   UpdateInitiativeDto,
 } from './dto/initiative.dto';
 import { deriveInitiativeProgress } from './initiative-progress';
+import { isProjectInInitiativeWorkspace } from './initiative-scope';
 import {
   Initiative,
   InitiativeActivity,
@@ -255,11 +256,19 @@ export class InitiativesService {
     const projects = [
       ...new Map([...storedProjects, ...linkedProjects].map((p) => [p.id, p])).values(),
     ];
+    const teams = await this.em.find(Team, {
+      id: { $in: [...new Set(projects.map((project) => project.teamId))] },
+    });
+    const workspaceByTeamId = new Map(teams.map((team) => [team.id, team.workspaceId]));
     return initiatives.map((initiative) =>
       projects.filter(
         (project) =>
-          project.initiativeId === initiative.id ||
-          initiative.projectIds.includes(project.id),
+          isProjectInInitiativeWorkspace(
+            workspaceByTeamId.get(project.teamId),
+            initiative.workspaceId,
+          ) &&
+          (project.initiativeId === initiative.id ||
+            initiative.projectIds.includes(project.id)),
       ),
     );
   }
@@ -340,6 +349,11 @@ export class InitiativesService {
   }
 
   async create(dto: CreateInitiativeDto, memberId: string) {
+    if (!dto.workspaceId) {
+      throw new BadRequestException(
+        'workspaceId is required when creating an initiative',
+      );
+    }
     const workspaceId = await this.resolveWorkspaceId(memberId, dto.workspaceId);
     const projectIds = await this.validateProjectIds(
       memberId,
