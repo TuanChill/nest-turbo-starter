@@ -1,8 +1,8 @@
 import { LexoRank } from '@/lib/utils';
 import { LabelInterface, labels } from './labels';
-import { Priority, priorities } from './priorities';
+import { Priority, priorities } from '@/lib/priority-catalog';
 import { Project, projects } from './projects';
-import { Status, status, StatusCategory } from './status';
+import { Status, status, StatusCategory } from '@/lib/workflow-status';
 import { User, users } from './users';
 
 export interface Issue {

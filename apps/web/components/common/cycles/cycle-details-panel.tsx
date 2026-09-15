@@ -16,7 +16,7 @@ import { renderPriorityIcon } from '@/lib/priority-utils';
 import { renderProjectIcon } from '@/lib/project-utils';
 import { cn } from '@/lib/utils';
 import type { Cycle, CycleStatus } from '@/services/cycles.service';
-import { Issue } from '@/mock-data/issues';
+import type { Issue } from '@/mock-data/issues';
 import { useRightPanelStore } from '@/store/right-panel-store';
 import { ChevronDown, Plus, User, X } from 'lucide-react';
 import { toast } from 'sonner';

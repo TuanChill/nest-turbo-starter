@@ -9,11 +9,11 @@ import {
    CommandItem,
    CommandList,
 } from '@/components/ui/command';
-import { formatCycleDateRange } from '@/mock-data/cycles';
-import { Issue } from '@/mock-data/issues';
-import { priorities } from '@/mock-data/priorities';
-import { status as allStatus } from '@/mock-data/status';
-import { User } from '@/mock-data/users';
+import { formatCycleDateRange } from '@/lib/cycle-utils';
+import type { Issue } from '@/mock-data/issues';
+import { priorities } from '@/lib/priority-catalog';
+import { status as allStatus } from '@/lib/workflow-status';
+import type { User } from '@/mock-data/users';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useCreateIssueStore } from '@/store/create-issue-store';
 import { useIssues, useUpdateIssue } from '@/hooks/queries/use-issues-query';

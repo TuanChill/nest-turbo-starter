@@ -13,12 +13,6 @@ export interface User {
 
 const avatarUrl = (seed: string) => `https://api.dicebear.com/9.x/glass/svg?seed=${seed}`;
 
-export const statusUserColors = {
-   online: '#00cc66',
-   offline: '#969696',
-   away: '#ffcc00',
-};
-
 export const users: User[] = [
    {
       id: 'ln',

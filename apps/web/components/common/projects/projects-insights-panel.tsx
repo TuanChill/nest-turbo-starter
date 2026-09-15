@@ -4,7 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
-import { health as healthList } from '@/mock-data/projects';
+import { projectHealth as healthList } from '@/lib/project-health';
 import type { Project } from '@/mock-data/projects';
 import { useTeams } from '@/hooks/queries/use-teams-query';
 import { useMembers } from '@/hooks/queries/use-members-query';

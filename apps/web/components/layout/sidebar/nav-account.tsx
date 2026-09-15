@@ -10,7 +10,7 @@ import {
    SidebarMenuButton,
    SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { accountItems } from '@/mock-data/side-bar-nav';
+import { accountItems } from '@/lib/sidebar-catalog';
 
 export function NavAccount() {
    const pathname = usePathname();

@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import { Team } from '@/mock-data/teams';
+import type { Team } from '@/mock-data/teams';
 
 export type { Team };
 

@@ -1,4 +1,4 @@
-import { Priority, priorities } from './priorities';
+import { Priority, priorities } from '@/lib/priority-catalog';
 import { Health, health, Project } from './projects';
 import { User, users } from './users';
 

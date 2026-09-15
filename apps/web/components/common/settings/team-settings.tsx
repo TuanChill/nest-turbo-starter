@@ -23,7 +23,7 @@ import {
    AlertDialogHeader,
    AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { status } from '@/mock-data/status';
+import { status } from '@/lib/workflow-status';
 import {
    Bot,
    ChevronRight,

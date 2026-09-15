@@ -1,7 +1,7 @@
 import type { Issue } from '@/mock-data/issues';
-import type { Priority } from '@/mock-data/priorities';
+import type { Priority } from '@/lib/priority-catalog';
 import type { Project } from '@/mock-data/projects';
-import type { Status } from '@/mock-data/status';
+import type { Status } from '@/lib/workflow-status';
 import type { User } from '@/mock-data/users';
 import {
    deleteIssue as apiDeleteIssue,

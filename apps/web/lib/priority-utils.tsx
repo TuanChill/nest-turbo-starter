@@ -1,5 +1,5 @@
 import React from 'react';
-import { priorities, Priority } from '@/mock-data/priorities';
+import { priorities, Priority } from '@/lib/priority-catalog';
 
 export function renderPriorityIcon(
    priorityId?: string,

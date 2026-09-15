@@ -1,4 +1,4 @@
-import { ContentBlock } from '@/mock-data/issue-details';
+import type { ContentBlock } from '@/mock-data/issue-details';
 
 /**
  * Converts legacy/seed ContentBlock[] or mixed strings into clean Markdown

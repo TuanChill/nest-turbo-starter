@@ -1,6 +1,6 @@
 import { Issue } from './issues';
 import { Project } from './projects';
-import { StatusCategory } from './status';
+import { StatusCategory } from '@/lib/workflow-status';
 import { User, users } from './users';
 
 export type ViewType = 'issue' | 'project';

@@ -2,7 +2,7 @@
 
 import { CycleDetailsPanel } from '@/components/common/cycles/cycle-details-panel';
 import { useCycles } from '@/hooks/queries/use-cycles-query';
-import { displayOrderedStatus } from '@/mock-data/status';
+import { displayOrderedStatus } from '@/lib/workflow-status';
 import { useFilterStore } from '@/store/filter-store';
 import { useIssuesStore } from '@/store/issues-store';
 import { applyIssueFilters } from './issue-filter-columns';

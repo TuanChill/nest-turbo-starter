@@ -8,14 +8,14 @@ import { SearchIssues } from '@/components/common/issues/search-issues';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { Issue } from '@/mock-data/issues';
-import { priorities } from '@/mock-data/priorities';
+import { priorities } from '@/lib/priority-catalog';
 import type { Member } from '@/services/members.service';
 import { useLabels } from '@/hooks/queries/use-labels-query';
 import { useTeams } from '@/hooks/queries/use-teams-query';
 import { useProjects } from '@/hooks/queries/use-projects-query';
 import { useIssues } from '@/hooks/queries/use-issues-query';
-import { statusUserColors } from '@/lib/member-status';
-import { displayOrderedStatus } from '@/mock-data/status';
+import { memberStatusColors } from '@/lib/member-status';
+import { displayOrderedStatus } from '@/lib/workflow-status';
 import { useFilterStore } from '@/store/filter-store';
 import { useRightPanelStore } from '@/store/right-panel-store';
 import { useSearchStore } from '@/store/search-store';
@@ -250,7 +250,9 @@ export default function MemberProfile({ member }: { member: Member }) {
                               className="border-background absolute -end-0.5 -bottom-0.5 size-3 rounded-full border-2"
                               style={{
                                  backgroundColor:
-                                    statusUserColors[member.status] ?? statusUserColors.offline,
+                                    memberStatusColors[
+                                       member.status as keyof typeof memberStatusColors
+                                    ] ?? memberStatusColors.offline,
                               }}
                            />
                         </div>

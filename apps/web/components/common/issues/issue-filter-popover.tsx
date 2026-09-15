@@ -13,8 +13,8 @@ import {
 } from '@/components/ui/command';
 import { useFilterStore } from '@/store/filter-store';
 import { issueFilterColumns } from './issue-filter-columns';
-import { status } from '@/mock-data/status';
-import { priorities } from '@/mock-data/priorities';
+import { status } from '@/lib/workflow-status';
+import { priorities } from '@/lib/priority-catalog';
 import { useMembers } from '@/hooks/queries/use-members-query';
 import { useLabels } from '@/hooks/queries/use-labels-query';
 import {

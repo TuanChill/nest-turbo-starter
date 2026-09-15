@@ -19,7 +19,7 @@ Key facts for coding agents:
 
 ## Data & state
 
-- [mock-data/status.tsx](./mock-data/status.tsx): 13 workflow statuses, categories, SVG icon builders
+- [lib/workflow-status.tsx](./lib/workflow-status.tsx): canonical workflow statuses, categories, SVG icon builders
 - [mock-data/issues.ts](./mock-data/issues.ts): 291 seeded issues, LexoRank ranks, grouping/filter helpers
 - [mock-data/cycles.ts](./mock-data/cycles.ts): cycles with capacity/scope/burn-up data + helpers
 - [mock-data/issue-details.ts](./mock-data/issue-details.ts): rich issue-page content blocks, activity, relations + deterministic fallback

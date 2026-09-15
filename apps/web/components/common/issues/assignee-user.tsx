@@ -8,7 +8,8 @@ import {
    DropdownMenuSeparator,
    DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { statusUserColors, User } from '@/mock-data/users';
+import { memberStatusColors } from '@/lib/member-status';
+import type { User } from '@/mock-data/users';
 import { useMembers } from '@/hooks/queries/use-members-query';
 import { useUpdateIssue } from '@/hooks/queries/use-issues-query';
 import { CheckIcon, CircleUserRound, Send, UserIcon } from 'lucide-react';
@@ -62,7 +63,7 @@ export function AssigneeUser({ user, issueIdentifier }: AssigneeUserProps) {
                {currentAssignee && (
                   <span
                      className="border-background absolute -end-0.5 -bottom-0.5 size-2.5 rounded-full border-2"
-                     style={{ backgroundColor: statusUserColors[currentAssignee.status] }}
+                     style={{ backgroundColor: memberStatusColors[currentAssignee.status] }}
                   >
                      <span className="sr-only">{currentAssignee.status}</span>
                   </span>

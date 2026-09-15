@@ -1,7 +1,7 @@
 'use client';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Team } from '@/mock-data/teams';
+import type { Team } from '@/mock-data/teams';
 import { useCycles } from '@/hooks/queries/use-cycles-query';
 import { useTeamsDisplayStore } from '@/store/teams-display-store';
 import { Box, Check, Play } from 'lucide-react';

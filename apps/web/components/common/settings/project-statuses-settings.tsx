@@ -1,7 +1,7 @@
 'use client';
 
 import { useProjects } from '@/hooks/queries/use-projects-query';
-import { StatusCategory } from '@/mock-data/status';
+import { StatusCategory } from '@/lib/workflow-status';
 import { renderStatusIcon } from '@/lib/status-utils';
 import { Plus } from 'lucide-react';
 import { useMemo } from 'react';

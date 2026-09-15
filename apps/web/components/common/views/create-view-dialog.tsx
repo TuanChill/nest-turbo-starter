@@ -28,7 +28,7 @@ import { Check, Loader2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import type { View, ViewType } from '@/services/views.service';
-import { StatusCategory } from '@/mock-data/status';
+import { StatusCategory } from '@/lib/workflow-status';
 import { renderPriorityIcon } from '@/lib/priority-utils';
 
 interface CreateViewDialogProps {

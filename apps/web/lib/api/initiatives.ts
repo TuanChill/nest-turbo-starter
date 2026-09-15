@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import { Initiative } from '@/mock-data/initiatives';
+import type { Initiative } from '@/mock-data/initiatives';
 
 export type { Initiative };
 

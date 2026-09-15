@@ -1,7 +1,7 @@
 'use client';
 
 import type { Issue } from '@/mock-data/issues';
-import { getStatusesByCategory, StatusCategory, displayOrderedStatus } from '@/mock-data/status';
+import { getStatusesByCategory, StatusCategory, displayOrderedStatus } from '@/lib/workflow-status';
 import { useFilterStore } from '@/store/filter-store';
 import { useIssuesStore } from '@/store/issues-store';
 import { applyIssueFilters } from './issue-filter-columns';

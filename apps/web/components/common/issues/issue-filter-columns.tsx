@@ -7,8 +7,8 @@ import { multiOptionFilterFn, optionFilterFn } from '@/components/data-table-fil
 import { cycleStatusLabel } from '@/lib/cycle-utils';
 import type { Cycle } from '@/services/cycles.service';
 import type { Issue } from '@/mock-data/issues';
-import { priorities } from '@/mock-data/priorities';
-import { status, StatusCategory } from '@/mock-data/status';
+import { priorities } from '@/lib/priority-catalog';
+import { status, StatusCategory } from '@/lib/workflow-status';
 import type { Project } from '@/mock-data/projects';
 import { renderProjectIcon } from '@/lib/project-utils';
 import type { Member } from '@/services/members.service';

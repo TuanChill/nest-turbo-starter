@@ -10,8 +10,8 @@ import {
 } from '@/hooks/queries/use-issues-query';
 import { useMembers } from '@/hooks/queries/use-members-query';
 import { useLabels } from '@/hooks/queries/use-labels-query';
-import { status as allStatuses } from '@/mock-data/status';
-import { priorities } from '@/mock-data/priorities';
+import { status as allStatuses } from '@/lib/workflow-status';
+import { priorities } from '@/lib/priority-catalog';
 import { renderPriorityIcon } from '@/lib/priority-utils';
 import {
    DropdownMenu,

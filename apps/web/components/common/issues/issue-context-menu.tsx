@@ -36,8 +36,8 @@ import {
 import React, { useState } from 'react';
 import { useIssuesStore } from '@/store/issues-store';
 import type { Issue } from '@/mock-data/issues';
-import { status } from '@/mock-data/status';
-import { priorities } from '@/mock-data/priorities';
+import { status } from '@/lib/workflow-status';
+import { priorities } from '@/lib/priority-catalog';
 import { useMembers } from '@/hooks/queries/use-members-query';
 import { useLabels } from '@/hooks/queries/use-labels-query';
 import { useProjects } from '@/hooks/queries/use-projects-query';

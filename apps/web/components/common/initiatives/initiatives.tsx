@@ -28,7 +28,7 @@ import {
 import { Initiative } from '@/services/initiatives.service';
 import type { InitiativeStatus as InitiativeStatusType } from '@/services/initiatives.service';
 import { useInitiatives } from '@/hooks/queries/use-initiatives-query';
-import { priorities } from '@/mock-data/priorities';
+import { priorities } from '@/lib/priority-catalog';
 import { useMembers } from '@/hooks/queries/use-members-query';
 import { useProjects } from '@/hooks/queries/use-projects-query';
 import { InitiativesFilterType, useInitiativesFilterStore } from '@/store/initiatives-filter-store';

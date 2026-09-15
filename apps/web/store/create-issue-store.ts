@@ -1,4 +1,4 @@
-import type { Status } from '@/mock-data/status';
+import type { Status } from '@/lib/workflow-status';
 import type { Project } from '@/mock-data/projects';
 import type { Cycle } from '@/mock-data/cycles';
 import { create } from 'zustand';

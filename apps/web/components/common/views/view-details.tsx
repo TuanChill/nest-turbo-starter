@@ -4,7 +4,7 @@ import { GroupedIssuesView } from '@/components/common/issues/grouped-issues-vie
 import { InsightsPanel } from '@/components/common/issues/insights-panel';
 import ProjectsList from '@/components/common/projects/projects-list';
 import { ProjectGroup } from '@/components/common/projects/projects';
-import { status as allStatus } from '@/mock-data/status';
+import { status as allStatus } from '@/lib/workflow-status';
 import { filterIssuesForView, filterProjectsForView } from '@/lib/view-filters';
 import type { View } from '@/services/views.service';
 import { useAuthStore } from '@/store/auth-store';
