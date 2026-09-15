@@ -54,6 +54,7 @@ export function LinearEditor({
    const onKeyDownRef = React.useRef<((event: KeyboardEvent) => boolean) | null>(null);
    const lastReportedValue = React.useRef<string>(value);
    const lastSavedValue = React.useRef<string>(value);
+   const lastExternalValue = React.useRef<string>(value);
    const saveTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
    const isClickToEdit = mode === 'click-to-edit';
    const editorIsEditable = editable && (!isClickToEdit || isEditing);
@@ -186,6 +187,18 @@ export function LinearEditor({
             onChange?.(md);
             scheduleSave(md);
          },
+         onCreate: ({ editor: ed }) => {
+            // Tiptap can normalize legacy Markdown on initialization. Treat that
+            // canonical form as the saved baseline so merely entering edit mode
+            // never creates a description-change event.
+            const md =
+               (
+                  ed.storage as { markdown?: { getMarkdown: () => string } }
+               ).markdown?.getMarkdown() ?? '';
+            lastReportedValue.current = md;
+            lastSavedValue.current = md;
+            lastExternalValue.current = value;
+         },
          onBlur: ({ editor: ed }) => {
             const md =
                (
@@ -205,10 +218,15 @@ export function LinearEditor({
    // Sync value if changed from outside
    React.useEffect(() => {
       if (!editor || editor.isDestroyed) return;
-      if (value !== lastReportedValue.current) {
-         lastReportedValue.current = value;
-         lastSavedValue.current = value;
+      if (value !== lastExternalValue.current) {
+         lastExternalValue.current = value;
          editor.commands.setContent(value, { emitUpdate: false });
+         const md =
+            (
+               editor.storage as { markdown?: { getMarkdown: () => string } }
+            ).markdown?.getMarkdown() ?? '';
+         lastReportedValue.current = md;
+         lastSavedValue.current = md;
       }
    }, [editor, value]);
 
