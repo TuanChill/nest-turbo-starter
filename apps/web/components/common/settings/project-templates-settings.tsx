@@ -2,6 +2,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
+import QueryErrorState from '@/components/common/query-error-state';
 import {
    Dialog,
    DialogContent,
@@ -365,7 +366,7 @@ function TemplateEditor({
 
 export default function ProjectTemplatesSettings() {
    const { orgId } = useParams<{ orgId: string }>();
-   const { data: templates = [], isLoading, isError } = useProjectTemplates(orgId);
+   const { data: templates = [], isLoading, isError, error, refetch } = useProjectTemplates(orgId);
    const { data: teams = [] } = useTeams();
    const { data: members = [] } = useMembers();
    const { data: initiatives = [] } = useInitiatives();
@@ -405,7 +406,7 @@ export default function ProjectTemplatesSettings() {
                </Button>
             </div>
             {isError && (
-               <p className="text-sm text-destructive py-6">Could not load project templates.</p>
+               <QueryErrorState subject="project templates" error={error} onRetry={refetch} />
             )}
             {isLoading && (
                <p className="text-sm text-muted-foreground py-6">Loading templates...</p>

@@ -1,6 +1,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
+import QueryErrorState from '@/components/common/query-error-state';
 import {
    Dialog,
    DialogContent,
@@ -11,6 +12,15 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import {
+   Command,
+   CommandEmpty,
+   CommandGroup,
+   CommandInput,
+   CommandItem,
+   CommandList,
+} from '@/components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { LinearEditor } from '@/components/common/editor/linear-editor';
 import { contentBlocksToMarkdown } from '@/lib/content-blocks-to-markdown';
 import { markdownToContentBlocks } from '@/lib/markdown-to-content-blocks';
@@ -33,6 +43,7 @@ import { useMembers } from '@/hooks/queries/use-members-query';
 import { useTeams } from '@/hooks/queries/use-teams-query';
 import { useProjects } from '@/hooks/queries/use-projects-query';
 import { useCycles } from '@/hooks/queries/use-cycles-query';
+import { useIssues } from '@/hooks/queries/use-issues-query';
 import { priorities } from '@/lib/priority-catalog';
 import { status } from '@/lib/workflow-status';
 import type { Project } from '@/services/projects.service';
@@ -87,6 +98,8 @@ function TemplateEditor({
    const [cycleId, setCycleId] = useState('none');
    const [dueDate, setDueDate] = useState('');
    const [isDefault, setIsDefault] = useState(false);
+   const [parentPickerOpen, setParentPickerOpen] = useState(false);
+   const parentIssuesQuery = useIssues({ workspaceId, teamId: teamId || undefined });
 
    useEffect(() => {
       if (!open) return;
@@ -117,6 +130,12 @@ function TemplateEditor({
 
    const availableProjects = projects.filter((project) => !teamId || project.teamId === teamId);
    const availableCycles = cycles.filter((cycle) => !teamId || cycle.teamId === teamId);
+   const parentIssues = (parentIssuesQuery.data ?? []).filter(
+      (issue) => issue.teamId === teamId && issue.identifier !== parentIssueId
+   );
+   const selectedParent = (parentIssuesQuery.data ?? []).find(
+      (issue) => issue.id === parentIssueId || issue.identifier === parentIssueId
+   );
 
    const toggleLabel = (id: string) =>
       setLabelIds((current) =>
@@ -203,6 +222,7 @@ function TemplateEditor({
                            value={teamId}
                            onValueChange={(value) => {
                               setTeamId(value);
+                              setParentIssueId('');
                               if (
                                  projectId !== 'none' &&
                                  !projects.some(
@@ -263,12 +283,60 @@ function TemplateEditor({
                      />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
-                     <Input
-                        placeholder="Default parent issue (team templates only)"
-                        value={parentIssueId}
-                        onChange={(event) => setParentIssueId(event.target.value)}
-                        disabled={scope !== 'team'}
-                     />
+                     <Popover open={parentPickerOpen} onOpenChange={setParentPickerOpen}>
+                        <PopoverTrigger asChild>
+                           <Button
+                              type="button"
+                              variant="outline"
+                              className="justify-start font-normal truncate"
+                              disabled={scope !== 'team' || !teamId}
+                           >
+                              {selectedParent
+                                 ? `${selectedParent.identifier} · ${selectedParent.title}`
+                                 : 'Default parent issue'}
+                           </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[360px] p-0" align="start">
+                           <Command>
+                              <CommandInput placeholder="Search parent issues..." />
+                              <CommandList>
+                                 <CommandEmpty>
+                                    {parentIssuesQuery.isLoading
+                                       ? 'Loading issues...'
+                                       : parentIssuesQuery.isError
+                                         ? 'Could not load issues.'
+                                         : 'No issues found.'}
+                                 </CommandEmpty>
+                                 <CommandGroup>
+                                    <CommandItem
+                                       value="no-parent"
+                                       onSelect={() => {
+                                          setParentIssueId('');
+                                          setParentPickerOpen(false);
+                                       }}
+                                    >
+                                       No parent issue
+                                    </CommandItem>
+                                    {parentIssues.map((issue) => (
+                                       <CommandItem
+                                          key={issue.id}
+                                          value={`${issue.identifier} ${issue.title}`}
+                                          onSelect={() => {
+                                             setParentIssueId(issue.identifier);
+                                             setParentPickerOpen(false);
+                                          }}
+                                       >
+                                          <span className="text-muted-foreground shrink-0">
+                                             {issue.identifier}
+                                          </span>
+                                          <span className="truncate">{issue.title}</span>
+                                       </CommandItem>
+                                    ))}
+                                 </CommandGroup>
+                              </CommandList>
+                           </Command>
+                        </PopoverContent>
+                     </Popover>
                      <Input
                         placeholder="Default milestone"
                         value={milestone}
@@ -401,7 +469,7 @@ function TemplateEditor({
 
 export default function IssueTemplatesSettings() {
    const { orgId } = useParams<{ orgId: string }>();
-   const { data: templates = [], isLoading, isError } = useIssueTemplates(orgId);
+   const { data: templates = [], isLoading, isError, error, refetch } = useIssueTemplates(orgId);
    const { data: teams = [] } = useTeams();
    const { data: members = [] } = useMembers();
    const { data: labels = [] } = useLabels('issue');
@@ -443,7 +511,7 @@ export default function IssueTemplatesSettings() {
                </Button>
             </div>
             {isError && (
-               <p className="text-sm text-destructive py-6">Could not load issue templates.</p>
+               <QueryErrorState subject="issue templates" error={error} onRetry={refetch} />
             )}
             {isLoading && (
                <p className="text-sm text-muted-foreground py-6">Loading templates...</p>
