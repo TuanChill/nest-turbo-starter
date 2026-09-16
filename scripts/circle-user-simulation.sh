@@ -96,6 +96,10 @@ project_template_id="$(jq -er '.id' <<<"$project_template")"
 
 issue_template="$(api POST /issue-templates "$(jq -nc --arg workspaceId "$WORKSPACE_ID" --arg teamId "$TEAM_ID" --arg labelId "$label_id" '{name:"Circle simulation issue template",scope:"team",workspaceId:$workspaceId,teamId:$teamId,config:{title:"Simulation issue",description:"Created by the authenticated user simulation",statusId:"to-do",priorityId:"medium",labelIds:[$labelId]}}')")"
 issue_template_id="$(jq -er '.id' <<<"$issue_template")"
+issue_template_check="$(api GET "/issue-templates/$issue_template_id")"
+assert_json 'issue template persisted with real defaults' "$issue_template_check" \
+  --arg label_id "$label_id" \
+  '.config.title == "Simulation issue" and (.config.labelIds | index($label_id)) != null'
 
 initiative="$(api POST /initiatives "$(jq -nc --arg workspaceId "$WORKSPACE_ID" --arg projectId "$project_id" --arg labelId "$label_id" '{name:"Circle simulation initiative",workspaceId:$workspaceId,status:"planned",projectIds:[$projectId],labelIds:[$labelId]}')")"
 initiative_id="$(jq -er '.id' <<<"$initiative")"
@@ -148,6 +152,18 @@ initiative_update="$(api POST "/initiatives/$initiative_id/updates" '{"health":"
 initiative_update_id="$(jq -er '.updates[0].id' <<<"$initiative_update")"
 initiative_update="$(api PATCH "/initiatives/$initiative_id/updates/$initiative_update_id" '{"health":"on-track","blocks":[{"type":"paragraph","text":"Edited simulation initiative update"}]}')"
 assert_json 'initiative update edit persisted' "$initiative_update" --arg update_id "$initiative_update_id" '.updates | any(.[]; .id == $update_id and .health == "on-track" and ((.blocks // []) | any(.[]; (.text // "") | contains("Edited simulation"))))'
+initiative_update="$(api POST "/initiatives/$initiative_id/updates/$initiative_update_id/reactions" '{"emoji":"🚀"}')"
+assert_json 'initiative update reaction persisted' "$initiative_update" \
+  --arg update_id "$initiative_update_id" \
+  '.updates | any(.[]; .id == $update_id and ((.reactions // []) | any(.emoji == "🚀" and .count == 1)))'
+initiative_update="$(api POST "/initiatives/$initiative_id/updates/$initiative_update_id/reactions" '{"emoji":"🚀"}')"
+assert_json 'initiative update reaction is idempotent' "$initiative_update" \
+  --arg update_id "$initiative_update_id" \
+  '.updates | any(.[]; .id == $update_id and ((.reactions // []) | any(.emoji == "🚀" and .count == 1)))'
+initiative_update="$(api DELETE "/initiatives/$initiative_id/updates/$initiative_update_id/reactions/%F0%9F%9A%80")"
+assert_json 'initiative update reaction removal persisted' "$initiative_update" \
+  --arg update_id "$initiative_update_id" \
+  '.updates | any(.[]; .id == $update_id and ((.reactions // []) | all(.emoji != "🚀")))'
 second_initiative_update="$(api POST "/initiatives/$initiative_id/updates" '{"health":"off-track","blocks":[{"type":"paragraph","text":"Temporary simulation initiative update"}]}')"
 second_initiative_update_id="$(jq -er '.updates[0].id' <<<"$second_initiative_update")"
 initiative_after_delete="$(api DELETE "/initiatives/$initiative_id/updates/$second_initiative_update_id")"
@@ -186,6 +202,22 @@ cloned_child_identifier="$(jq -er '.[] | select(.title == "Simulation child issu
 cloned_detail="$(api GET "/issues/$cloned_root_identifier/detail")"
 assert_json 'template clone remaps issue relation' "$cloned_detail" --arg cloned_child_identifier "$cloned_child_identifier" '.relations | any(.[]; .identifier == $cloned_child_identifier)'
 
+template_config="$(jq -c '.config' <<<"$issue_template_check")"
+templated_issue="$(api POST /issues "$(jq -nc --argjson config "$template_config" --arg teamId "$TEAM_ID" '$config + {teamId:$teamId,title:(($config.title // "Simulation issue") + " from template") }')")"
+templated_identifier="$(jq -er '.identifier' <<<"$templated_issue")"
+assert_json 'issue template defaults applied to a real issue' "$templated_issue" \
+  --arg label_id "$label_id" \
+  '.title == "Simulation issue from template" and .priority.id == "medium" and (.labels | any(.id == $label_id))'
+
+archived_label="$(api PATCH "/labels/$label_id" '{"archived":true}')"
+assert_json 'label archive persisted' "$archived_label" '.archivedAt != null'
+active_labels="$(api GET "/labels?workspaceId=$WORKSPACE_ID&teamId=$TEAM_ID&includeArchived=false")"
+assert_json 'archived label leaves active picker' "$active_labels" --arg label_id "$label_id" 'all(.[]; .id != $label_id)'
+archived_labels="$(api GET "/labels?workspaceId=$WORKSPACE_ID&teamId=$TEAM_ID&includeArchived=true")"
+assert_json 'archived label remains readable in history catalog' "$archived_labels" --arg label_id "$label_id" 'any(.[]; .id == $label_id and .archivedAt != null)'
+restored_label="$(api PATCH "/labels/$label_id" '{"archived":false}')"
+assert_json 'label restore persisted' "$restored_label" '.archivedAt == null'
+
 api DELETE "/issues/$root_identifier" >/dev/null
 archived_issues="$(api GET "/issues/archived?teamId=$TEAM_ID")"
 assert_json 'deleted issue appears in scoped archive' "$archived_issues" --arg root_identifier "$root_identifier" 'any(.[]; .identifier == $root_identifier and .deletedAt != null)'
@@ -195,4 +227,4 @@ restored_detail="$(api GET "/issues/$root_identifier/detail")"
 assert_json 'restored issue is readable again' "$restored_detail" --arg root_identifier "$root_identifier" '.identifier == $root_identifier'
 
 echo "PASS authenticated user simulation"
-echo "workspace=$WORKSPACE_ID team=$TEAM_ID project=$project_id clonedProject=$cloned_project_id rootIssue=$root_identifier childIssue=$child_identifier initiative=$initiative_id cycle=$cycle_id issueTemplate=$issue_template_id"
+echo "workspace=$WORKSPACE_ID team=$TEAM_ID project=$project_id clonedProject=$cloned_project_id rootIssue=$root_identifier childIssue=$child_identifier templatedIssue=$templated_identifier initiative=$initiative_id cycle=$cycle_id issueTemplate=$issue_template_id"
