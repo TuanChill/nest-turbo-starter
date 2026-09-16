@@ -10,6 +10,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { OAuth2Client } from 'google-auth-library';
+import { v7 } from 'uuid';
 import {
   AuthResponseDto,
   GoogleAuthDto,
@@ -79,18 +80,7 @@ export class AuthService {
 
     const passwordHash = await hashData(dto.password);
 
-    const baseMemberId =
-      email
-        .split('@')[0]
-        .toLowerCase()
-        .replace(/[^a-z0-9]/g, '') || 'user';
-    let memberId = baseMemberId;
-    let counter = 1;
-    // oxlint-disable-next-line no-await-in-loop -- each candidate id depends on the previous one being taken
-    while (await this.em.findOne(Member, { id: memberId })) {
-      memberId = `${baseMemberId}${counter}`;
-      counter++;
-    }
+    const memberId = v7();
 
     const member = new Member({
       id: memberId,
@@ -267,18 +257,7 @@ export class AuthService {
       throw new UnauthorizedException(msg || 'Invalid or expired Google Token');
     }
 
-    const baseMemberId =
-      email
-        .split('@')[0]
-        .toLowerCase()
-        .replace(/[^a-z0-9]/g, '') || 'googleuser';
-    let memberId = baseMemberId;
-    let memberIdCounter = 1;
-    // oxlint-disable-next-line no-await-in-loop -- each candidate depends on the previous ID
-    while (await this.em.findOne(Member, { id: memberId, email: { $ne: email } })) {
-      memberId = `${baseMemberId}${memberIdCounter}`;
-      memberIdCounter++;
-    }
+    const memberId = v7();
     let teamIds: string[] = [];
     let role = 'Member';
     let status = 'online';

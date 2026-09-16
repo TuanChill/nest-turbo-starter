@@ -422,7 +422,7 @@ export class InitiativesService {
     if (dto.healthId && !HEALTH_DATA[dto.healthId]) {
       throw new BadRequestException(`Unknown initiative health ${dto.healthId}`);
     }
-    let id = dto.id || dto.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    let id = dto.id?.trim() || v7();
     const existing = await this.em.findOne(Initiative, { id });
     if (existing) {
       id = `${id}-${v7()}`;

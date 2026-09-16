@@ -158,7 +158,7 @@ export class DocumentsService {
       throw new NotFoundException(`Team ${teamId} not found`);
     }
 
-    const id = dto.id || dto.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const id = dto.id?.trim() || v7();
     const folder = new DocumentFolder({
       id,
       name: dto.name,

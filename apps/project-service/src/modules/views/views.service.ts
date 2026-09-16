@@ -180,7 +180,7 @@ export class ViewsService {
     if (dto.projectId) {
       await this.assertProjectTarget(dto.projectId, workspaceId, dto.teamId);
     }
-    let id = dto.id || dto.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    let id = dto.id?.trim() || v7();
     const existing = await this.em.findOne(SavedView, { id });
     if (existing) {
       id = `${id}-${v7()}`;

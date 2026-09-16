@@ -22,6 +22,34 @@ jest.mock('../../data-access', () => ({
 }));
 
 describe('AuthService signup', () => {
+  it('generates an opaque UUID member ID for a new password account', async () => {
+    const em = {
+      findOne: jest.fn().mockResolvedValue(null),
+      persist: jest.fn(),
+      flush: jest.fn(),
+    };
+    const jwtService = { sign: jest.fn().mockReturnValue('token') };
+    const configService = { get: jest.fn().mockReturnValue('jwt-secret') };
+    const service = new AuthService(
+      em as never,
+      jwtService as never,
+      configService as never,
+    );
+
+    const response = await service.signUp({
+      name: 'New Account',
+      email: 'new.account@example.com',
+      password: 'password123',
+    });
+    const persistedMember = em.persist.mock.calls[0][0];
+
+    expect(persistedMember.id).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    );
+    expect(persistedMember.id).not.toBe('user');
+    expect(response.user.id).toBe(persistedMember.id);
+  });
+
   it('does not activate a passwordless legacy member as a new account', async () => {
     const existingMember = {
       id: 'legacy-member',
