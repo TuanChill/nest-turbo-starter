@@ -161,6 +161,19 @@ export class IssuesService {
     return uniqueLabelIds;
   }
 
+  private async getExistingIssueLabelIds(issue: Issue) {
+    const existing = await this.em.find(IssueLabel, {
+      $or: [{ issueId: issue.id }, { issueId: issue.identifier }],
+    });
+    return [
+      ...new Set(
+        existing
+          .map((join) => join.labelId)
+          .filter((labelId): labelId is string => Boolean(labelId)),
+      ),
+    ];
+  }
+
   private async validateAssigneeId(assigneeId: string | undefined, teamId: string) {
     if (!assigneeId) return;
     const [member, team, teamMembership] = await Promise.all([
@@ -1330,6 +1343,16 @@ export class IssuesService {
       await this.validateProjectForTeam(nextProjectId, nextTeamId, actorId);
     }
 
+    let nextLabelIds: string[] | undefined;
+    if (dto.labelIds !== undefined) {
+      nextLabelIds = await this.validateLabelIds(dto.labelIds, nextTeamId);
+    } else if (dto.teamId !== undefined && dto.teamId !== issue.teamId) {
+      const existingLabelIds = await this.getExistingIssueLabelIds(issue);
+      if (existingLabelIds.length > 0) {
+        nextLabelIds = await this.validateLabelIds(existingLabelIds, nextTeamId);
+      }
+    }
+
     let nextMilestone = issue.milestone;
     if (dto.milestone !== undefined || dto.projectId !== undefined) {
       nextMilestone = await this.resolveMilestoneForProject(
@@ -1505,16 +1528,15 @@ export class IssuesService {
       issue.milestone = nextMilestone;
     }
 
-    if (dto.labelIds !== undefined) {
-      const labelIds = await this.validateLabelIds(dto.labelIds, nextTeamId);
+    if (nextLabelIds !== undefined) {
       const existing = await this.em.find(IssueLabel, {
         $or: [{ issueId: issue.id }, { issueId: issue.identifier }],
       });
       for (const e of existing) {
         this.em.remove(e);
       }
-      if (labelIds.length > 0) {
-        const newIls = labelIds.map((lid) => new IssueLabel(issue.identifier, lid));
+      if (nextLabelIds.length > 0) {
+        const newIls = nextLabelIds.map((lid) => new IssueLabel(issue.identifier, lid));
         this.em.persist(newIls);
       }
     }

@@ -115,6 +115,7 @@ Reference set: [Linear Docs](https://linear.app/docs), [Projects](https://linear
 - The direct workspace-creation API now applies the same rule as onboarding: names/slugs that cannot produce a real slug return a validation error and never persist a workspace or membership.
 - Issue create/update now treats milestone as a project-owned reference: a non-empty milestone must resolve by ID or name within the selected project, is stored using the canonical milestone name, and cannot survive project removal/change unless it remains valid; an empty value explicitly clears it. Focused scope and service-wiring regression tests cover these paths.
 - Project attachments now resolve access through every persisted `ProjectTeam` link, reject corrupt cross-workspace project links, and list/download the project’s completed files across all accessible project teams. Upload scope regression tests cover secondary-team access and cross-team listing.
+- Issue team moves now revalidate existing issue-label joins against the destination team when `labelIds` is omitted; stale team-scoped labels cannot remain attached after a move, while workspace labels are normalized safely. Regression coverage deduplicates legacy join rows before validation.
 
 ## Verification evidence (2026-09-15)
 

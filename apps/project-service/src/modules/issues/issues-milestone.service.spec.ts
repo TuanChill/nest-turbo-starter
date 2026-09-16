@@ -1,6 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import { IssuesService } from './issues.service';
-import { ProjectMilestone } from '../../data-access';
+import { IssueLabel, ProjectMilestone } from '../../data-access';
 
 jest.mock('@mikro-orm/core', () => ({
   EntityManager: class EntityManager {},
@@ -15,6 +15,13 @@ jest.mock('../../data-access', () => ({
       Object.assign(this, partial);
     }
   },
+  IssueLabel: class MockIssueLabel {
+    labelId?: string;
+
+    constructor(partial?: Record<string, unknown>) {
+      Object.assign(this, partial);
+    }
+  },
 }));
 
 jest.mock('../workspaces/workspaces.service', () => ({
@@ -22,7 +29,7 @@ jest.mock('../workspaces/workspaces.service', () => ({
 }));
 
 describe('IssuesService milestone scope', () => {
-  const em = { findOne: jest.fn() };
+  const em = { findOne: jest.fn(), find: jest.fn() };
   const service = new IssuesService(em as any, {} as any);
 
   beforeEach(() => jest.clearAllMocks());
@@ -54,5 +61,22 @@ describe('IssuesService milestone scope', () => {
       (service as any).resolveMilestoneForProject('project-1', '  '),
     ).resolves.toBeUndefined();
     expect(em.findOne).not.toHaveBeenCalled();
+  });
+
+  it('deduplicates legacy issue-label join rows before team validation', async () => {
+    const issue = { id: 'issue-id', identifier: 'ENG-1' };
+    em.find.mockResolvedValue([
+      { labelId: 'label-a' },
+      { labelId: 'label-a' },
+      { labelId: 'label-b' },
+    ]);
+
+    await expect((service as any).getExistingIssueLabelIds(issue)).resolves.toEqual([
+      'label-a',
+      'label-b',
+    ]);
+    expect(em.find).toHaveBeenCalledWith(IssueLabel, {
+      $or: [{ issueId: 'issue-id' }, { issueId: 'ENG-1' }],
+    });
   });
 });
