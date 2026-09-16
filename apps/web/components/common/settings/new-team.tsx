@@ -20,6 +20,7 @@ export default function NewTeam() {
    const { data: workspaces = [] } = useWorkspaces();
    const currentWorkspaceId = workspaces.find((ws) => ws.slug === orgId || ws.id === orgId)?.id;
    const [teamName, setTeamName] = useState('');
+   const [teamKey, setTeamKey] = useState('');
    const [isSubmitting, setIsSubmitting] = useState(false);
 
    const notJoined = teams.filter((team) => !team.joined);
@@ -36,10 +37,12 @@ export default function NewTeam() {
 
    const handleCreate = async () => {
       const trimmed = teamName.trim();
-      if (!trimmed) return;
+      const trimmedKey = teamKey.trim();
+      if (!trimmed || !trimmedKey) return;
       setIsSubmitting(true);
       try {
          await createTeamMutation.mutateAsync({
+            id: trimmedKey,
             name: trimmed,
             icon: '⚡',
             color: '#5e6ad2',
@@ -48,6 +51,7 @@ export default function NewTeam() {
          });
          toast.success(`Team "${trimmed}" created`);
          setTeamName('');
+         setTeamKey('');
       } catch (err: unknown) {
          console.error('Failed to create team:', err);
          const errorMessage = err instanceof Error ? err.message : 'Could not create team';
@@ -74,10 +78,19 @@ export default function NewTeam() {
                         if (e.key === 'Enter') handleCreate();
                      }}
                   />
+                  <Input
+                     placeholder="Key"
+                     className="h-8 w-20 uppercase"
+                     value={teamKey}
+                     maxLength={8}
+                     onChange={(e) =>
+                        setTeamKey(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))
+                     }
+                  />
                   <Button
                      size="xs"
                      onClick={handleCreate}
-                     disabled={isSubmitting || !teamName.trim()}
+                     disabled={isSubmitting || !teamName.trim() || !teamKey.trim()}
                   >
                      <Plus className="size-3.5 mr-1" />
                      {isSubmitting ? 'Creating...' : 'Create team'}

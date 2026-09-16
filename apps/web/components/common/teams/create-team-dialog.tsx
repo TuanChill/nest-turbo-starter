@@ -63,7 +63,6 @@ export function CreateTeamDialog({
 
    const [name, setName] = React.useState('');
    const [key, setKey] = React.useState('');
-   const [isKeyManuallyEdited, setIsKeyManuallyEdited] = React.useState(false);
    const [selectedIcon, setSelectedIcon] = React.useState(ICON_PRESETS[0]);
    const [selectedColor, setSelectedColor] = React.useState(COLOR_PRESETS[0]);
    const [description, setDescription] = React.useState('');
@@ -82,24 +81,8 @@ export function CreateTeamDialog({
       );
    }, [members, memberSearch]);
 
-   // Derive key from name automatically unless manually modified
    const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const newName = e.target.value;
-      setName(newName);
-      if (!isKeyManuallyEdited) {
-         const words = newName.trim().split(/\s+/).filter(Boolean);
-         let generatedKey = '';
-         if (words.length === 1) {
-            generatedKey = words[0].slice(0, 4).toUpperCase();
-         } else if (words.length > 1) {
-            generatedKey = words
-               .map((w) => w[0])
-               .join('')
-               .slice(0, 5)
-               .toUpperCase();
-         }
-         setKey(generatedKey.replace(/[^A-Z0-9]/g, ''));
-      }
+      setName(e.target.value);
    };
 
    const handleKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -109,7 +92,6 @@ export function CreateTeamDialog({
             .replace(/[^A-Z0-9]/g, '')
             .slice(0, 8)
       );
-      setIsKeyManuallyEdited(true);
    };
 
    const toggleMember = (memberId: string) => {
@@ -127,13 +109,10 @@ export function CreateTeamDialog({
          return;
       }
 
-      let teamKey = key.trim();
+      const teamKey = key.trim();
       if (!teamKey) {
-         teamKey =
-            trimmedName
-               .toUpperCase()
-               .replace(/[^A-Z0-9]/g, '')
-               .slice(0, 4) || 'TEAM';
+         toast.error('Enter a team key before creating the team');
+         return;
       }
 
       setIsSubmitting(true);
@@ -152,7 +131,6 @@ export function CreateTeamDialog({
          toast.success(`Team "${trimmedName}" created successfully`);
          setName('');
          setKey('');
-         setIsKeyManuallyEdited(false);
          setSelectedIcon(ICON_PRESETS[0]);
          setSelectedColor(COLOR_PRESETS[0]);
          setDescription('');
@@ -248,6 +226,7 @@ export function CreateTeamDialog({
                               value={key}
                               onChange={handleKeyChange}
                               disabled={isSubmitting}
+                              required
                               className="h-9 pl-7 text-xs uppercase font-mono tracking-wider"
                            />
                         </div>

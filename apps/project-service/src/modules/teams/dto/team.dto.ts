@@ -2,10 +2,13 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsBoolean, IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class CreateTeamDto {
-  @ApiPropertyOptional({ example: 'MOBILE' })
+  @ApiProperty({
+    example: 'MOBILE',
+    description: 'Explicit team key used in issue identifiers',
+  })
   @IsString()
-  @IsOptional()
-  id?: string;
+  @IsNotEmpty()
+  id: string;
 
   @ApiProperty({ example: 'Mobile Development' })
   @IsString()

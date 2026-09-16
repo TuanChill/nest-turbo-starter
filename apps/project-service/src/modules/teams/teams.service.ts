@@ -1,6 +1,5 @@
 import { EntityManager } from '@mikro-orm/core';
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { v7 } from 'uuid';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { AddTeamMemberDto, CreateTeamDto, UpdateTeamDto } from './dto/team.dto';
 import {
   Member,
@@ -254,11 +253,10 @@ export class TeamsService {
     }
     await this.assertWorkspaceManager(currentMemberId, resolvedWorkspaceId);
 
-    let id = (dto.id || dto.name.toUpperCase().replace(/[^A-Z0-9]+/g, '')).slice(0, 10);
-    if (!id) id = `TEAM${v7().replace(/-/g, '').slice(0, 6).toUpperCase()}`;
+    const id = dto.id.trim();
     const existing = await this.em.findOne(Team, { id });
     if (existing) {
-      id = `${id.slice(0, 7)}${v7().replace(/-/g, '').slice(0, 3).toUpperCase()}`;
+      throw new ConflictException(`Team key ${id} is already in use`);
     }
     const { memberIds, ...teamData } = dto;
     const team = new Team({
