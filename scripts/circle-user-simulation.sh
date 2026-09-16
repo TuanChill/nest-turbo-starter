@@ -106,7 +106,7 @@ api POST "/issues/$root_identifier/relations" "$(jq -nc --arg targetIdentifier "
 api POST "/issues/$root_identifier/comments" "$(jq -nc --arg mentionId "$mention_id" '{textContent:("Simulation comment with persisted activity @" + $mentionId)}')" >/dev/null
 detail="$(api GET "/issues/$root_identifier/detail")"
 activity_id="$(jq -er '.activity[0].id' <<<"$detail")"
-api POST "/issues/activities/$activity_id/reactions" '{emoji:"✅"}' >/dev/null
+api POST "/issues/activities/$activity_id/reactions" '{"emoji":"✅"}' >/dev/null
 
 if api PATCH "/issues/$root_identifier" "$(jq -nc --arg labelA "$label_id" --arg labelB "$second_label_id" '{labelIds:[$labelA,$labelB]}')" >/dev/null 2>&1; then
   echo 'Mutually exclusive label group was not enforced' >&2
@@ -122,10 +122,26 @@ assert_json 'project starts unsubscribed' "$project_subscription" '.subscribed =
 project_subscription="$(api POST "/projects/$project_id/subscription")"
 assert_json 'project subscription persisted' "$project_subscription" '.subscribed == true'
 
-api POST "/projects/$project_id/updates" '{health:"at-risk",blocks:[{type:"paragraph",text:"Simulation project update"}]}' >/dev/null
-milestone="$(api POST "/projects/$project_id/milestones" '{name:"Simulation milestone",targetDate:"2099-01-07"}')"
+project_update="$(api POST "/projects/$project_id/updates" '{"health":"at-risk","blocks":[{"type":"paragraph","text":"Simulation project update"}]}')"
+project_update_id="$(jq -er '.updates[0].id' <<<"$project_update")"
+project_update="$(api PATCH "/projects/$project_id/updates/$project_update_id" '{"health":"on-track","blocks":[{"type":"paragraph","text":"Edited simulation project update"}]}')"
+assert_json 'project update edit persisted' "$project_update" --arg update_id "$project_update_id" '.updates | any(.[]; .id == $update_id and .health == "on-track" and ((.blocks // []) | any(.[]; (.text // "") | contains("Edited simulation"))))'
+second_project_update="$(api POST "/projects/$project_id/updates" '{"health":"off-track","blocks":[{"type":"paragraph","text":"Temporary simulation project update"}]}')"
+second_project_update_id="$(jq -er '.updates[0].id' <<<"$second_project_update")"
+project_after_delete="$(api DELETE "/projects/$project_id/updates/$second_project_update_id")"
+assert_json 'project update deletion rolls health back' "$project_after_delete" --arg update_id "$second_project_update_id" '.health.id == "on-track" and (.updates | all(.[]; .id != $update_id))'
+milestone="$(api POST "/projects/$project_id/milestones" '{"name":"Simulation milestone","targetDate":"2099-01-07"}')"
 milestone_id="$(jq -er '.milestones | last | .id' <<<"$milestone")"
 api PATCH "/projects/$project_id/milestones/$milestone_id/toggle" >/dev/null
+
+initiative_update="$(api POST "/initiatives/$initiative_id/updates" '{"health":"at-risk","blocks":[{"type":"paragraph","text":"Simulation initiative update"}]}')"
+initiative_update_id="$(jq -er '.updates[0].id' <<<"$initiative_update")"
+initiative_update="$(api PATCH "/initiatives/$initiative_id/updates/$initiative_update_id" '{"health":"on-track","blocks":[{"type":"paragraph","text":"Edited simulation initiative update"}]}')"
+assert_json 'initiative update edit persisted' "$initiative_update" --arg update_id "$initiative_update_id" '.updates | any(.[]; .id == $update_id and .health == "on-track" and ((.blocks // []) | any(.[]; (.text // "") | contains("Edited simulation"))))'
+second_initiative_update="$(api POST "/initiatives/$initiative_id/updates" '{"health":"off-track","blocks":[{"type":"paragraph","text":"Temporary simulation initiative update"}]}')"
+second_initiative_update_id="$(jq -er '.updates[0].id' <<<"$second_initiative_update")"
+initiative_after_delete="$(api DELETE "/initiatives/$initiative_id/updates/$second_initiative_update_id")"
+assert_json 'initiative update deletion rolls health back' "$initiative_after_delete" --arg update_id "$second_initiative_update_id" '.health.id == "on-track" and (.updates | all(.[]; .id != $update_id))'
 
 cycle_check="$(api GET "/cycles/$cycle_id")"
 assert_json 'cycle progress is derived from issues' "$cycle_check" '.scope >= 2 and .started >= 1'
