@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import QueryErrorState from '@/components/common/query-error-state';
 
 type FilterCategory = 'status' | 'assignee' | 'priority' | 'labels' | 'dates' | null;
 
@@ -38,8 +39,11 @@ export function IssueFilterPopover() {
    const [activeCategory, setActiveCategory] = useState<FilterCategory>(null);
    const [search, setSearch] = useState('');
    const { filters, setFilters, getActiveFiltersCount } = useFilterStore();
-   const { data: users = [] } = useMembers();
-   const { data: liveLabels = [] } = useLabels('issue');
+   const usersQuery = useMembers();
+   const labelsQuery = useLabels('issue');
+   const { data: users = [] } = usersQuery;
+   const { data: liveLabels = [] } = labelsQuery;
+   const failedQuery = [usersQuery, labelsQuery].find((query) => query.isError);
    const activeCount = getActiveFiltersCount();
 
    // Global shortcut 'F' to open filters
@@ -159,6 +163,14 @@ export function IssueFilterPopover() {
                </div>
 
                <CommandList className="max-h-72 p-1 text-xs">
+                  {failedQuery && (
+                     <QueryErrorState
+                        subject="issue filter options"
+                        error={failedQuery.error}
+                        compact
+                        onRetry={() => void failedQuery.refetch()}
+                     />
+                  )}
                   <CommandEmpty className="py-4 text-center text-xs text-muted-foreground">
                      No results found
                   </CommandEmpty>
@@ -246,7 +258,7 @@ export function IssueFilterPopover() {
                   )}
 
                   {/* Sub-menu: Assignee */}
-                  {activeCategory === 'assignee' && (
+                  {activeCategory === 'assignee' && !usersQuery.isError && (
                      <CommandGroup heading="Assignee">
                         <CommandItem
                            onSelect={() => addOrToggleFilter('assignee', 'unassigned')}
@@ -306,7 +318,7 @@ export function IssueFilterPopover() {
                   )}
 
                   {/* Sub-menu: Labels */}
-                  {activeCategory === 'labels' && (
+                  {activeCategory === 'labels' && !labelsQuery.isError && (
                      <CommandGroup heading="Labels">
                         {liveLabels.map((item) => {
                            const active = isValueActive('labels', item.id);

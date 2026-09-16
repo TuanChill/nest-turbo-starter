@@ -9,6 +9,7 @@ interface QueryErrorStateProps {
    subject: string;
    error?: unknown;
    onRetry?: () => void;
+   compact?: boolean;
 }
 
 /**
@@ -18,11 +19,16 @@ interface QueryErrorStateProps {
  * list or substituted mock data — a screen that silently shows fake content is
  * harder to diagnose than one that admits the failure.
  */
-export default function QueryErrorState({ subject, error, onRetry }: QueryErrorStateProps) {
+export default function QueryErrorState({
+   subject,
+   error,
+   onRetry,
+   compact = false,
+}: QueryErrorStateProps) {
    const detail = error instanceof Error ? error.message : undefined;
 
    return (
-      <div className="w-full h-full p-6">
+      <div className={compact ? 'w-full p-2' : 'w-full h-full p-6'}>
          <Alert variant="destructive">
             <AlertCircle className="size-4" />
             <AlertTitle>Could not load {subject}</AlertTitle>

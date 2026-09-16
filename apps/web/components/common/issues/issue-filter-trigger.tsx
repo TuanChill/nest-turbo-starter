@@ -1,6 +1,7 @@
 'use client';
 
 import { FilterSelector } from '@/components/data-table-filter/components/filter-selector';
+import QueryErrorState from '@/components/common/query-error-state';
 import { useDataTableFilters } from '@/components/data-table-filter/hooks/use-data-table-filters';
 import { useCycles } from '@/hooks/queries/use-cycles-query';
 import { useIssueFacets } from '@/hooks/queries/use-issues-query';
@@ -20,11 +21,20 @@ import { buildIssueFilterColumns } from './issue-filter-columns';
  */
 export function IssueFilterTrigger() {
    const { filters, setFilters } = useFilterStore();
-   const { data: members = [] } = useMembers();
-   const { data: projects = [] } = useProjects();
-   const { data: cycles = [] } = useCycles();
-   const { data: labels = [] } = useLabels('issue');
-   const { data: facets } = useIssueFacets();
+   const membersQuery = useMembers();
+   const projectsQuery = useProjects();
+   const cyclesQuery = useCycles();
+   const labelsQuery = useLabels('issue');
+   const facetsQuery = useIssueFacets();
+   const { data: members = [] } = membersQuery;
+   const { data: projects = [] } = projectsQuery;
+   const { data: cycles = [] } = cyclesQuery;
+   const { data: labels = [] } = labelsQuery;
+   const { data: facets } = facetsQuery;
+
+   const failedQuery = [membersQuery, projectsQuery, cyclesQuery, labelsQuery, facetsQuery].find(
+      (query) => query.isError
+   );
 
    const columnsConfig = useMemo(
       () => buildIssueFilterColumns(members, projects, cycles, labels),
@@ -55,6 +65,17 @@ export function IssueFilterTrigger() {
       onFiltersChange: setFilters,
       faceted,
    });
+
+   if (failedQuery) {
+      return (
+         <QueryErrorState
+            subject="issue filter options"
+            error={failedQuery.error}
+            compact
+            onRetry={() => void failedQuery.refetch()}
+         />
+      );
+   }
 
    return (
       <FilterSelector columns={columns} filters={filters} actions={actions} strategy={strategy} />
