@@ -33,15 +33,29 @@ api() {
   local method="$1"
   local path="$2"
   local body="${3:-}"
+  local response_file
+  response_file="$(mktemp)"
   if [[ -n "$body" ]]; then
-    curl --fail-with-body -fsS -X "$method" "$CIRCLE_API_URL$path" \
+    if ! curl --fail-with-body -sS -X "$method" "$CIRCLE_API_URL$path" \
       -H "Authorization: Bearer $CIRCLE_ACCESS_TOKEN" \
       -H 'Content-Type: application/json' \
-      --data "$body"
+      --data "$body" >"$response_file"; then
+      echo "Simulation API request failed: $method $path" >&2
+      cat "$response_file" >&2
+      rm -f "$response_file"
+      return 1
+    fi
   else
-    curl --fail-with-body -fsS -X "$method" "$CIRCLE_API_URL$path" \
-      -H "Authorization: Bearer $CIRCLE_ACCESS_TOKEN"
+    if ! curl --fail-with-body -sS -X "$method" "$CIRCLE_API_URL$path" \
+      -H "Authorization: Bearer $CIRCLE_ACCESS_TOKEN" >"$response_file"; then
+      echo "Simulation API request failed: $method $path" >&2
+      cat "$response_file" >&2
+      rm -f "$response_file"
+      return 1
+    fi
   fi
+  cat "$response_file"
+  rm -f "$response_file"
 }
 
 assert_json() {
@@ -64,7 +78,9 @@ if [[ "$CREATE_WORKSPACE" == "1" ]]; then
   workspace_slug="circle-sim-$RUN_ID"
   workspace="$(api POST /workspaces "$(jq -nc --arg name "Circle Simulation $RUN_ID" --arg slug "$workspace_slug" '{name:$name,slug:$slug}')")"
   WORKSPACE_ID="$(jq -er '.id // .workspace.id' <<<"$workspace")"
-  team_id="SIM${RUN_ID//[^[:alnum:]]/}"
+  # Team IDs are capped at ten characters by the API. Hash the per-run value
+  # before truncating so repeated local runs in the same second remain unique.
+  team_id="SIM$(printf '%s' "$RUN_ID" | shasum -a 256 | cut -c1-7 | tr '[:lower:]' '[:upper:]')"
   team="$(api POST /teams "$(jq -nc --arg id "$team_id" --arg workspaceId "$WORKSPACE_ID" '{id:$id,name:"Circle Simulation Team",workspaceId:$workspaceId,joined:true}')")"
   TEAM_ID="$(jq -er '.id // .team.id' <<<"$team")"
 else
@@ -119,7 +135,7 @@ related_identifier="$(jq -er '.identifier' <<<"$related")"
 api POST "/issues/$root_identifier/relations" "$(jq -nc --arg targetIdentifier "$related_identifier" '{targetIdentifier:$targetIdentifier,relationType:"relates_to"}')" >/dev/null
 api POST "/issues/$root_identifier/comments" "$(jq -nc --arg mentionId "$mention_id" '{textContent:("Simulation comment with persisted activity @" + $mentionId)}')" >/dev/null
 detail="$(api GET "/issues/$root_identifier/detail")"
-activity_id="$(jq -er '.activity[0].id' <<<"$detail")"
+activity_id="$(jq -er '.activity[] | select(.kind == "comment") | .id' <<<"$detail")"
 api POST "/issues/activities/$activity_id/reactions" '{"emoji":"✅"}' >/dev/null
 
 if api PATCH "/issues/$root_identifier" "$(jq -nc --arg labelA "$label_id" --arg labelB "$second_label_id" '{labelIds:[$labelA,$labelB]}')" >/dev/null 2>&1; then
@@ -142,8 +158,10 @@ project_update="$(api PATCH "/projects/$project_id/updates/$project_update_id" '
 assert_json 'project update edit persisted' "$project_update" --arg update_id "$project_update_id" '.updates | any(.[]; .id == $update_id and .health == "on-track" and ((.blocks // []) | any(.[]; (.text // "") | contains("Edited simulation"))))'
 second_project_update="$(api POST "/projects/$project_id/updates" '{"health":"off-track","blocks":[{"type":"paragraph","text":"Temporary simulation project update"}]}')"
 second_project_update_id="$(jq -er '.updates[0].id' <<<"$second_project_update")"
-project_after_delete="$(api DELETE "/projects/$project_id/updates/$second_project_update_id")"
-assert_json 'project update deletion rolls health back' "$project_after_delete" --arg update_id "$second_project_update_id" '.health.id == "on-track" and (.updates | all(.[]; .id != $update_id))'
+project_after_delete_detail="$(api DELETE "/projects/$project_id/updates/$second_project_update_id")"
+project_after_delete="$(api GET "/projects/$project_id")"
+assert_json 'project update deletion removes the update' "$project_after_delete_detail" --arg update_id "$second_project_update_id" '.updates | all(.[]; .id != $update_id)'
+assert_json 'project update deletion rolls health back' "$project_after_delete" '.health.id == "on-track"'
 milestone="$(api POST "/projects/$project_id/milestones" '{"name":"Simulation milestone","targetDate":"2099-01-07"}')"
 milestone_id="$(jq -er '.milestones | last | .id' <<<"$milestone")"
 api PATCH "/projects/$project_id/milestones/$milestone_id/toggle" >/dev/null
@@ -187,11 +205,11 @@ cloned_project_id="$(jq -er '.id // .projectId' <<<"$cloned_project")"
 project_check="$(api GET "/projects/$project_id")"
 assert_json 'project persisted with live label' "$project_check" '.labels | length > 0'
 detail="$(api GET "/issues/$root_identifier/detail")"
-assert_json 'parent issue and activity persisted' "$detail" --arg child_identifier "$child_identifier" '.subIssueIds | any(.[]; . == $child_identifier) and (.activity | length) > 0'
+assert_json 'parent issue and activity persisted' "$detail" --arg child_identifier "$child_identifier" '((.subIssueIds // []) | any(.[]; . == $child_identifier)) and ((.activity // []) | length > 0)'
 assert_json 'relation persisted' "$detail" --arg related_identifier "$related_identifier" '.relations | any(.[]; .identifier == $related_identifier)'
-assert_json 'comment mention and reaction persisted' "$detail" 'any(.activity[]; ((.textContent // .text // "") | contains("Simulation comment"))) and any(.activity[]; ((.reactions // []) | length > 0))'
+assert_json 'comment mention and reaction persisted' "$detail" 'any(.activity[]; any((.body // [])[]; ((.text // "") | contains("Simulation comment")))) and any(.activity[]; ((.reactions // []) | length > 0))'
 project_detail="$(api GET "/projects/$project_id/detail")"
-assert_json 'project update and milestone activity persisted' "$project_detail" '.updates | length >= 1 and .milestones | length >= 1 and .activity | length >= 2'
+assert_json 'project update and milestone activity persisted' "$project_detail" '((.updates // []) | length >= 1) and ((.milestones // []) | length >= 1) and ((.activity // []) | length >= 2)'
 inbox="$(api GET /inbox)"
 assert_json 'inbox returns a persisted collection' "$inbox" 'type == "array"'
 clone_check="$(api GET "/projects/$cloned_project_id")"

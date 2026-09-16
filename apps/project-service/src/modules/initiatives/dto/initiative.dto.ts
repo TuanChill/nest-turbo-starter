@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import { IsArray, IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class CreateInitiativeDto {
@@ -136,6 +137,7 @@ export class CreateInitiativeUpdateDto {
   @ApiPropertyOptional({ type: Array })
   @IsArray()
   @IsOptional()
+  @Type(() => Object)
   blocks?: any[];
 }
 
@@ -148,6 +150,7 @@ export class UpdateInitiativeUpdateDto {
   @ApiPropertyOptional({ type: Array })
   @IsArray()
   @IsOptional()
+  @Type(() => Object)
   blocks?: any[];
 }
 
