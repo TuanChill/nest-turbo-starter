@@ -41,7 +41,7 @@ import {
 import { useLabels } from '@/hooks/queries/use-labels-query';
 import { useMembers } from '@/hooks/queries/use-members-query';
 import { useTeams } from '@/hooks/queries/use-teams-query';
-import { useProjects } from '@/hooks/queries/use-projects-query';
+import { useProjectDetail, useProjects } from '@/hooks/queries/use-projects-query';
 import { useCycles } from '@/hooks/queries/use-cycles-query';
 import { useIssues } from '@/hooks/queries/use-issues-query';
 import { priorities } from '@/lib/priority-catalog';
@@ -99,7 +99,9 @@ function TemplateEditor({
    const [dueDate, setDueDate] = useState('');
    const [isDefault, setIsDefault] = useState(false);
    const [parentPickerOpen, setParentPickerOpen] = useState(false);
+   const [milestonePickerOpen, setMilestonePickerOpen] = useState(false);
    const parentIssuesQuery = useIssues({ workspaceId, teamId: teamId || undefined });
+   const projectDetailQuery = useProjectDetail(projectId === 'none' ? '' : projectId);
 
    useEffect(() => {
       if (!open) return;
@@ -135,6 +137,10 @@ function TemplateEditor({
    );
    const selectedParent = (parentIssuesQuery.data ?? []).find(
       (issue) => issue.id === parentIssueId || issue.identifier === parentIssueId
+   );
+   const projectMilestones = projectDetailQuery.data?.milestones ?? [];
+   const selectedMilestone = projectMilestones.find(
+      (item) => item.id === milestone || item.name === milestone
    );
 
    const toggleLabel = (id: string) =>
@@ -337,11 +343,62 @@ function TemplateEditor({
                            </Command>
                         </PopoverContent>
                      </Popover>
-                     <Input
-                        placeholder="Default milestone"
-                        value={milestone}
-                        onChange={(event) => setMilestone(event.target.value)}
-                     />
+                     {projectId === 'none' ? (
+                        <Input
+                           placeholder="Select a project for milestones"
+                           value={milestone}
+                           onChange={(event) => setMilestone(event.target.value)}
+                        />
+                     ) : (
+                        <Popover open={milestonePickerOpen} onOpenChange={setMilestonePickerOpen}>
+                           <PopoverTrigger asChild>
+                              <Button
+                                 type="button"
+                                 variant="outline"
+                                 className="justify-start font-normal truncate"
+                              >
+                                 {selectedMilestone?.name ?? 'Default milestone'}
+                              </Button>
+                           </PopoverTrigger>
+                           <PopoverContent className="w-[320px] p-0" align="start">
+                              <Command>
+                                 <CommandInput placeholder="Search project milestones..." />
+                                 <CommandList>
+                                    <CommandEmpty>
+                                       {projectDetailQuery.isLoading
+                                          ? 'Loading milestones...'
+                                          : projectDetailQuery.isError
+                                            ? 'Could not load project milestones.'
+                                            : 'No milestones found.'}
+                                    </CommandEmpty>
+                                    <CommandGroup>
+                                       <CommandItem
+                                          value="no-milestone"
+                                          onSelect={() => {
+                                             setMilestone('');
+                                             setMilestonePickerOpen(false);
+                                          }}
+                                       >
+                                          No milestone
+                                       </CommandItem>
+                                       {projectMilestones.map((item) => (
+                                          <CommandItem
+                                             key={item.id}
+                                             value={`${item.name} ${item.targetDate ?? ''}`}
+                                             onSelect={() => {
+                                                setMilestone(item.name);
+                                                setMilestonePickerOpen(false);
+                                             }}
+                                          >
+                                             <span className="truncate">{item.name}</span>
+                                          </CommandItem>
+                                       ))}
+                                    </CommandGroup>
+                                 </CommandList>
+                              </Command>
+                           </PopoverContent>
+                        </Popover>
+                     )}
                   </div>
                   <div className="grid grid-cols-3 gap-3">
                      <Select value={statusId} onValueChange={setStatusId}>
@@ -387,6 +444,7 @@ function TemplateEditor({
                         value={projectId}
                         onValueChange={(value) => {
                            setProjectId(value);
+                           setMilestone('');
                            if (value !== 'none') {
                               const project = projects.find((item) => item.id === value);
                               if (project && teamId && project.teamId !== teamId)

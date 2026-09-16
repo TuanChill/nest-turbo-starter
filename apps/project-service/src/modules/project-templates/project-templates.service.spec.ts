@@ -86,8 +86,10 @@ describe('ProjectTemplatesService.instantiate', () => {
     } as unknown as EntityManager;
     const projectsService = {
       create: jest.fn(async () => ({ id: 'project-1' })),
-      findOne: jest.fn(),
-      addMilestone: jest.fn(),
+      findOne: jest.fn(async () => ({ milestones: [] })),
+      addMilestone: jest.fn(async () => ({
+        milestones: [{ id: 'milestone-1', name: 'Kickoff' }],
+      })),
     };
     const workspacesService = {
       getAccessibleTeamIds: jest.fn(async () => ['team-1']),
@@ -124,6 +126,28 @@ describe('ProjectTemplatesService.instantiate', () => {
       'member-1',
     );
     expect(projectsService.findOne).toHaveBeenCalledWith('project-1', 'member-1');
+  });
+
+  it('remaps cloned issue milestones to the new milestone name', async () => {
+    const issuesService = { create: jest.fn().mockResolvedValue({ id: 'issue-1' }) };
+    const { service, projectsService } = buildService(issuesService, {
+      milestones: [{ key: 'kickoff', name: 'Kickoff' }],
+      issues: [{ key: 'root', title: 'Root issue', milestoneKey: 'kickoff' }],
+    });
+    projectsService.findOne.mockResolvedValue({
+      milestones: [{ id: 'milestone-1', name: 'Kickoff' }],
+    });
+
+    await service.instantiate(
+      'template-1',
+      { name: 'Launch copy', teamId: 'team-1' },
+      'member-1',
+    );
+
+    expect(issuesService.create).toHaveBeenCalledWith(
+      expect.objectContaining({ milestone: 'Kickoff' }),
+      'member-1',
+    );
   });
 
   it('keeps the transaction failure visible so all cloned records can roll back', async () => {

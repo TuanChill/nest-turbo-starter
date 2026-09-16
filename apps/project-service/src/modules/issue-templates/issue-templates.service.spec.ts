@@ -3,6 +3,8 @@ import { IssueTemplatesService } from './issue-templates.service';
 import {
   Issue,
   IssueTemplate,
+  Project,
+  ProjectMilestone,
   Team,
   Workspace,
   WorkspaceMember,
@@ -24,6 +26,7 @@ jest.mock('../../data-access', () => {
   class MockLabelGroup {}
   class MockMember {}
   class MockProject {}
+  class MockProjectMilestone {}
   class MockTeam {}
   class MockWorkspace {}
   class MockWorkspaceMember {}
@@ -36,6 +39,7 @@ jest.mock('../../data-access', () => {
     LabelGroup: MockLabelGroup,
     Member: MockMember,
     Project: MockProject,
+    ProjectMilestone: MockProjectMilestone,
     Team: MockTeam,
     Workspace: MockWorkspace,
     WorkspaceMember: MockWorkspaceMember,
@@ -53,6 +57,8 @@ describe('IssueTemplatesService parent defaults', () => {
         if (entity === Issue)
           return { id: 'issue-1', identifier: 'ENG-1', teamId: parentTeamId };
         if (entity === IssueTemplate) return null;
+        if (entity === Project) return { id: 'project-1', teamId: parentTeamId };
+        if (entity === ProjectMilestone) return null;
         if (entity === Team) return { id: parentTeamId, workspaceId: 'workspace-1' };
         return null;
       }),
@@ -125,5 +131,24 @@ describe('IssueTemplatesService parent defaults', () => {
       ),
     ).rejects.toThrow('requires a team template');
     expect(em.persist).not.toHaveBeenCalled();
+  });
+
+  it('rejects a milestone that is not part of the configured project', async () => {
+    const { service, em } = buildService('team-a');
+
+    await expect(
+      service.create(
+        {
+          workspaceId: 'workspace-1',
+          name: 'Engineering template',
+          scope: 'team',
+          teamId: 'team-a',
+          config: { projectId: 'project-1', milestone: 'Missing' },
+        },
+        'member-1',
+      ),
+    ).rejects.toThrow('does not belong to the selected project');
+    expect(em.persist).not.toHaveBeenCalled();
+    expect(em.flush).not.toHaveBeenCalled();
   });
 });

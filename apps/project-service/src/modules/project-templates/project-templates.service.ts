@@ -477,9 +477,9 @@ export class ProjectTemplatesService {
             new ProjectMember({ projectId: created.id, memberId: templateMemberId }),
         ),
       );
-      const milestoneIds = new Map<string, string>();
+      const milestoneNames = new Map<string, string>();
       for (const milestone of config.milestones ?? []) {
-        // oxlint-disable-next-line no-await-in-loop -- milestone IDs are needed for issue remapping
+        // oxlint-disable-next-line no-await-in-loop -- the created milestone name is needed for issue remapping
         const detail = await this.projectsService.addMilestone(
           created.id,
           { name: milestone.name, targetDate: milestone.targetDate },
@@ -488,7 +488,7 @@ export class ProjectTemplatesService {
         const createdMilestone = detail.milestones.find(
           (item) => item.name === milestone.name,
         );
-        if (createdMilestone) milestoneIds.set(milestone.key, createdMilestone.id);
+        if (createdMilestone) milestoneNames.set(milestone.key, createdMilestone.name);
       }
       const issueIds = new Map<string, string>();
       const issueIdentifiers = new Map<string, string>();
@@ -510,7 +510,7 @@ export class ProjectTemplatesService {
             projectId: created.id,
             teamId: dto.teamId,
             milestone: snapshot.milestoneKey
-              ? milestoneIds.get(snapshot.milestoneKey)
+              ? milestoneNames.get(snapshot.milestoneKey)
               : undefined,
             dueDate: snapshot.dueDate,
             rank: snapshot.rank,

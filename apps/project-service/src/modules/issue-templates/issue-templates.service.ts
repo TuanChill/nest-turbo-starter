@@ -20,6 +20,7 @@ import {
   LabelGroup,
   Member,
   Project,
+  ProjectMilestone,
   Team,
   Workspace,
   WorkspaceMember,
@@ -147,6 +148,17 @@ export class IssueTemplatesService {
       projectTeamId = project.teamId;
       if (teamId && project.teamId !== teamId) {
         throw new BadRequestException('The template project belongs to another team');
+      }
+      if (config.milestone) {
+        const milestone = await this.em.findOne(ProjectMilestone, {
+          projectId: project.id,
+          $or: [{ id: config.milestone }, { name: config.milestone }],
+        });
+        if (!milestone) {
+          throw new BadRequestException(
+            'The template milestone does not belong to the selected project',
+          );
+        }
       }
     }
     if (config.cycleId) {
