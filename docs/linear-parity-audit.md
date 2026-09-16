@@ -1,5 +1,7 @@
 # Linear parity audit
 
+Smoke-test policy: authenticated user simulations run against localhost only. Production and pod endpoint/browser smoke are intentionally not run; CI and deploy results may still be recorded.
+
 Baseline: 2026-09-15. Linear behavior is compared against the official documentation listed in the task. A feature is not marked as passing when its screen is backed by mock data or a placeholder.
 
 Reference set: [Linear Docs](https://linear.app/docs), [Projects](https://linear.app/docs/projects), [Project templates](https://linear.app/docs/project-templates), [Labels](https://linear.app/docs/labels), [Teams](https://linear.app/docs/teams), [Issue properties](https://linear.app/docs/issue-properties), [Cycles](https://linear.app/docs/cycles), [Views](https://linear.app/docs/views), [Issue relations](https://linear.app/docs/issue-relations), [Notifications](https://linear.app/docs/notifications), and [Initiative and Project updates](https://linear.app/docs/initiative-and-project-updates).

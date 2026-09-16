@@ -9,15 +9,25 @@ set -euo pipefail
 #   CIRCLE_TEAM_ID        Existing team ID, unless CREATE_WORKSPACE=1
 #
 # Optional:
-#   CIRCLE_API_URL        Defaults to the production API; set to local for CI
+#   CIRCLE_API_URL        Defaults to the local project service
 #   CREATE_WORKSPACE=1    Creates a throwaway workspace and team first. The API
 #                         has no workspace-delete operation, so clean it up
 #                         manually after the run.
 
 : "${CIRCLE_ACCESS_TOKEN:?Set CIRCLE_ACCESS_TOKEN to an authenticated bearer token}"
-CIRCLE_API_URL="${CIRCLE_API_URL:-https://pm-api.capylabs.io/circle/api}"
+CIRCLE_API_URL="${CIRCLE_API_URL:-http://localhost:3304/circle/api}"
 CREATE_WORKSPACE="${CREATE_WORKSPACE:-0}"
 RUN_ID="$(date +%s)-$$"
+
+case "$CIRCLE_API_URL" in
+  http://localhost:*|http://127.0.0.1:*|http://[::1]:*|http://localhost/*|http://127.0.0.1/*|http://[::1]/*)
+    ;;
+  *)
+    echo "Refusing non-local smoke target: $CIRCLE_API_URL" >&2
+    echo "Set CIRCLE_API_URL to a localhost URL to run the simulation." >&2
+    exit 2
+    ;;
+esac
 
 api() {
   local method="$1"
