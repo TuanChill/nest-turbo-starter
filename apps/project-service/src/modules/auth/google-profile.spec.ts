@@ -46,6 +46,17 @@ describe('Google profile validation', () => {
     ).toThrow('Google token client ID mismatch');
     expect(() =>
       parseVerifiedGoogleTokenInfo(
+        {
+          aud: 'other-client',
+          azp: 'client-1',
+          email: 'user@example.com',
+          verified_email: true,
+        },
+        'client-1',
+      ),
+    ).toThrow('Google token client ID mismatch');
+    expect(() =>
+      parseVerifiedGoogleTokenInfo(
         { aud: 'client-1', email: 'user@example.com', verified_email: false },
         'client-1',
       ),

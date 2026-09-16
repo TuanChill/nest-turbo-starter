@@ -38,7 +38,7 @@ export function parseVerifiedGoogleTokenInfo(
   tokenInfo: GoogleTokenInfo,
   clientId: string,
 ): { email: string } {
-  if (tokenInfo.aud !== clientId && tokenInfo.azp !== clientId) {
+  if (tokenInfo.aud !== clientId) {
     throw new UnauthorizedException('Google token client ID mismatch');
   }
   const email = tokenInfo.email?.trim().toLowerCase();
