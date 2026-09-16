@@ -25,7 +25,7 @@ export function PrioritySelector({ priority, issueId }: PrioritySelectorProps) {
    const [open, setOpen] = useState<boolean>(false);
    const [value, setValue] = useState<string>(priority.id);
 
-   const { filterByPriority, updateIssuePriority } = useIssuesStore();
+   const { updateIssuePriority } = useIssuesStore();
 
    useEffect(() => {
       setValue(priority.id);
@@ -86,9 +86,6 @@ export function PrioritySelector({ priority, issueId }: PrioritySelectorProps) {
                                  {item.name}
                               </div>
                               {value === item.id && <CheckIcon size={16} className="ml-auto" />}
-                              <span className="text-muted-foreground text-xs">
-                                 {filterByPriority(item.id).length}
-                              </span>
                            </CommandItem>
                         ))}
                      </CommandGroup>

@@ -153,10 +153,14 @@ export const useIssuesStore = create<IssuesState>((set, get) => ({
          if (updatedIssue.rank !== undefined) payload.rank = updatedIssue.rank;
          if (updatedIssue.dueDate !== undefined) payload.dueDate = updatedIssue.dueDate;
 
-         await apiUpdateIssue(identifier, payload);
-         // Board/list views read from the React Query cache (useIssues()), not this
-         // store directly, so it must be invalidated or they'd keep showing stale data.
+         const updated = await apiUpdateIssue(identifier, payload);
+         // Board/list views and issue detail/activity read from React Query, not
+         // this legacy compatibility store. Invalidate every affected scope so a
+         // successful mutation cannot leave a live surface showing stale data.
          getQueryClient().invalidateQueries({ queryKey: issueKeys.lists() });
+         getQueryClient().invalidateQueries({ queryKey: issueKeys.facets() });
+         getQueryClient().invalidateQueries({ queryKey: issueKeys.detail(updated.identifier) });
+         getQueryClient().invalidateQueries({ queryKey: issueKeys.activity(updated.identifier) });
       } catch (err) {
          console.error(`Failed to update issue ${identifier} on API:`, err);
          set({
@@ -186,6 +190,8 @@ export const useIssuesStore = create<IssuesState>((set, get) => ({
       try {
          await apiDeleteIssue(identifier);
          getQueryClient().invalidateQueries({ queryKey: issueKeys.lists() });
+         getQueryClient().invalidateQueries({ queryKey: issueKeys.facets() });
+         getQueryClient().removeQueries({ queryKey: issueKeys.detail(identifier) });
       } catch (err) {
          console.error(`Failed to delete issue ${identifier} on API:`, err);
          set({
