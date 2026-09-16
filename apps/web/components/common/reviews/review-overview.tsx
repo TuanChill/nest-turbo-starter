@@ -179,10 +179,9 @@ export function ReviewOverview({ review }: { review: Review }) {
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                      <GitCommitHorizontal className="size-3.5 shrink-0" />
                      <span className="truncate">
-                        Atlas committed via LNDev Agent{' '}
+                        Latest commit{' '}
                         <span className="font-mono">{review.commits.at(-1)?.sha}</span>{' '}
-                        {review.commits.at(-1)?.message} ({review.resolves.identifier}) ·{' '}
-                        {review.commits.at(-1)?.timeAgo}
+                        {review.commits.at(-1)?.message} · {review.commits.at(-1)?.timeAgo}
                      </span>
                   </div>
                )}
@@ -261,21 +260,23 @@ export function ReviewOverview({ review }: { review: Review }) {
             </div>
             <div className="flex flex-col gap-2">
                <span className="text-sm font-medium">Reviewers</span>
-               <button className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors self-start">
+               <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
                   <UserPlus className="size-4" />
-                  Add reviewers
-               </button>
+                  Reviewer assignments are unavailable
+               </span>
             </div>
             <div className="flex flex-col gap-2">
                <span className="text-sm font-medium">Checks</span>
-               <span className="inline-flex items-center gap-1.5 text-sm">
-                  <ChevronRight className="size-3.5 text-muted-foreground" />
-                  {review.checksPassed} / {review.checksTotal} passed
-               </span>
-               <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
-                  <span className="size-3.5 rounded-full border-2 border-muted-foreground/50 inline-block" />
-                  gate
-               </span>
+               {review.checksTotal > 0 ? (
+                  <span className="inline-flex items-center gap-1.5 text-sm">
+                     <ChevronRight className="size-3.5 text-muted-foreground" />
+                     {review.checksPassed} / {review.checksTotal} passed
+                  </span>
+               ) : (
+                  <span className="text-sm text-muted-foreground">
+                     Checks are unavailable without a connected repository provider
+                  </span>
+               )}
             </div>
             <FilesPanel review={review} />
          </aside>
