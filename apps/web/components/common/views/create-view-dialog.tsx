@@ -30,6 +30,7 @@ import { cn } from '@/lib/utils';
 import type { View, ViewType } from '@/services/views.service';
 import { StatusCategory } from '@/lib/workflow-status';
 import { renderPriorityIcon } from '@/lib/priority-utils';
+import QueryErrorState from '@/components/common/query-error-state';
 
 interface CreateViewDialogProps {
    trigger?: React.ReactNode;
@@ -92,8 +93,11 @@ export function CreateViewDialog({
 
    const createViewMutation = useCreateView();
    const updateViewMutation = useUpdateView();
-   const { data: teams = [] } = useTeams();
-   const { data: labels = [] } = useLabels();
+   const teamsQuery = useTeams();
+   const labelsQuery = useLabels();
+   const { data: teams = [] } = teamsQuery;
+   const { data: labels = [] } = labelsQuery;
+   const optionError = [teamsQuery, labelsQuery].find((query) => query.isError);
 
    const [name, setName] = React.useState('');
    const [selectedIcon, setSelectedIcon] = React.useState('🧊');
@@ -236,6 +240,15 @@ export function CreateViewDialog({
                </DialogHeader>
 
                <div className="p-5 space-y-4 max-h-[65vh] overflow-y-auto">
+                  {optionError && (
+                     <QueryErrorState
+                        subject="view options"
+                        error={optionError.error}
+                        compact
+                        onRetry={() => void optionError.refetch()}
+                     />
+                  )}
+
                   {/* Name & Type */}
                   <div className="space-y-1.5">
                      <Label htmlFor="view-name" className="text-xs font-medium">
@@ -480,7 +493,7 @@ export function CreateViewDialog({
                   <Button
                      type="submit"
                      size="sm"
-                     disabled={isSubmitting || !name.trim()}
+                     disabled={isSubmitting || !name.trim() || Boolean(optionError)}
                      className="h-8 text-xs gap-1.5"
                   >
                      {isSubmitting ? (

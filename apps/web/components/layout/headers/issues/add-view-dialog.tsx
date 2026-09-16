@@ -28,6 +28,7 @@ import { useDataTableFilters } from '@/components/data-table-filter';
 import { ActiveFilters } from '@/components/data-table-filter/components/active-filters';
 import { cn } from '@/lib/utils';
 import { useRouter, usePathname } from 'next/navigation';
+import QueryErrorState from '@/components/common/query-error-state';
 
 interface AddViewDialogProps {
    open: boolean;
@@ -58,10 +59,17 @@ export function AddViewDialog({ open, onOpenChange, teamId }: AddViewDialogProps
    // Same data + columns the Issues page filter bar uses, so the chips shown
    // here (what will actually be saved) are pixel-identical to what the user
    // just set up — no guessing what "active filters" refers to.
-   const { data: issues = [] } = useIssues({ teamId });
-   const { data: members = [] } = useMembers();
-   const { data: projects = [] } = useProjects();
-   const { data: cycles = [] } = useCycles();
+   const issuesQuery = useIssues({ teamId });
+   const membersQuery = useMembers();
+   const projectsQuery = useProjects();
+   const cyclesQuery = useCycles(teamId, { requireTeamId: true });
+   const { data: issues = [] } = issuesQuery;
+   const { data: members = [] } = membersQuery;
+   const { data: projects = [] } = projectsQuery;
+   const { data: cycles = [] } = cyclesQuery;
+   const optionError = [issuesQuery, membersQuery, projectsQuery, cyclesQuery].find(
+      (query) => query.isError
+   );
    const columnsConfig = useMemo(
       () => buildIssueFilterColumns(members, projects, cycles),
       [members, projects, cycles]
@@ -94,7 +102,7 @@ export function AddViewDialog({ open, onOpenChange, teamId }: AddViewDialogProps
 
    const handleSave = async (e: React.FormEvent) => {
       e.preventDefault();
-      if (!name.trim()) return;
+      if (!name.trim() || optionError) return;
 
       const filterPayload = includeSettings
          ? {
@@ -201,6 +209,15 @@ export function AddViewDialog({ open, onOpenChange, teamId }: AddViewDialogProps
                </div>
 
                <div className="p-5 pt-1 space-y-4">
+                  {optionError && (
+                     <QueryErrorState
+                        subject="view options"
+                        error={optionError.error}
+                        compact
+                        onRetry={() => void optionError.refetch()}
+                     />
+                  )}
+
                   {/* Name and Icon */}
                   <div className="space-y-1.5">
                      <Label htmlFor="view-name" className="text-xs font-medium">
@@ -330,7 +347,7 @@ export function AddViewDialog({ open, onOpenChange, teamId }: AddViewDialogProps
                   <Button
                      type="submit"
                      size="sm"
-                     disabled={!name.trim() || createViewMutation.isPending}
+                     disabled={!name.trim() || Boolean(optionError) || createViewMutation.isPending}
                      className="h-8 text-xs font-medium bg-foreground text-background hover:opacity-90"
                   >
                      {createViewMutation.isPending ? 'Saving...' : 'Save view'}
