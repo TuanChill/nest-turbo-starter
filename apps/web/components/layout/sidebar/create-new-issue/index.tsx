@@ -14,6 +14,8 @@ import { Label } from '@/components/ui/label';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { Issue } from '@/mock-data/issues';
 import type { User } from '@/mock-data/users';
+import { contentBlocksToMarkdown } from '@/lib/content-blocks-to-markdown';
+import { markdownToContentBlocks } from '@/lib/markdown-to-content-blocks';
 import { priorities } from '@/lib/priority-catalog';
 import { status } from '@/lib/workflow-status';
 import { useCreateIssueStore } from '@/store/create-issue-store';
@@ -136,10 +138,15 @@ export function CreateNewIssue() {
       const config = template.config;
       const templateStatus = status.find((item) => item.id === config.statusId);
       const templatePriority = priorities.find((item) => item.id === config.priorityId);
+      const templateDescription =
+         config.description ??
+         contentBlocksToMarkdown(
+            config.descriptionBlocks as Parameters<typeof contentBlocksToMarkdown>[0]
+         );
       setAddIssueForm((current) => ({
          ...current,
          title: config.title || current.title,
-         description: config.description ?? current.description,
+         description: templateDescription || current.description,
          status: templateStatus || current.status,
          priority: templatePriority || current.priority,
          assignee: (() => {
@@ -173,6 +180,8 @@ export function CreateNewIssue() {
             ? projects.find((project) => project.id === config.projectId)
             : current.project,
          dueDate: config.dueDate ?? current.dueDate,
+         parentIssueId: config.parentIssueId ?? current.parentIssueId,
+         milestone: config.milestone ?? current.milestone,
          labels:
             config.labelIds !== undefined
                ? labels.filter((label) => config.labelIds?.includes(label.id))
@@ -197,6 +206,9 @@ export function CreateNewIssue() {
          await createIssueMutation.mutateAsync({
             title: addIssueForm.title.trim(),
             description: addIssueForm.description,
+            descriptionBlocks: addIssueForm.description?.trim()
+               ? markdownToContentBlocks(addIssueForm.description)
+               : undefined,
             statusId: addIssueForm.status?.id,
             statusCategory: addIssueForm.status?.category,
             priorityId: addIssueForm.priority?.id,
@@ -206,6 +218,8 @@ export function CreateNewIssue() {
             cycleId: addIssueForm.cycleId,
             labelIds: addIssueForm.labels?.map((l) => l.id),
             dueDate: addIssueForm.dueDate,
+            parentIssueId: addIssueForm.parentIssueId,
+            milestone: addIssueForm.milestone,
             rank: addIssueForm.rank,
          });
 

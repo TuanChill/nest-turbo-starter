@@ -7,11 +7,13 @@ import {
 } from '@nestjs/common';
 import { CreateIssueTemplateDto, UpdateIssueTemplateDto } from './dto/issue-template.dto';
 import {
+  issueTemplateParentReferencesSameTeam,
   issueTemplateReferencesSameTeam,
   normalizeIssueTemplateConfig,
 } from './issue-template-config';
 import {
   Cycle,
+  Issue,
   IssueTemplate,
   IssueTemplateConfig,
   Label,
@@ -73,6 +75,19 @@ export class IssueTemplatesService {
     let projectTeamId: string | undefined;
     let cycleTeamId: string | undefined;
     if (teamId) await this.assertTeamAccess(teamId, workspaceId, memberId);
+    if (config.parentIssueId) {
+      const parent = await this.em.findOne(Issue, {
+        $or: [{ id: config.parentIssueId }, { identifier: config.parentIssueId }],
+      });
+      if (!parent)
+        throw new BadRequestException('The template parent issue no longer exists');
+      if (!issueTemplateParentReferencesSameTeam(parent.teamId, teamId)) {
+        throw new BadRequestException(
+          'A parent issue default requires a team template for the same team',
+        );
+      }
+      await this.assertTeamAccess(parent.teamId, workspaceId, memberId);
+    }
     if (config.assigneeId) {
       const [assignee, workspaceMembership] = await Promise.all([
         this.em.findOne(Member, { id: config.assigneeId }),

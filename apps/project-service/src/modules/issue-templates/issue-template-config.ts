@@ -18,6 +18,8 @@ export function normalizeIssueTemplateConfig(
     projectId: source.projectId,
     cycleId: source.cycleId,
     dueDate: source.dueDate,
+    parentIssueId: source.parentIssueId?.trim(),
+    milestone: source.milestone?.trim(),
   };
 }
 
@@ -26,4 +28,11 @@ export function issueTemplateReferencesSameTeam(
   cycleTeamId?: string,
 ): boolean {
   return !projectTeamId || !cycleTeamId || projectTeamId === cycleTeamId;
+}
+
+export function issueTemplateParentReferencesSameTeam(
+  parentTeamId?: string,
+  templateTeamId?: string,
+): boolean {
+  return !parentTeamId || Boolean(templateTeamId && parentTeamId === templateTeamId);
 }

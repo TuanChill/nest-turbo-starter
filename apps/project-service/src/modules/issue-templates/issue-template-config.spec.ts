@@ -1,4 +1,5 @@
 import {
+  issueTemplateParentReferencesSameTeam,
   issueTemplateReferencesSameTeam,
   normalizeIssueTemplateConfig,
 } from './issue-template-config';
@@ -23,6 +24,8 @@ describe('normalizeIssueTemplateConfig', () => {
       projectId: undefined,
       cycleId: undefined,
       dueDate: undefined,
+      parentIssueId: undefined,
+      milestone: undefined,
     });
   });
 
@@ -39,6 +42,8 @@ describe('normalizeIssueTemplateConfig', () => {
       projectId: undefined,
       cycleId: undefined,
       dueDate: undefined,
+      parentIssueId: undefined,
+      milestone: undefined,
     });
   });
 
@@ -55,6 +60,8 @@ describe('normalizeIssueTemplateConfig', () => {
       projectId: 'project-1',
       cycleId: 'cycle-1',
       dueDate: '2026-09-30',
+      parentIssueId: ' ENG2-1 ',
+      milestone: ' Beta ',
     });
 
     expect(config).toMatchObject({
@@ -69,6 +76,8 @@ describe('normalizeIssueTemplateConfig', () => {
       projectId: 'project-1',
       cycleId: 'cycle-1',
       dueDate: '2026-09-30',
+      parentIssueId: 'ENG2-1',
+      milestone: 'Beta',
     });
   });
 
@@ -76,5 +85,12 @@ describe('normalizeIssueTemplateConfig', () => {
     expect(issueTemplateReferencesSameTeam('team-a', 'team-b')).toBe(false);
     expect(issueTemplateReferencesSameTeam('team-a', 'team-a')).toBe(true);
     expect(issueTemplateReferencesSameTeam(undefined, 'team-a')).toBe(true);
+  });
+
+  it('requires a team template when a parent issue default is configured', () => {
+    expect(issueTemplateParentReferencesSameTeam('team-a', undefined)).toBe(false);
+    expect(issueTemplateParentReferencesSameTeam('team-a', 'team-b')).toBe(false);
+    expect(issueTemplateParentReferencesSameTeam('team-a', 'team-a')).toBe(true);
+    expect(issueTemplateParentReferencesSameTeam(undefined, undefined)).toBe(true);
   });
 });

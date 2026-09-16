@@ -12,6 +12,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { LinearEditor } from '@/components/common/editor/linear-editor';
+import { contentBlocksToMarkdown } from '@/lib/content-blocks-to-markdown';
+import { markdownToContentBlocks } from '@/lib/markdown-to-content-blocks';
 import {
    Select,
    SelectContent,
@@ -74,6 +76,8 @@ function TemplateEditor({
    const [teamId, setTeamId] = useState('');
    const [title, setTitle] = useState('');
    const [issueDescription, setIssueDescription] = useState('');
+   const [parentIssueId, setParentIssueId] = useState('');
+   const [milestone, setMilestone] = useState('');
    const [statusId, setStatusId] = useState('to-do');
    const [priorityId, setPriorityId] = useState('no-priority');
    const [assigneeId, setAssigneeId] = useState('none');
@@ -91,7 +95,14 @@ function TemplateEditor({
       setScope(template?.scope ?? 'workspace');
       setTeamId(template?.teamId ?? '');
       setTitle(config.title ?? '');
-      setIssueDescription(config.description ?? '');
+      setIssueDescription(
+         config.description ??
+            contentBlocksToMarkdown(
+               config.descriptionBlocks as Parameters<typeof contentBlocksToMarkdown>[0]
+            )
+      );
+      setParentIssueId(config.parentIssueId ?? '');
+      setMilestone(config.milestone ?? '');
       setStatusId(config.statusId ?? 'to-do');
       setPriorityId(config.priorityId ?? 'no-priority');
       setAssigneeId(config.assigneeId ?? 'none');
@@ -121,6 +132,9 @@ function TemplateEditor({
          config: {
             title: title.trim() || undefined,
             description: issueDescription || undefined,
+            descriptionBlocks: issueDescription.trim()
+               ? markdownToContentBlocks(issueDescription)
+               : undefined,
             statusId,
             statusCategory: categoryFor(statusId),
             priorityId,
@@ -129,6 +143,8 @@ function TemplateEditor({
             projectId: projectId === 'none' ? undefined : projectId,
             cycleId: cycleId === 'none' ? undefined : cycleId,
             dueDate: dueDate || undefined,
+            parentIssueId: parentIssueId.trim() || undefined,
+            milestone: milestone.trim() || undefined,
          },
       } satisfies CreateIssueTemplatePayload;
       if (template) await onUpdate(template.id, payload);
@@ -165,7 +181,10 @@ function TemplateEditor({
                         value={scope}
                         onValueChange={(value: 'workspace' | 'team') => {
                            setScope(value);
-                           if (value === 'workspace') setTeamId('');
+                           if (value === 'workspace') {
+                              setTeamId('');
+                              setParentIssueId('');
+                           }
                         }}
                      >
                         <SelectTrigger>
@@ -221,6 +240,19 @@ function TemplateEditor({
                         onChange={setIssueDescription}
                         placeholder="Default issue description or type '/' for commands..."
                         minHeight="min-h-[100px]"
+                     />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                     <Input
+                        placeholder="Default parent issue (team templates only)"
+                        value={parentIssueId}
+                        onChange={(event) => setParentIssueId(event.target.value)}
+                        disabled={scope !== 'team'}
+                     />
+                     <Input
+                        placeholder="Default milestone"
+                        value={milestone}
+                        onChange={(event) => setMilestone(event.target.value)}
                      />
                   </div>
                   <div className="grid grid-cols-3 gap-3">

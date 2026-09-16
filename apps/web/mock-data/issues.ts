@@ -24,6 +24,7 @@ export interface Issue {
    subissues?: string[];
    rank: string;
    dueDate?: string;
+   milestone?: string;
    /** Member id of the user who created this issue. */
    creatorId?: string;
    /** Whether the authenticated member has a persisted subscription. */

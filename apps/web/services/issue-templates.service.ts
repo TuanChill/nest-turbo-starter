@@ -14,6 +14,8 @@ export interface IssueTemplateConfig {
    projectId?: string;
    cycleId?: string;
    dueDate?: string;
+   parentIssueId?: string;
+   milestone?: string;
 }
 
 export interface IssueTemplate {
