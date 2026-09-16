@@ -37,7 +37,12 @@ export default function AllIssues({ categories }: AllIssuesProps) {
    const { setDisplaySettings } = useDisplaySettingsStore();
    const { data: serverIssues = [], isError, error, refetch } = useIssues();
    const { openPanel } = useRightPanelStore();
-   const { data: views = [] } = useViews({ teamId });
+   const {
+      data: views = [],
+      isError: isViewsError,
+      error: viewsError,
+      refetch: refetchViews,
+   } = useViews({ teamId });
 
    const activeCustomView = useMemo(
       () => views.find((v) => v.id === activeViewId),
@@ -83,6 +88,10 @@ export default function AllIssues({ categories }: AllIssuesProps) {
 
    if (isError) {
       return <QueryErrorState subject="issues" error={error} onRetry={refetch} />;
+   }
+
+   if (isViewsError) {
+      return <QueryErrorState subject="saved views" error={viewsError} onRetry={refetchViews} />;
    }
 
    if (isSearching) {
