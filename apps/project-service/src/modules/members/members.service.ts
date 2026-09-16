@@ -268,6 +268,10 @@ export class MembersService {
         memberId: id,
       });
       if (!targetMembership) throw new NotFoundException(`Member ${id} not found`);
+      const workspace = await this.em.findOne(Workspace, { id: workspaceId });
+      if (workspace?.ownerId === id || targetMembership.role === 'Owner') {
+        throw new BadRequestException('The workspace owner role cannot be changed');
+      }
       targetMembership.role = dto.role;
     }
 
