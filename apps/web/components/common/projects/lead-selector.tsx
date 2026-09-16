@@ -15,6 +15,7 @@ import { useMembers } from '@/hooks/queries/use-members-query';
 import { CheckIcon } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useEffect, useId, useState } from 'react';
+import QueryErrorState from '@/components/common/query-error-state';
 
 interface LeadSelectorProps {
    lead?: User | null;
@@ -25,7 +26,8 @@ export function LeadSelector({ lead, onLeadChange }: LeadSelectorProps) {
    const id = useId();
    const [open, setOpen] = useState<boolean>(false);
    const [value, setValue] = useState<string>(lead?.id ?? '');
-   const { data: users = [] } = useMembers();
+   const usersQuery = useMembers();
+   const { data: users = [] } = usersQuery;
 
    useEffect(() => {
       setValue(lead?.id ?? '');
@@ -73,31 +75,44 @@ export function LeadSelector({ lead, onLeadChange }: LeadSelectorProps) {
                </Button>
             </PopoverTrigger>
             <PopoverContent className="border-input w-48 p-0" align="start">
-               <Command>
-                  <CommandInput placeholder="Set lead..." />
-                  <CommandList>
-                     <CommandEmpty>No user found.</CommandEmpty>
-                     <CommandGroup>
-                        {users.map((user) => (
-                           <CommandItem
-                              key={user.id}
-                              value={user.id}
-                              onSelect={handleLeadChange}
-                              className="flex items-center justify-between"
-                           >
-                              <div className="flex items-center gap-2">
-                                 <Avatar className="size-5">
-                                    <AvatarImage src={user.avatarUrl} alt={user.name} />
-                                    <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                                 </Avatar>
-                                 <span className="text-xs">{user.name}</span>
-                              </div>
-                              {value === user.id && <CheckIcon size={14} className="ml-auto" />}
-                           </CommandItem>
-                        ))}
-                     </CommandGroup>
-                  </CommandList>
-               </Command>
+               {usersQuery.isError ? (
+                  <QueryErrorState
+                     subject="project leads"
+                     error={usersQuery.error}
+                     compact
+                     onRetry={() => void usersQuery.refetch()}
+                  />
+               ) : (
+                  <>
+                     <Command>
+                        <CommandInput placeholder="Set lead..." />
+                        <CommandList>
+                           <CommandEmpty>No user found.</CommandEmpty>
+                           <CommandGroup>
+                              {users.map((user) => (
+                                 <CommandItem
+                                    key={user.id}
+                                    value={user.id}
+                                    onSelect={handleLeadChange}
+                                    className="flex items-center justify-between"
+                                 >
+                                    <div className="flex items-center gap-2">
+                                       <Avatar className="size-5">
+                                          <AvatarImage src={user.avatarUrl} alt={user.name} />
+                                          <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                                       </Avatar>
+                                       <span className="text-xs">{user.name}</span>
+                                    </div>
+                                    {value === user.id && (
+                                       <CheckIcon size={14} className="ml-auto" />
+                                    )}
+                                 </CommandItem>
+                              ))}
+                           </CommandGroup>
+                        </CommandList>
+                     </Command>
+                  </>
+               )}
             </PopoverContent>
          </Popover>
       </div>

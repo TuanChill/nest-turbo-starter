@@ -34,6 +34,7 @@ import {
    Clipboard,
    Bell,
    BellOff,
+   RotateCw,
 } from 'lucide-react';
 import React, { useState } from 'react';
 import { useIssuesStore } from '@/store/issues-store';
@@ -62,10 +63,17 @@ export function IssueContextMenu({ issue }: IssueContextMenuProps) {
       updateIssueProject,
       updateIssue,
    } = useIssuesStore();
-   const { data: members = [] } = useMembers();
-   const { data: labels = [] } = useLabels('issue');
-   const { data: projects = [] } = useProjects();
-   const { data: cycles = [] } = useCycles(issue?.teamId, { requireTeamId: true });
+   const membersQuery = useMembers();
+   const labelsQuery = useLabels('issue');
+   const projectsQuery = useProjects();
+   const cyclesQuery = useCycles(issue?.teamId, { requireTeamId: true });
+   const { data: members = [] } = membersQuery;
+   const { data: labels = [] } = labelsQuery;
+   const { data: projects = [] } = projectsQuery;
+   const { data: cycles = [] } = cyclesQuery;
+   const failedQuery = [membersQuery, labelsQuery, projectsQuery, cyclesQuery].find(
+      (query) => query.isError
+   );
    const deleteIssueMutation = useDeleteIssue();
    const subscriptionMutation = useToggleIssueSubscription();
    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -169,6 +177,11 @@ export function IssueContextMenu({ issue }: IssueContextMenuProps) {
    return (
       <>
          <ContextMenuContent className="w-64">
+            {failedQuery && (
+               <ContextMenuItem onClick={() => void failedQuery.refetch()}>
+                  <RotateCw className="size-4" /> Retry issue options
+               </ContextMenuItem>
+            )}
             <ContextMenuGroup>
                <ContextMenuSub>
                   <ContextMenuSubTrigger>
@@ -191,21 +204,27 @@ export function IssueContextMenu({ issue }: IssueContextMenuProps) {
                      <User className="mr-2 size-4" /> Assignee
                   </ContextMenuSubTrigger>
                   <ContextMenuSubContent className="w-48">
-                     <ContextMenuItem onClick={() => handleAssigneeChange(null)}>
-                        <User className="size-4" /> Unassigned
-                     </ContextMenuItem>
-                     {members.map((user) => (
-                        <ContextMenuItem
-                           key={user.id}
-                           onClick={() => handleAssigneeChange(user.id)}
-                        >
-                           <Avatar className="size-4">
-                              <AvatarImage src={user.avatarUrl} alt={user.name} />
-                              <AvatarFallback>{user.name[0]}</AvatarFallback>
-                           </Avatar>
-                           {user.name}
-                        </ContextMenuItem>
-                     ))}
+                     {membersQuery.isError ? (
+                        <ContextMenuItem disabled>Assignees unavailable</ContextMenuItem>
+                     ) : (
+                        <>
+                           <ContextMenuItem onClick={() => handleAssigneeChange(null)}>
+                              <User className="size-4" /> Unassigned
+                           </ContextMenuItem>
+                           {members.map((user) => (
+                              <ContextMenuItem
+                                 key={user.id}
+                                 onClick={() => handleAssigneeChange(user.id)}
+                              >
+                                 <Avatar className="size-4">
+                                    <AvatarImage src={user.avatarUrl} alt={user.name} />
+                                    <AvatarFallback>{user.name[0]}</AvatarFallback>
+                                 </Avatar>
+                                 {user.name}
+                              </ContextMenuItem>
+                           ))}
+                        </>
+                     )}
                   </ContextMenuSubContent>
                </ContextMenuSub>
 
@@ -230,16 +249,23 @@ export function IssueContextMenu({ issue }: IssueContextMenuProps) {
                      <Tag className="mr-2 size-4" /> Labels
                   </ContextMenuSubTrigger>
                   <ContextMenuSubContent className="w-48">
-                     {labels.map((label) => (
-                        <ContextMenuItem key={label.id} onClick={() => handleLabelToggle(label.id)}>
-                           <span
-                              className="inline-block size-3 rounded-full"
-                              style={{ backgroundColor: label.color }}
-                              aria-hidden="true"
-                           />
-                           {label.name}
-                        </ContextMenuItem>
-                     ))}
+                     {labelsQuery.isError ? (
+                        <ContextMenuItem disabled>Labels unavailable</ContextMenuItem>
+                     ) : (
+                        labels.map((label) => (
+                           <ContextMenuItem
+                              key={label.id}
+                              onClick={() => handleLabelToggle(label.id)}
+                           >
+                              <span
+                                 className="inline-block size-3 rounded-full"
+                                 style={{ backgroundColor: label.color }}
+                                 aria-hidden="true"
+                              />
+                              {label.name}
+                           </ContextMenuItem>
+                        ))
+                     )}
                   </ContextMenuSubContent>
                </ContextMenuSub>
 
@@ -251,14 +277,18 @@ export function IssueContextMenu({ issue }: IssueContextMenuProps) {
                      <ContextMenuItem onClick={() => handleProjectChange(null)}>
                         <Folder className="size-4" /> No Project
                      </ContextMenuItem>
-                     {projects.map((project) => (
-                        <ContextMenuItem
-                           key={project.id}
-                           onClick={() => handleProjectChange(project.id)}
-                        >
-                           {renderProjectIcon(project.icon, 'size-4')} {project.name}
-                        </ContextMenuItem>
-                     ))}
+                     {projectsQuery.isError ? (
+                        <ContextMenuItem disabled>Projects unavailable</ContextMenuItem>
+                     ) : (
+                        projects.map((project) => (
+                           <ContextMenuItem
+                              key={project.id}
+                              onClick={() => handleProjectChange(project.id)}
+                           >
+                              {renderProjectIcon(project.icon, 'size-4')} {project.name}
+                           </ContextMenuItem>
+                        ))
+                     )}
                   </ContextMenuSubContent>
                </ContextMenuSub>
 
@@ -270,11 +300,18 @@ export function IssueContextMenu({ issue }: IssueContextMenuProps) {
                      <ContextMenuItem onClick={() => handleCycleChange('')}>
                         <CyclePlayIcon className="size-4" /> No Cycle
                      </ContextMenuItem>
-                     {cycles.map((cycle) => (
-                        <ContextMenuItem key={cycle.id} onClick={() => handleCycleChange(cycle.id)}>
-                           <CyclePlayIcon className="size-4" /> {cycle.name}
-                        </ContextMenuItem>
-                     ))}
+                     {cyclesQuery.isError ? (
+                        <ContextMenuItem disabled>Cycles unavailable</ContextMenuItem>
+                     ) : (
+                        cycles.map((cycle) => (
+                           <ContextMenuItem
+                              key={cycle.id}
+                              onClick={() => handleCycleChange(cycle.id)}
+                           >
+                              <CyclePlayIcon className="size-4" /> {cycle.name}
+                           </ContextMenuItem>
+                        ))
+                     )}
                   </ContextMenuSubContent>
                </ContextMenuSub>
 

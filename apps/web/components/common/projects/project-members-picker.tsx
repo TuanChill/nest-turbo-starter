@@ -14,6 +14,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Check, UserPlus } from 'lucide-react';
 import { useState } from 'react';
+import QueryErrorState from '@/components/common/query-error-state';
 
 interface ProjectMembersPickerProps {
    projectId: string;
@@ -22,8 +23,12 @@ interface ProjectMembersPickerProps {
 /** Persisted multi-member picker for a project, scoped by the active workspace. */
 export function ProjectMembersPicker({ projectId }: ProjectMembersPickerProps) {
    const [open, setOpen] = useState(false);
-   const { data: persistedMembers = [], isError: membersError } = useProjectMembers(projectId);
-   const { data: workspaceMembers = [] } = useMembers();
+   const projectMembersQuery = useProjectMembers(projectId);
+   const workspaceMembersQuery = useMembers();
+   const { data: persistedMembers = [] } = projectMembersQuery;
+   const { data: workspaceMembers = [] } = workspaceMembersQuery;
+   const membersError = projectMembersQuery.isError || workspaceMembersQuery.isError;
+   const failedQuery = projectMembersQuery.isError ? projectMembersQuery : workspaceMembersQuery;
    const updateMembersMutation = useUpdateProjectMembers();
    const selectedMembers = persistedMembers;
    const selectedIds = new Set(selectedMembers.map((member) => member.id));
@@ -77,9 +82,12 @@ export function ProjectMembersPicker({ projectId }: ProjectMembersPickerProps) {
                <CommandInput placeholder="Search workspace members..." />
                <CommandList>
                   {membersError ? (
-                     <div className="px-3 py-4 text-sm text-destructive">
-                        Project members could not be loaded.
-                     </div>
+                     <QueryErrorState
+                        subject="project members"
+                        error={failedQuery.error}
+                        compact
+                        onRetry={() => void failedQuery.refetch()}
+                     />
                   ) : (
                      <CommandEmpty>No workspace members found.</CommandEmpty>
                   )}

@@ -14,6 +14,7 @@ import { useMembers } from '@/hooks/queries/use-members-query';
 import { useUpdateIssue } from '@/hooks/queries/use-issues-query';
 import { CheckIcon, CircleUserRound, Send, UserIcon } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import QueryErrorState from '@/components/common/query-error-state';
 
 interface AssigneeUserProps {
    user: User | null;
@@ -23,7 +24,8 @@ interface AssigneeUserProps {
 export function AssigneeUser({ user, issueIdentifier }: AssigneeUserProps) {
    const [open, setOpen] = useState(false);
    const [currentAssignee, setCurrentAssignee] = useState<User | null>(user);
-   const { data: members = [] } = useMembers();
+   const membersQuery = useMembers();
+   const { data: members = [] } = membersQuery;
    const updateIssueMutation = useUpdateIssue();
 
    const persistAssignee = (assignee: User | null) => {
@@ -71,51 +73,64 @@ export function AssigneeUser({ user, issueIdentifier }: AssigneeUserProps) {
             </button>
          </DropdownMenuTrigger>
          <DropdownMenuContent align="start" className="w-[206px]">
-            <DropdownMenuLabel>Assign to...</DropdownMenuLabel>
-            <DropdownMenuItem
-               onClick={(e) => {
-                  e.stopPropagation();
-                  setCurrentAssignee(null);
-                  persistAssignee(null);
-                  setOpen(false);
-               }}
-            >
-               <div className="flex items-center gap-2">
-                  <UserIcon className="h-5 w-5" />
-                  <span>No assignee</span>
-               </div>
-               {!currentAssignee && <CheckIcon className="ml-auto h-4 w-4" />}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            {members.map((user) => (
-               <DropdownMenuItem
-                  key={user.id}
-                  onClick={(e) => {
-                     e.stopPropagation();
-                     const nextAssignee = user as unknown as User;
-                     setCurrentAssignee(nextAssignee);
-                     persistAssignee(nextAssignee);
-                     setOpen(false);
-                  }}
-               >
-                  <div className="flex items-center gap-2">
-                     <Avatar className="h-5 w-5">
-                        <AvatarImage src={user.avatarUrl} alt={user.name} />
-                        <AvatarFallback>{user.name[0]}</AvatarFallback>
-                     </Avatar>
-                     <span>{user.name}</span>
-                  </div>
-                  {currentAssignee?.id === user.id && <CheckIcon className="ml-auto h-4 w-4" />}
-               </DropdownMenuItem>
-            ))}
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel>New user</DropdownMenuLabel>
-            <DropdownMenuItem>
-               <div className="flex items-center gap-2">
-                  <Send className="h-4 w-4" />
-                  <span>Invite and assign...</span>
-               </div>
-            </DropdownMenuItem>
+            {membersQuery.isError ? (
+               <QueryErrorState
+                  subject="assignees"
+                  error={membersQuery.error}
+                  compact
+                  onRetry={() => void membersQuery.refetch()}
+               />
+            ) : (
+               <>
+                  <DropdownMenuLabel>Assign to...</DropdownMenuLabel>
+                  <DropdownMenuItem
+                     onClick={(e) => {
+                        e.stopPropagation();
+                        setCurrentAssignee(null);
+                        persistAssignee(null);
+                        setOpen(false);
+                     }}
+                  >
+                     <div className="flex items-center gap-2">
+                        <UserIcon className="h-5 w-5" />
+                        <span>No assignee</span>
+                     </div>
+                     {!currentAssignee && <CheckIcon className="ml-auto h-4 w-4" />}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  {members.map((user) => (
+                     <DropdownMenuItem
+                        key={user.id}
+                        onClick={(e) => {
+                           e.stopPropagation();
+                           const nextAssignee = user as unknown as User;
+                           setCurrentAssignee(nextAssignee);
+                           persistAssignee(nextAssignee);
+                           setOpen(false);
+                        }}
+                     >
+                        <div className="flex items-center gap-2">
+                           <Avatar className="h-5 w-5">
+                              <AvatarImage src={user.avatarUrl} alt={user.name} />
+                              <AvatarFallback>{user.name[0]}</AvatarFallback>
+                           </Avatar>
+                           <span>{user.name}</span>
+                        </div>
+                        {currentAssignee?.id === user.id && (
+                           <CheckIcon className="ml-auto h-4 w-4" />
+                        )}
+                     </DropdownMenuItem>
+                  ))}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel>New user</DropdownMenuLabel>
+                  <DropdownMenuItem>
+                     <div className="flex items-center gap-2">
+                        <Send className="h-4 w-4" />
+                        <span>Invite and assign...</span>
+                     </div>
+                  </DropdownMenuItem>
+               </>
+            )}
          </DropdownMenuContent>
       </DropdownMenu>
    );
