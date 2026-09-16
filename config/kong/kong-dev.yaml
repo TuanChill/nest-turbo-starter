@@ -4,7 +4,8 @@ consumers:
   jwt_secrets:
   - algorithm: HS256
     key: ai-agent
-    secret: "S7M7O3nEa5Zks1L0NChcSiz0Xy9RCHgC1rxPjXG1hY8"
+    # Render this template with the deployment-time JWT_SECRET before syncing.
+    secret: "${JWT_SECRET}"
   username: ai-agent
 - custom_id: anonymousConsumer
   username: anonymousConsumer
