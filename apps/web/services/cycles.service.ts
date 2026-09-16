@@ -1,6 +1,5 @@
 import { apiClient } from './api-client';
-
-const GATEWAY_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:9080';
+import { API_BASE_URL } from '@/lib/api/base-url';
 
 export type CycleStatus = 'planned' | 'upcoming' | 'current' | 'completed';
 export interface CycleBurnupPoint {
@@ -86,7 +85,7 @@ export const cyclesService = {
       );
       return {
          ...subscription,
-         feedUrl: subscription.feedPath ? `${GATEWAY_URL}${subscription.feedPath}` : undefined,
+         feedUrl: subscription.feedPath ? `${API_BASE_URL}${subscription.feedPath}` : undefined,
       };
    },
 
@@ -97,7 +96,7 @@ export const cyclesService = {
       );
       return {
          ...subscription,
-         feedUrl: subscription.feedPath ? `${GATEWAY_URL}${subscription.feedPath}` : undefined,
+         feedUrl: subscription.feedPath ? `${API_BASE_URL}${subscription.feedPath}` : undefined,
       };
    },
 

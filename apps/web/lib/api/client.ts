@@ -1,6 +1,5 @@
 import { getCookie, setCookie, removeCookie } from '@/lib/utils/cookies';
-
-const GATEWAY_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:9080';
+import { API_BASE_URL } from './base-url';
 
 export type QueryParamValue =
    | string
@@ -27,7 +26,7 @@ export async function apiClient<T>(endpoint: string, options: RequestOptions = {
    const { params, headers, skipAuth, ...customConfig } = options;
 
    // Normalize URL: if starts with /circle or /auth, prepend gateway URL
-   const basePath = GATEWAY_URL;
+   const basePath = API_BASE_URL;
    let path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
 
    // If not specified prefix, default to /circle/api
@@ -86,7 +85,7 @@ export async function apiClient<T>(endpoint: string, options: RequestOptions = {
             if (!isRefreshing) {
                isRefreshing = true;
                try {
-                  const refreshRes = await fetch(`${GATEWAY_URL}/auth/api/refresh-token`, {
+                  const refreshRes = await fetch(`${API_BASE_URL}/auth/api/refresh-token`, {
                      method: 'POST',
                      headers: {
                         'Content-Type': 'application/json',
