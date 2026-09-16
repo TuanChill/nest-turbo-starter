@@ -18,6 +18,7 @@ import {
   getIssuePropertyValidationError,
   resolveDefaultIssueTeamId,
 } from './issue-rules';
+import { selectIssueNotificationRecipients } from './notification-recipients';
 import { isRelationInIssueTeam } from './relation-scope';
 import {
   Cycle,
@@ -219,35 +220,21 @@ export class IssuesService {
     return memberIds;
   }
 
-  /** assignee + creator + everyone who has commented, minus the actor causing the event. */
+  /** Only authorized issue subscribers receive issue-change notifications. */
   private async resolveRecipients(
     issue: Issue,
     excludeActorId: string,
   ): Promise<string[]> {
     const allowedMemberIds = await this.getMemberIdsForTeam(issue.teamId);
-    const recipients = new Set<string>();
-    if (issue.assigneeId && allowedMemberIds.has(issue.assigneeId)) {
-      recipients.add(issue.assigneeId);
-    }
-    if (issue.creatorId && allowedMemberIds.has(issue.creatorId)) {
-      recipients.add(issue.creatorId);
-    }
-    const comments = await this.em.find(IssueActivity, {
-      issueIdentifier: issue.identifier,
-      kind: 'comment',
-    });
-    for (const c of comments) {
-      if (allowedMemberIds.has(c.actorId)) recipients.add(c.actorId);
-    }
     const subscriptions = await this.em.find(IssueSubscription, {
       issueIdentifier: issue.identifier,
       memberId: { $in: [...allowedMemberIds] },
     });
-    for (const subscription of subscriptions) {
-      recipients.add(subscription.memberId);
-    }
-    recipients.delete(excludeActorId);
-    return Array.from(recipients);
+    return selectIssueNotificationRecipients(
+      allowedMemberIds,
+      subscriptions,
+      excludeActorId,
+    );
   }
 
   /** Persists one Notification per recipient (deduped, self-notify excluded). Caller flushes. */
@@ -1094,6 +1081,17 @@ export class IssuesService {
       text: 'created this issue',
     });
     this.em.persist(activity);
+
+    if (dto.assigneeId && dto.assigneeId !== actorId) {
+      const actor = await this.em.findOne(Member, { id: actorId });
+      this.notifyMany(
+        identifier,
+        actorId,
+        [dto.assigneeId],
+        'assignment',
+        `${actor?.name || actorId} assigned this issue to you`,
+      );
+    }
     await this.em.flush();
 
     return this.findOne(identifier, actorId);
@@ -1239,10 +1237,11 @@ export class IssuesService {
         this.em.persist(act);
 
         const name = await getActorName();
+        const statusRecipients = await this.resolveRecipients(issue, actorId);
         this.notifyMany(
           issue.identifier,
           actorId,
-          [issue.creatorId, issue.assigneeId].filter((id): id is string => Boolean(id)),
+          statusRecipients,
           'status',
           `${name} changed status to ${statusName}`,
         );
@@ -1260,6 +1259,14 @@ export class IssuesService {
           text: `set priority to ${ALL_PRIORITIES[dto.priorityId]?.name || dto.priorityId}`,
         });
         this.em.persist(act);
+        const priorityRecipients = await this.resolveRecipients(issue, actorId);
+        this.notifyMany(
+          issue.identifier,
+          actorId,
+          priorityRecipients,
+          'status',
+          `${await getActorName()} changed priority to ${ALL_PRIORITIES[dto.priorityId]?.name || dto.priorityId}`,
+        );
       }
     }
     if (dto.estimate !== undefined) {
