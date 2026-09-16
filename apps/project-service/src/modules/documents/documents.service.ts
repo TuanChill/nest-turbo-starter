@@ -54,6 +54,23 @@ export class DocumentsService {
     ]);
     const members = await this.em.find(Member, { id: { $in: [...visibleMemberIds] } });
     const membersMap = new Map(members.map((m) => [m.id, toSafeMember(m)]));
+    const visibleMemberIdsByTeam = new Map<string, Set<string>>();
+    for (const folder of folders) {
+      const team = teams.find((candidate) => candidate.id === folder.teamId);
+      const ids = new Set(
+        teamMembers
+          .filter((membership) => membership.teamId === folder.teamId)
+          .map((membership) => membership.memberId),
+      );
+      if (team?.workspaceId) {
+        for (const membership of workspaceMembers) {
+          if (membership.workspaceId === team.workspaceId) {
+            ids.add(membership.memberId);
+          }
+        }
+      }
+      visibleMemberIdsByTeam.set(folder.teamId, ids);
+    }
 
     return folders.map((folder) => {
       const folderDocs = documents
@@ -62,7 +79,9 @@ export class DocumentsService {
           id: doc.id,
           name: doc.name,
           icon: doc.icon,
-          creator: membersMap.get(doc.creatorId) ?? null,
+          creator: visibleMemberIdsByTeam.get(folder.teamId)?.has(doc.creatorId)
+            ? (membersMap.get(doc.creatorId) ?? null)
+            : null,
           createdAt: doc.createdAt.toISOString().split('T')[0],
           updatedAt: doc.updatedAt.toISOString().split('T')[0],
           pinned: doc.pinned,
