@@ -7,6 +7,8 @@ export const issueKeys = {
    all: ['issues'] as const,
    lists: () => [...issueKeys.all, 'list'] as const,
    list: (filters?: Record<string, unknown>) => [...issueKeys.lists(), filters ?? {}] as const,
+   facets: (filters?: Record<string, unknown>) =>
+      [...issueKeys.all, 'facets', filters ?? {}] as const,
    details: () => [...issueKeys.all, 'detail'] as const,
    detail: (id: string) => [...issueKeys.details(), id] as const,
    activity: (id: string) => [...issueKeys.detail(id), 'activity'] as const,

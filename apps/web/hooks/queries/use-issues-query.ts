@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import {
    issuesService,
+   IssueFacetParams,
    IssueFilterParams,
    CreateIssuePayload,
    UpdateIssuePayload,
@@ -24,6 +26,31 @@ export function useIssues(params?: IssueFilterParams) {
       queryFn: () => issuesService.getIssues(scopedParams),
       enabled: !hasRouteWorkspace || (workspacesFetched && Boolean(workspaceId)),
    });
+}
+
+export function useIssueFacets(params?: IssueFacetParams) {
+   const { orgId } = useParams<{ orgId?: string }>();
+   const { data: workspaces = [], isFetched: workspacesFetched } = useWorkspaces();
+   const workspaceId =
+      params?.workspaceId ||
+      workspaces.find((workspace) => workspace.slug === orgId || workspace.id === orgId)?.id;
+   const hasRouteWorkspace = Boolean(params?.workspaceId || orgId);
+   const scopedParams = { ...params, workspaceId };
+
+   const query = useQuery({
+      queryKey: issueKeys.facets(scopedParams as Record<string, unknown>),
+      queryFn: () => issuesService.getIssueFacets(scopedParams),
+      enabled: !hasRouteWorkspace || (workspacesFetched && Boolean(workspaceId)),
+      staleTime: 30_000,
+   });
+
+   useEffect(() => {
+      if (query.error) {
+         toast.error(`Could not load issue filter counts: ${query.error.message}`);
+      }
+   }, [query.error]);
+
+   return query;
 }
 
 export function useIssue(identifier: string, enabled = true) {

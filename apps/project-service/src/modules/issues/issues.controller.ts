@@ -68,6 +68,27 @@ export class IssuesController {
     });
   }
 
+  @ApiOperation({ summary: 'Get scoped issue filter facet counts' })
+  @ApiQuery({ name: 'teamId', required: false })
+  @ApiQuery({ name: 'workspaceId', required: false })
+  @ApiQuery({ name: 'cycleId', required: false })
+  @ApiQuery({ name: 'projectId', required: false })
+  @Get('facets')
+  findFacets(
+    @User('id') memberId: string,
+    @Query('teamId') teamId?: string,
+    @Query('workspaceId') workspaceId?: string,
+    @Query('cycleId') cycleId?: string,
+    @Query('projectId') projectId?: string,
+  ) {
+    return this.issuesService.findFacets(memberId, {
+      teamId,
+      workspaceId,
+      cycleId,
+      projectId,
+    });
+  }
+
   @ApiOperation({ summary: 'Get issue by identifier or ID' })
   @Get(':identifier')
   findOne(

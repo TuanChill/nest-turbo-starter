@@ -3,6 +3,7 @@
 import { FilterSelector } from '@/components/data-table-filter/components/filter-selector';
 import { useDataTableFilters } from '@/components/data-table-filter/hooks/use-data-table-filters';
 import { useCycles } from '@/hooks/queries/use-cycles-query';
+import { useIssueFacets } from '@/hooks/queries/use-issues-query';
 import { useLabels } from '@/hooks/queries/use-labels-query';
 import { useMembers } from '@/hooks/queries/use-members-query';
 import { useProjects } from '@/hooks/queries/use-projects-query';
@@ -23,18 +24,36 @@ export function IssueFilterTrigger() {
    const { data: projects = [] } = useProjects();
    const { data: cycles = [] } = useCycles();
    const { data: labels = [] } = useLabels('issue');
+   const { data: facets } = useIssueFacets();
 
    const columnsConfig = useMemo(
       () => buildIssueFilterColumns(members, projects, cycles, labels),
       [members, projects, cycles, labels]
    );
 
+   const faceted = useMemo(
+      () =>
+         facets
+            ? {
+                 status: new Map(Object.entries(facets.status)),
+                 statusType: new Map(Object.entries(facets.statusType)),
+                 assignee: new Map(Object.entries(facets.assignee)),
+                 priority: new Map(Object.entries(facets.priority)),
+                 labels: new Map(Object.entries(facets.labels)),
+                 project: new Map(Object.entries(facets.project)),
+                 cycle: new Map(Object.entries(facets.cycle)),
+              }
+            : undefined,
+      [facets]
+   );
+
    const { columns, actions, strategy } = useDataTableFilters({
-      strategy: 'client',
+      strategy: 'server',
       data: [] as Issue[],
       columnsConfig,
       filters,
       onFiltersChange: setFilters,
+      faceted,
    });
 
    return (

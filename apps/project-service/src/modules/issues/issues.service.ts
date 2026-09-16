@@ -537,6 +537,146 @@ export class IssuesService {
     );
   }
 
+  async findFacets(
+    memberId: string,
+    query?: {
+      teamId?: string;
+      workspaceId?: string;
+      cycleId?: string;
+      projectId?: string;
+    },
+  ) {
+    const accessibleTeamIds = await this.getAccessibleTeamIds(
+      memberId,
+      query?.workspaceId,
+    );
+    const empty = {
+      status: {},
+      statusType: {},
+      priority: {},
+      assignee: {},
+      labels: {},
+      project: {},
+      cycle: {},
+    } as Record<string, Record<string, number>>;
+
+    if (accessibleTeamIds.length === 0) return empty;
+    if (query?.teamId && !accessibleTeamIds.includes(query.teamId)) return empty;
+
+    const where: any = {
+      teamId: query?.teamId ? query.teamId : { $in: accessibleTeamIds },
+    };
+    if (query?.cycleId !== undefined) where.cycleId = query.cycleId;
+    if (query?.projectId) where.projectId = query.projectId;
+
+    const issues = await this.em.find(Issue, where);
+    if (issues.length === 0) return empty;
+
+    const increment = (bucket: Record<string, number>, key: string) => {
+      bucket[key] = (bucket[key] ?? 0) + 1;
+    };
+    const facets = {
+      status: {},
+      statusType: {},
+      priority: {},
+      assignee: {},
+      labels: {},
+      project: {},
+      cycle: {},
+    } as Record<string, Record<string, number>>;
+
+    for (const issue of issues) {
+      increment(facets.status, issue.statusId);
+      increment(facets.statusType, issue.statusCategory);
+      increment(facets.priority, issue.priorityId);
+      increment(facets.assignee, issue.assigneeId ?? 'unassigned');
+      increment(facets.project, issue.projectId ?? 'no-project');
+      increment(facets.cycle, issue.cycleId || 'no-cycle');
+    }
+
+    const issueIds = issues.flatMap((issue) => [issue.id, issue.identifier]);
+    const issueLabels = await this.em.find(IssueLabel, { issueId: { $in: issueIds } });
+    const teams = await this.em.find(Team, {
+      id: { $in: [...new Set(issues.map((issue) => issue.teamId))] },
+    });
+    const workspaceIds = [
+      ...new Set(teams.map((team) => team.workspaceId).filter(Boolean)),
+    ];
+    const labels = await this.em.find(Label, {
+      scope: { $in: ['issue', 'both'] },
+      workspaceId: { $in: workspaceIds },
+    });
+    const visibleLabelIds = new Set(labels.map((label) => label.id));
+    const visibleIssueIds = new Set(issueIds);
+    for (const issueLabel of issueLabels) {
+      if (
+        visibleIssueIds.has(issueLabel.issueId) &&
+        visibleLabelIds.has(issueLabel.labelId)
+      ) {
+        increment(facets.labels, issueLabel.labelId);
+      }
+    }
+
+    const candidateMemberIds = [
+      ...new Set(
+        issues.map((issue) => issue.assigneeId).filter((id): id is string => Boolean(id)),
+      ),
+    ];
+    const memberships = workspaceIds.length
+      ? await this.em.find(WorkspaceMember, {
+          workspaceId: { $in: workspaceIds },
+          memberId: { $in: candidateMemberIds },
+        })
+      : [];
+    const visibleMemberIds = new Set(
+      memberships.map((membership) => membership.memberId),
+    );
+    for (const memberIdKey of Object.keys(facets.assignee)) {
+      if (memberIdKey !== 'unassigned' && !visibleMemberIds.has(memberIdKey)) {
+        delete facets.assignee[memberIdKey];
+      }
+    }
+
+    const projectIds = [
+      ...new Set(
+        issues.map((issue) => issue.projectId).filter((id): id is string => Boolean(id)),
+      ),
+    ];
+    const projects = projectIds.length
+      ? await this.em.find(Project, { id: { $in: projectIds } })
+      : [];
+    const projectTeams = projectIds.length
+      ? await this.em.find(ProjectTeam, {
+          projectId: { $in: projectIds },
+          teamId: { $in: [...new Set(issues.map((issue) => issue.teamId))] },
+        })
+      : [];
+    const linkedProjectTeams = new Set(
+      projectTeams.map((link) => `${link.projectId}:${link.teamId}`),
+    );
+    const validProjectIds = new Set(
+      issues
+        .filter((issue) => {
+          if (!issue.projectId) return false;
+          const project = projects.find((candidate) => candidate.id === issue.projectId);
+          return Boolean(
+            project &&
+              (project.teamId === issue.teamId ||
+                linkedProjectTeams.has(`${project.id}:${issue.teamId}`)),
+          );
+        })
+        .map((issue) => issue.projectId)
+        .filter((id): id is string => Boolean(id)),
+    );
+    for (const projectIdKey of Object.keys(facets.project)) {
+      if (projectIdKey !== 'no-project' && !validProjectIds.has(projectIdKey)) {
+        delete facets.project[projectIdKey];
+      }
+    }
+
+    return facets;
+  }
+
   async findOne(identifierOrId: string, memberId?: string, workspaceId?: string) {
     const issue = await this.em.findOne(Issue, {
       $or: [{ identifier: identifierOrId }, { id: identifierOrId }],

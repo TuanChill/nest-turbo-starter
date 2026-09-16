@@ -17,6 +17,21 @@ export interface IssueFilterParams {
    advancedFilters?: string;
 }
 
+export type IssueFacetParams = Pick<
+   IssueFilterParams,
+   'workspaceId' | 'teamId' | 'cycleId' | 'projectId'
+>;
+
+export interface IssueFacetCounts {
+   status: Record<string, number>;
+   statusType: Record<string, number>;
+   priority: Record<string, number>;
+   assignee: Record<string, number>;
+   labels: Record<string, number>;
+   project: Record<string, number>;
+   cycle: Record<string, number>;
+}
+
 export interface CreateIssuePayload {
    identifier?: string;
    title: string;
@@ -58,6 +73,12 @@ export interface UpdateIssuePayload {
 export const issuesService = {
    async getIssues(params?: IssueFilterParams): Promise<Issue[]> {
       return apiClient<Issue[]>('/issues', {
+         params: params as Record<string, string | string[] | undefined>,
+      });
+   },
+
+   async getIssueFacets(params?: IssueFacetParams): Promise<IssueFacetCounts> {
+      return apiClient<IssueFacetCounts>('/issues/facets', {
          params: params as Record<string, string | string[] | undefined>,
       });
    },

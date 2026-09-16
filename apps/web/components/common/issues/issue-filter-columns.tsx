@@ -94,11 +94,18 @@ function buildAssigneeOptions(members: Member[]): ColumnOption[] {
 }
 
 function buildProjectOptions(projects: Project[]): ColumnOption[] {
-   return projects.map((project) => ({
-      value: project.id,
-      label: project.name,
-      icon: renderProjectIcon(project.icon, 'size-4 text-muted-foreground'),
-   }));
+   return [
+      {
+         value: 'no-project',
+         label: 'No project',
+         icon: <Folder className="size-4 text-muted-foreground" />,
+      },
+      ...projects.map((project) => ({
+         value: project.id,
+         label: project.name,
+         icon: renderProjectIcon(project.icon, 'size-4 text-muted-foreground'),
+      })),
+   ];
 }
 
 function buildCycleOptions(cycles: Cycle[]): ColumnOption[] {
