@@ -26,7 +26,7 @@ jobs:
           username: ${{ secrets.SSH_USERNAME }}
           password: ${{ secrets.SSH_PASSWORD }}
           timeout: 300s
-          command_timeout: 20m
+          command_timeout: 30m
           script: |
             # Free safe-to-remove Docker data before the remote deploy script
             # fetches a new Git pack. The script itself is updated only after
