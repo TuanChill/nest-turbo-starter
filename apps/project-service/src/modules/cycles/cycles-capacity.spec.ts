@@ -1,6 +1,13 @@
 import type { EntityManager } from '@mikro-orm/core';
 import { CyclesService } from './cycles.service';
-import { Cycle, CycleHistory, CycleSettings, Issue, TeamMember } from '../../data-access';
+import {
+  Cycle,
+  CycleHistory,
+  CycleSettings,
+  Issue,
+  Team,
+  TeamMember,
+} from '../../data-access';
 
 jest.mock('@mikro-orm/core', () => ({
   EntityManager: class MockEntityManager {},
@@ -30,12 +37,20 @@ jest.mock('../../data-access', () => {
     }
   }
   class MockTeamMember {}
+  class MockTeam {
+    [key: string]: unknown;
+
+    constructor(partial?: Record<string, unknown>) {
+      Object.assign(this, partial);
+    }
+  }
 
   return {
     Cycle: MockCycle,
     CycleHistory: MockCycleHistory,
     CycleSettings: MockCycleSettings,
     Issue: MockIssue,
+    Team: MockTeam,
     TeamMember: MockTeamMember,
   };
 });
@@ -86,6 +101,7 @@ describe('CyclesService capacity integration', () => {
       find: jest.fn(async (entity: unknown, where?: Record<string, any>) => {
         if (entity === Cycle) return [previous, upcoming];
         if (entity === TeamMember) return [{ teamId: 'team-a' }, { teamId: 'team-a' }];
+        if (entity === Team) return [];
         if (entity === CycleHistory) return [];
         if (entity === Issue) {
           if (typeof where?.cycleId === 'string') {
@@ -107,6 +123,85 @@ describe('CyclesService capacity integration', () => {
     expect(result.find((cycle) => cycle.id === 'cycle-upcoming')).toMatchObject({
       scope: 3,
       capacity: 75,
+    });
+  });
+
+  it('uses configured estimate points for capacity when estimates are enabled', async () => {
+    const previous = new Cycle({
+      id: 'cycle-previous',
+      teamId: 'team-a',
+      status: 'completed',
+      startDate: new Date('2026-08-01T00:00:00.000Z'),
+      endDate: new Date('2026-08-14T00:00:00.000Z'),
+    });
+    const upcoming = new Cycle({
+      id: 'cycle-upcoming',
+      teamId: 'team-a',
+      status: 'upcoming',
+      startDate: new Date('2026-09-01T00:00:00.000Z'),
+      endDate: new Date('2026-09-14T00:00:00.000Z'),
+    });
+    const issues = [
+      new Issue({
+        id: 'previous-1',
+        cycleId: previous.id,
+        teamId: 'team-a',
+        estimate: 8,
+      }),
+      new Issue({
+        id: 'previous-2',
+        cycleId: previous.id,
+        teamId: 'team-a',
+        estimate: 5,
+      }),
+      new Issue({
+        id: 'upcoming-1',
+        cycleId: upcoming.id,
+        teamId: 'team-a',
+        estimate: 8,
+      }),
+    ];
+    const em = {
+      findOne: jest.fn(async (entity: unknown) => {
+        if (entity === CycleSettings || entity === CycleHistory) return null;
+        return null;
+      }),
+      find: jest.fn(async (entity: unknown, where?: Record<string, any>) => {
+        if (entity === Cycle) return [previous, upcoming];
+        if (entity === Team) {
+          return [
+            new Team({
+              id: 'team-a',
+              estimateEnabled: true,
+              estimateScale: 'fibonacci',
+              estimateExtended: false,
+              estimateZero: false,
+              unestimatedAsOne: true,
+            }),
+          ];
+        }
+        if (entity === TeamMember) return [{ teamId: 'team-a' }];
+        if (entity === CycleHistory) return [];
+        if (entity === Issue) {
+          if (typeof where?.cycleId === 'string') {
+            return issues.filter((issue) => issue.cycleId === where.cycleId);
+          }
+          return issues;
+        }
+        return [];
+      }),
+      persist: jest.fn(),
+      flush: jest.fn(async () => undefined),
+    } as unknown as EntityManager;
+    const service = new CyclesService(em, {
+      getAccessibleTeamIds: jest.fn().mockResolvedValue(['team-a']),
+    } as never);
+
+    const result = await service.findAll('member-a', 'team-a');
+
+    expect(result.find((cycle) => cycle.id === 'cycle-upcoming')).toMatchObject({
+      scope: 1,
+      capacity: 62,
     });
   });
 });

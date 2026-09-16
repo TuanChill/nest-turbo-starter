@@ -19,7 +19,15 @@ import {
   nextStartOnWeekday,
 } from './cycle-settings';
 import { CreateCycleDto, UpdateCycleDto, UpdateCycleSettingsDto } from './dto/cycle.dto';
-import { Cycle, CycleHistory, CycleSettings, Issue, TeamMember } from '../../data-access';
+import {
+  Cycle,
+  CycleHistory,
+  CycleSettings,
+  Issue,
+  Team,
+  TeamMember,
+} from '../../data-access';
+import { estimateEffort } from '../issues/issue-estimates';
 import { WorkspacesService } from '../workspaces/workspaces.service';
 
 @Injectable()
@@ -299,11 +307,33 @@ export class CyclesService {
       teamId: { $in: teamIds },
       cycleId: { $in: cycleIds },
     });
+    const teams = await this.em.find(Team, { id: { $in: teamIds } });
     const teamMembers = await this.em.find(TeamMember, { teamId: { $in: teamIds } });
     const scopeByCycle = new Map<string, number>();
+    const effortByCycle = new Map<string, number>();
+    const estimateSettingsByTeam = new Map(
+      teams.map((team) => [
+        team.id,
+        {
+          enabled: Boolean(team.estimateEnabled),
+          scale: team.estimateScale ?? 'fibonacci',
+          extended: Boolean(team.estimateExtended),
+          allowZero: Boolean(team.estimateZero),
+          unestimatedAsOne: team.unestimatedAsOne !== false,
+        },
+      ]),
+    );
     for (const issue of issues) {
       if (issue.cycleId) {
         scopeByCycle.set(issue.cycleId, (scopeByCycle.get(issue.cycleId) ?? 0) + 1);
+        const settings = estimateSettingsByTeam.get(issue.teamId);
+        if (settings) {
+          effortByCycle.set(
+            issue.cycleId,
+            (effortByCycle.get(issue.cycleId) ?? 0) +
+              estimateEffort(issue.estimate, settings),
+          );
+        }
       }
     }
     const membersByTeam = new Map<string, number>();
@@ -313,6 +343,8 @@ export class CyclesService {
 
     const capacityByCycle = new Map<string, number>();
     for (const cycle of cycles) {
+      const estimateSettings = estimateSettingsByTeam.get(cycle.teamId);
+      const usesEstimates = Boolean(estimateSettings?.enabled);
       const previousCompletedScopes = cycles
         .filter(
           (candidate) =>
@@ -322,11 +354,17 @@ export class CyclesService {
         )
         .sort((a, b) => b.endDate.getTime() - a.endDate.getTime())
         .slice(0, 3)
-        .map((candidate) => scopeByCycle.get(candidate.id) ?? 0);
+        .map((candidate) =>
+          usesEstimates
+            ? (effortByCycle.get(candidate.id) ?? 0)
+            : (scopeByCycle.get(candidate.id) ?? 0),
+        );
       capacityByCycle.set(
         cycle.id,
         estimateCycleCapacity(
-          scopeByCycle.get(cycle.id) ?? 0,
+          usesEstimates
+            ? (effortByCycle.get(cycle.id) ?? 0)
+            : (scopeByCycle.get(cycle.id) ?? 0),
           previousCompletedScopes,
           membersByTeam.get(cycle.teamId) ?? 0,
         ),

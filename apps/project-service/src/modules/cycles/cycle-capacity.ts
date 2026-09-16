@@ -2,9 +2,8 @@
  * Estimate how full a cycle is relative to the team's recent throughput.
  *
  * Linear uses the previous three completed cycles as the velocity baseline and
- * falls back to team size when there is no completed-cycle history. Circle
- * currently has no persisted issue-point estimate, so this contract uses
- * issue scope as the effort unit until estimates are implemented separately.
+ * falls back to team size when there is no completed-cycle history. The caller
+ * supplies either issue scope or validated team-configured estimate effort.
  */
 export function estimateCycleCapacity(
   scope: number,

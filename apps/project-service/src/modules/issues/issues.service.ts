@@ -13,6 +13,7 @@ import {
   CreateIssueDto,
   UpdateIssueDto,
 } from './dto/issue.dto';
+import { IssueEstimateSettings, validateIssueEstimate } from './issue-estimates';
 import {
   getIssuePropertyValidationError,
   resolveDefaultIssueTeamId,
@@ -285,6 +286,16 @@ export class IssuesService {
     }
   }
 
+  private getEstimateSettings(team?: Team): IssueEstimateSettings {
+    return {
+      enabled: Boolean(team?.estimateEnabled),
+      scale: team?.estimateScale ?? 'fibonacci',
+      extended: Boolean(team?.estimateExtended),
+      allowZero: Boolean(team?.estimateZero),
+      unestimatedAsOne: team?.unestimatedAsOne !== false,
+    };
+  }
+
   private transformIssue(
     issue: Issue,
     membersMap: Map<string, any>,
@@ -293,6 +304,13 @@ export class IssuesService {
     issueLabels: IssueLabel[],
     subissuesMap: Map<string, string[]>,
     subscribedIssueIdentifiers: Set<string> = new Set(),
+    estimateSettings: IssueEstimateSettings = {
+      enabled: false,
+      scale: 'fibonacci',
+      extended: false,
+      allowZero: false,
+      unestimatedAsOne: true,
+    },
   ) {
     const assignee = issue.assigneeId ? (membersMap.get(issue.assigneeId) ?? null) : null;
     const labelIds = issueLabels
@@ -323,6 +341,8 @@ export class IssuesService {
       assignee,
       creatorId: issue.creatorId,
       priority,
+      estimate: issue.estimate ?? null,
+      estimateSettings,
       labels,
       createdAt: issue.createdAt
         ? issue.createdAt.toISOString().split('T')[0]
@@ -478,6 +498,9 @@ export class IssuesService {
 
     const membersMap = new Map(members.map((m) => [m.id, toSafeMember(m)]));
     const labelsMap = new Map(labels.map((l) => [l.id, l]));
+    const estimateSettingsMap = new Map<string, IssueEstimateSettings>(
+      teams.map((team) => [team.id, this.getEstimateSettings(team)]),
+    );
     const projectsMap = new Map(
       projects.filter((project) => validProjectIds.has(project.id)).map((p) => [p.id, p]),
     );
@@ -533,6 +556,7 @@ export class IssuesService {
         issueLabels,
         subissuesMap,
         subscribedIssueIdentifiers,
+        estimateSettingsMap.get(issue.teamId),
       ),
     );
   }
@@ -752,6 +776,7 @@ export class IssuesService {
       issueLabels,
       subissuesMap,
       new Set(subscription ? [issue.identifier] : []),
+      this.getEstimateSettings(team ?? undefined),
     );
   }
 
@@ -962,6 +987,11 @@ export class IssuesService {
       knownPriorities: ALL_PRIORITIES,
     });
     if (createPropertyError) throw new BadRequestException(createPropertyError);
+    const createEstimateError = validateIssueEstimate(
+      dto.estimate,
+      this.getEstimateSettings(team),
+    );
+    if (createEstimateError) throw new BadRequestException(createEstimateError);
     await this.validateAssigneeId(dto.assigneeId, teamId);
 
     if (dto.cycleId) {
@@ -1033,6 +1063,7 @@ export class IssuesService {
       statusId: dto.statusId || 'to-do',
       statusCategory,
       priorityId: dto.priorityId || 'no-priority',
+      estimate: dto.estimate ?? undefined,
       assigneeId: dto.assigneeId,
       creatorId: actorId,
       teamId,
@@ -1098,6 +1129,8 @@ export class IssuesService {
     };
 
     const nextTeamId = dto.teamId ?? issue.teamId;
+    const nextTeam = await this.em.findOne(Team, { id: nextTeamId });
+    if (!nextTeam) throw new NotFoundException(`Team ${nextTeamId} not found`);
     await this.validateAssigneeId(
       dto.assigneeId !== undefined ? dto.assigneeId : issue.assigneeId,
       nextTeamId,
@@ -1108,8 +1141,15 @@ export class IssuesService {
         dto.teamId,
         `Issue ${identifierOrId} not found`,
       );
-      const targetTeam = await this.em.findOne(Team, { id: dto.teamId });
-      if (!targetTeam) throw new NotFoundException(`Team ${dto.teamId} not found`);
+    }
+
+    const nextEstimate = dto.estimate !== undefined ? dto.estimate : issue.estimate;
+    if (dto.estimate !== undefined || dto.teamId !== undefined) {
+      const updateEstimateError = validateIssueEstimate(
+        nextEstimate,
+        this.getEstimateSettings(nextTeam),
+      );
+      if (updateEstimateError) throw new BadRequestException(updateEstimateError);
     }
 
     const nextProjectId = dto.projectId !== undefined ? dto.projectId : issue.projectId;
@@ -1220,6 +1260,24 @@ export class IssuesService {
           text: `set priority to ${ALL_PRIORITIES[dto.priorityId]?.name || dto.priorityId}`,
         });
         this.em.persist(act);
+      }
+    }
+    if (dto.estimate !== undefined) {
+      const previousEstimate = issue.estimate;
+      issue.estimate = dto.estimate ?? undefined;
+      if (previousEstimate !== issue.estimate) {
+        this.em.persist(
+          new IssueActivity({
+            issueIdentifier: issue.identifier,
+            actorId,
+            kind: 'event',
+            event: 'estimate',
+            text:
+              dto.estimate === null
+                ? 'removed the estimate'
+                : `set estimate to ${dto.estimate}`,
+          }),
+        );
       }
     }
     if (dto.assigneeId !== undefined) {

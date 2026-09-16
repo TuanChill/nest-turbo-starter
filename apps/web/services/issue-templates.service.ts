@@ -9,6 +9,7 @@ export interface IssueTemplateConfig {
    statusId?: string;
    statusCategory?: string;
    priorityId?: string;
+   estimate?: number;
    assigneeId?: string;
    labelIds?: string[];
    projectId?: string;

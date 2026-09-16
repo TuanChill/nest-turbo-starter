@@ -4,9 +4,11 @@ import {
   ArrayUnique,
   IsArray,
   IsEnum,
+  IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
+  Min,
 } from 'class-validator';
 
 export class CreateIssueDto {
@@ -47,6 +49,12 @@ export class CreateIssueDto {
   @IsString()
   @IsOptional()
   priorityId?: string;
+
+  @ApiPropertyOptional({ example: 3, nullable: true })
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  estimate?: number | null;
 
   @ApiPropertyOptional({ example: 'mason' })
   @IsString()
@@ -127,6 +135,12 @@ export class UpdateIssueDto {
   @IsString()
   @IsOptional()
   priorityId?: string;
+
+  @ApiPropertyOptional({ example: 3, nullable: true })
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  estimate?: number | null;
 
   @ApiPropertyOptional()
   @IsString()

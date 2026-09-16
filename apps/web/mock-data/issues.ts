@@ -13,6 +13,14 @@ export interface Issue {
    status: Status;
    assignee: User | null;
    priority: Priority;
+   estimate?: number | null;
+   estimateSettings?: {
+      enabled: boolean;
+      scale: 'exponential' | 'fibonacci' | 'linear' | 't-shirt';
+      extended: boolean;
+      allowZero: boolean;
+      unestimatedAsOne: boolean;
+   };
    labels: LabelInterface[];
    createdAt: string;
    /** Cycle the issue belongs to. Empty string = no cycle (backlog stock). */

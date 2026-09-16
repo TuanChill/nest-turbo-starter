@@ -29,6 +29,21 @@ export class Team {
   @Property({ type: 'text', nullable: true })
   description?: string;
 
+  @Property({ type: 'boolean', default: false })
+  estimateEnabled = false;
+
+  @Property({ type: 'string', default: 'fibonacci' })
+  estimateScale: 'exponential' | 'fibonacci' | 'linear' | 't-shirt' = 'fibonacci';
+
+  @Property({ type: 'boolean', default: false })
+  estimateExtended = false;
+
+  @Property({ type: 'boolean', default: false })
+  estimateZero = false;
+
+  @Property({ type: 'boolean', default: true })
+  unestimatedAsOne = true;
+
   @Property({ type: 'string', nullable: true })
   workspaceId?: string;
 

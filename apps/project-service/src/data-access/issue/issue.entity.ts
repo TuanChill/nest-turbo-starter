@@ -39,6 +39,10 @@ export class Issue {
   @Property({ type: 'string', default: 'no-priority' })
   priorityId: string;
 
+  /** Optional team-configured effort estimate used by cycle/project analytics. */
+  @Property({ type: 'integer', nullable: true })
+  estimate?: number;
+
   @Property({ type: 'string', nullable: true })
   assigneeId?: string;
 

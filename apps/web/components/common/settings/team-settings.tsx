@@ -5,6 +5,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import {
+   Select,
+   SelectContent,
+   SelectItem,
+   SelectTrigger,
+   SelectValue,
+} from '@/components/ui/select';
 import {
    Dialog,
    DialogContent,
@@ -105,12 +113,20 @@ export default function TeamSettings({ teamId }: TeamSettingsProps) {
    const [retireOpen, setRetireOpen] = React.useState(false);
    const [deleteOpen, setDeleteOpen] = React.useState(false);
    const [cycleSettingsOpen, setCycleSettingsOpen] = React.useState(false);
+   const [estimateSettingsOpen, setEstimateSettingsOpen] = React.useState(false);
 
    // General form state
    const [name, setName] = React.useState(team?.name || '');
    const [icon, setIcon] = React.useState(team?.icon || '⚡');
    const [description, setDescription] = React.useState(team?.description || '');
    const [isUpdating, setIsUpdating] = React.useState(false);
+   const [estimateEnabled, setEstimateEnabled] = React.useState(false);
+   const [estimateScale, setEstimateScale] = React.useState<
+      'exponential' | 'fibonacci' | 'linear' | 't-shirt'
+   >('fibonacci');
+   const [estimateExtended, setEstimateExtended] = React.useState(false);
+   const [estimateZero, setEstimateZero] = React.useState(false);
+   const [unestimatedAsOne, setUnestimatedAsOne] = React.useState(true);
 
    // Delete confirmation state
    const [deleteConfirmText, setDeleteConfirmText] = React.useState('');
@@ -121,6 +137,11 @@ export default function TeamSettings({ teamId }: TeamSettingsProps) {
          setName(team.name);
          setIcon(team.icon);
          setDescription(team.description || '');
+         setEstimateEnabled(team.estimateEnabled ?? false);
+         setEstimateScale(team.estimateScale ?? 'fibonacci');
+         setEstimateExtended(team.estimateExtended ?? false);
+         setEstimateZero(team.estimateZero ?? false);
+         setUnestimatedAsOne(team.unestimatedAsOne ?? true);
       }
    }, [team]);
 
@@ -175,6 +196,22 @@ export default function TeamSettings({ teamId }: TeamSettingsProps) {
          router.push(`/${orgId}/teams`);
       } catch (err: unknown) {
          toast.error(err instanceof Error ? err.message : 'Could not leave team');
+      }
+   };
+
+   const handleSaveEstimates = async () => {
+      try {
+         await updateTeam(team.id, {
+            estimateEnabled,
+            estimateScale,
+            estimateExtended,
+            estimateZero,
+            unestimatedAsOne,
+         });
+         toast.success('Estimate settings updated');
+         setEstimateSettingsOpen(false);
+      } catch (err: unknown) {
+         toast.error(err instanceof Error ? err.message : 'Could not update estimate settings');
       }
    };
 
@@ -279,6 +316,14 @@ export default function TeamSettings({ teamId }: TeamSettingsProps) {
                         onClick={() =>
                            toast.error('Recurring issues are not enabled for this team')
                         }
+                     />
+                     <SettingsRow
+                        icon={<Target className="size-4" />}
+                        title="Estimates"
+                        description="Measure issue effort and cycle capacity"
+                        trailing={<span>{team.estimateEnabled ? 'Enabled' : 'Off'}</span>}
+                        chevron
+                        onClick={() => setEstimateSettingsOpen(true)}
                      />
                   </SettingsCard>
                </SettingsSection>
@@ -495,6 +540,88 @@ export default function TeamSettings({ teamId }: TeamSettingsProps) {
             open={cycleSettingsOpen}
             onOpenChange={setCycleSettingsOpen}
          />
+
+         <Dialog open={estimateSettingsOpen} onOpenChange={setEstimateSettingsOpen}>
+            <DialogContent className="sm:max-w-[480px]">
+               <DialogHeader>
+                  <DialogTitle>Issue estimates</DialogTitle>
+                  <DialogDescription>
+                     Enable team estimates to use effort points in issues and cycle capacity.
+                  </DialogDescription>
+               </DialogHeader>
+               <div className="space-y-4 py-4">
+                  <div className="flex items-center justify-between gap-4">
+                     <div>
+                        <Label>Enable estimates</Label>
+                        <p className="text-xs text-muted-foreground">
+                           Estimate values are stored on each issue.
+                        </p>
+                     </div>
+                     <Switch checked={estimateEnabled} onCheckedChange={setEstimateEnabled} />
+                  </div>
+                  <div className="space-y-1.5">
+                     <Label>Scale</Label>
+                     <Select
+                        value={estimateScale}
+                        onValueChange={(value) => setEstimateScale(value as typeof estimateScale)}
+                        disabled={!estimateEnabled}
+                     >
+                        <SelectTrigger>
+                           <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                           <SelectItem value="exponential">Exponential · 1, 2, 4, 8, 16</SelectItem>
+                           <SelectItem value="fibonacci">Fibonacci · 1, 2, 3, 5, 8</SelectItem>
+                           <SelectItem value="linear">Linear · 1, 2, 3, 4, 5</SelectItem>
+                           <SelectItem value="t-shirt">T-shirt · XS, S, M, L, XL</SelectItem>
+                        </SelectContent>
+                     </Select>
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                     <Label>Extended scale</Label>
+                     <Switch
+                        checked={estimateExtended}
+                        onCheckedChange={setEstimateExtended}
+                        disabled={!estimateEnabled}
+                     />
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                     <Label>Allow zero estimates</Label>
+                     <Switch
+                        checked={estimateZero}
+                        onCheckedChange={setEstimateZero}
+                        disabled={!estimateEnabled}
+                     />
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                     <div>
+                        <Label>Count unestimated issues as 1</Label>
+                        <p className="text-xs text-muted-foreground">
+                           Used for cycle effort until an issue receives an estimate.
+                        </p>
+                     </div>
+                     <Switch
+                        checked={unestimatedAsOne}
+                        onCheckedChange={setUnestimatedAsOne}
+                        disabled={!estimateEnabled}
+                     />
+                  </div>
+               </div>
+               <DialogFooter>
+                  <Button
+                     type="button"
+                     variant="ghost"
+                     size="sm"
+                     onClick={() => setEstimateSettingsOpen(false)}
+                  >
+                     Cancel
+                  </Button>
+                  <Button type="button" size="sm" onClick={handleSaveEstimates}>
+                     Save settings
+                  </Button>
+               </DialogFooter>
+            </DialogContent>
+         </Dialog>
 
          {/* Leave Team Alert Dialog */}
          <AlertDialog open={leaveOpen} onOpenChange={setLeaveOpen}>

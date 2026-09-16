@@ -14,6 +14,11 @@ export interface Team {
    workspaceId?: string;
    createdAt?: string;
    updatedAt?: string;
+   estimateEnabled?: boolean;
+   estimateScale?: 'exponential' | 'fibonacci' | 'linear' | 't-shirt';
+   estimateExtended?: boolean;
+   estimateZero?: boolean;
+   unestimatedAsOne?: boolean;
 }
 
 export const teams: Team[] = [

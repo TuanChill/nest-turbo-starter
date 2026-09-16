@@ -80,6 +80,7 @@ function TemplateEditor({
    const [milestone, setMilestone] = useState('');
    const [statusId, setStatusId] = useState('to-do');
    const [priorityId, setPriorityId] = useState('no-priority');
+   const [estimate, setEstimate] = useState('');
    const [assigneeId, setAssigneeId] = useState('none');
    const [labelIds, setLabelIds] = useState<string[]>([]);
    const [projectId, setProjectId] = useState('none');
@@ -105,6 +106,7 @@ function TemplateEditor({
       setMilestone(config.milestone ?? '');
       setStatusId(config.statusId ?? 'to-do');
       setPriorityId(config.priorityId ?? 'no-priority');
+      setEstimate(config.estimate === undefined ? '' : String(config.estimate));
       setAssigneeId(config.assigneeId ?? 'none');
       setLabelIds(config.labelIds ?? []);
       setProjectId(config.projectId ?? 'none');
@@ -138,6 +140,7 @@ function TemplateEditor({
             statusId,
             statusCategory: categoryFor(statusId),
             priorityId,
+            estimate: estimate === '' ? undefined : Number(estimate),
             assigneeId: assigneeId === 'none' ? undefined : assigneeId,
             labelIds,
             projectId: projectId === 'none' ? undefined : projectId,
@@ -228,6 +231,23 @@ function TemplateEditor({
                            </SelectContent>
                         </Select>
                      )}
+                  </div>
+                  <div className="space-y-1.5">
+                     <label className="text-sm font-medium" htmlFor="issue-template-estimate">
+                        Estimate (optional)
+                     </label>
+                     <Input
+                        id="issue-template-estimate"
+                        type="number"
+                        min={0}
+                        step={1}
+                        placeholder="Configured by the team"
+                        value={estimate}
+                        onChange={(event) => setEstimate(event.target.value)}
+                     />
+                     <p className="text-xs text-muted-foreground">
+                        Team templates validate this value against the team estimate scale.
+                     </p>
                   </div>
                   <Input
                      placeholder="Default issue title"

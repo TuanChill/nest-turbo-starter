@@ -24,6 +24,7 @@ import {
   Workspace,
   WorkspaceMember,
 } from '../../data-access';
+import { validateIssueEstimate } from '../issues/issue-estimates';
 import { assertMutuallyExclusiveLabelSelection } from '../labels/label-rules';
 import { isLabelAvailableForTeam } from '../labels/label-scope';
 import { WorkspacesService } from '../workspaces/workspaces.service';
@@ -72,9 +73,21 @@ export class IssueTemplatesService {
     teamId: string | undefined,
     memberId: string,
   ) {
+    const templateTeam = teamId
+      ? await this.assertTeamAccess(teamId, workspaceId, memberId)
+      : undefined;
+    if (config.estimate !== undefined && templateTeam) {
+      const estimateError = validateIssueEstimate(config.estimate, {
+        enabled: Boolean(templateTeam.estimateEnabled),
+        scale: templateTeam.estimateScale ?? 'fibonacci',
+        extended: Boolean(templateTeam.estimateExtended),
+        allowZero: Boolean(templateTeam.estimateZero),
+        unestimatedAsOne: templateTeam.unestimatedAsOne !== false,
+      });
+      if (estimateError) throw new BadRequestException(estimateError);
+    }
     let projectTeamId: string | undefined;
     let cycleTeamId: string | undefined;
-    if (teamId) await this.assertTeamAccess(teamId, workspaceId, memberId);
     if (config.parentIssueId) {
       const parent = await this.em.findOne(Issue, {
         $or: [{ id: config.parentIssueId }, { identifier: config.parentIssueId }],

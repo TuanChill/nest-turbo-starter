@@ -8,6 +8,7 @@ import { AssigneeUser } from '../assignee-user';
 import { CycleSelector } from '../cycle-selector';
 import { LabelBadge } from '../label-badge';
 import { PrioritySelector } from '../priority-selector';
+import { EstimateSelector } from '../estimate-selector';
 import { StatusSelector } from '../status-selector';
 import { LabelSelector } from '@/components/layout/sidebar/create-new-issue/label-selector';
 import { RelationSelector } from '../relation-selector';
@@ -55,6 +56,18 @@ export function IssuePropertiesPanel({ issue, detail }: IssuePropertiesPanelProp
                <div className="flex items-center gap-1.5 -ml-1.5">
                   <PrioritySelector priority={issue.priority} issueId={issue.id} />
                   <span className="text-sm">{issue.priority.name}</span>
+               </div>
+               <div className="flex items-center gap-1.5 -ml-1.5">
+                  <EstimateSelector
+                     estimate={issue.estimate}
+                     settings={issue.estimateSettings}
+                     onChange={(estimate) =>
+                        updateIssueMutation.mutate({
+                           identifier: issue.identifier,
+                           data: { estimate },
+                        })
+                     }
+                  />
                </div>
                <div className="flex items-center gap-2 mt-0.5">
                   <AssigneeUser user={issue.assignee} issueIdentifier={issue.identifier} />

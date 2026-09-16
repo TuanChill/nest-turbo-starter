@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class CreateTeamDto {
   @ApiPropertyOptional({ example: 'MOBILE' })
@@ -39,6 +39,31 @@ export class CreateTeamDto {
   @ApiProperty({ description: 'Workspace that owns the team' })
   @IsString()
   workspaceId: string;
+
+  @ApiPropertyOptional({ default: false })
+  @IsBoolean()
+  @IsOptional()
+  estimateEnabled?: boolean;
+
+  @ApiPropertyOptional({ enum: ['exponential', 'fibonacci', 'linear', 't-shirt'] })
+  @IsEnum(['exponential', 'fibonacci', 'linear', 't-shirt'])
+  @IsOptional()
+  estimateScale?: 'exponential' | 'fibonacci' | 'linear' | 't-shirt';
+
+  @ApiPropertyOptional({ default: false })
+  @IsBoolean()
+  @IsOptional()
+  estimateExtended?: boolean;
+
+  @ApiPropertyOptional({ default: false })
+  @IsBoolean()
+  @IsOptional()
+  estimateZero?: boolean;
+
+  @ApiPropertyOptional({ default: true })
+  @IsBoolean()
+  @IsOptional()
+  unestimatedAsOne?: boolean;
 }
 
 export class UpdateTeamDto {
@@ -66,6 +91,31 @@ export class UpdateTeamDto {
   @IsString()
   @IsOptional()
   description?: string;
+
+  @ApiPropertyOptional({ default: false })
+  @IsBoolean()
+  @IsOptional()
+  estimateEnabled?: boolean;
+
+  @ApiPropertyOptional({ enum: ['exponential', 'fibonacci', 'linear', 't-shirt'] })
+  @IsEnum(['exponential', 'fibonacci', 'linear', 't-shirt'])
+  @IsOptional()
+  estimateScale?: 'exponential' | 'fibonacci' | 'linear' | 't-shirt';
+
+  @ApiPropertyOptional({ default: false })
+  @IsBoolean()
+  @IsOptional()
+  estimateExtended?: boolean;
+
+  @ApiPropertyOptional({ default: false })
+  @IsBoolean()
+  @IsOptional()
+  estimateZero?: boolean;
+
+  @ApiPropertyOptional({ default: true })
+  @IsBoolean()
+  @IsOptional()
+  unestimatedAsOne?: boolean;
 }
 
 export class AddTeamMemberDto {

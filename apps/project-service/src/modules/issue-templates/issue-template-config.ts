@@ -13,6 +13,7 @@ export function normalizeIssueTemplateConfig(
     statusId: source.statusId,
     statusCategory: source.statusCategory,
     priorityId: source.priorityId,
+    estimate: source.estimate,
     assigneeId: source.assigneeId,
     labelIds: source.labelIds ? [...new Set(source.labelIds)] : undefined,
     projectId: source.projectId,

@@ -22,6 +22,7 @@ import { useCreateIssueStore } from '@/store/create-issue-store';
 import { toast } from 'sonner';
 import { StatusSelector } from './status-selector';
 import { PrioritySelector } from './priority-selector';
+import { EstimateSelector } from '@/components/common/issues/estimate-selector';
 import { AssigneeSelector } from './assignee-selector';
 import { ProjectSelector } from './project-selector';
 import { CycleSelector } from './cycle-selector';
@@ -104,6 +105,7 @@ export function CreateNewIssue() {
          status: defaultStatus || status.find((s) => s.id === 'to-do')!,
          assignee: null,
          priority: priorities.find((p) => p.id === 'no-priority')!,
+         estimate: null,
          labels: [],
          createdAt: new Date().toISOString(),
          cycleId: activeCycle?.id || '',
@@ -149,6 +151,7 @@ export function CreateNewIssue() {
          description: templateDescription || current.description,
          status: templateStatus || current.status,
          priority: templatePriority || current.priority,
+         estimate: config.estimate ?? current.estimate,
          assignee: (() => {
             if (!config.assigneeId) return current.assignee;
             const templateAssignee = members.find((member) => member.id === config.assigneeId);
@@ -212,6 +215,7 @@ export function CreateNewIssue() {
             statusId: addIssueForm.status?.id,
             statusCategory: addIssueForm.status?.category,
             priorityId: addIssueForm.priority?.id,
+            estimate: addIssueForm.estimate,
             assigneeId: addIssueForm.assignee?.id,
             teamId: addIssueForm.project?.teamId || activeProject?.teamId || activeTeamId,
             projectId: addIssueForm.project?.id || activeProject?.id,
@@ -301,6 +305,21 @@ export function CreateNewIssue() {
                      onChange={(newPriority) =>
                         setAddIssueForm({ ...addIssueForm, priority: newPriority })
                      }
+                  />
+                  <EstimateSelector
+                     estimate={addIssueForm.estimate}
+                     settings={
+                        activeTeam
+                           ? {
+                                enabled: activeTeam.estimateEnabled ?? false,
+                                scale: activeTeam.estimateScale ?? 'fibonacci',
+                                extended: activeTeam.estimateExtended ?? false,
+                                allowZero: activeTeam.estimateZero ?? false,
+                                unestimatedAsOne: activeTeam.unestimatedAsOne ?? true,
+                             }
+                           : undefined
+                     }
+                     onChange={(estimate) => setAddIssueForm({ ...addIssueForm, estimate })}
                   />
                   <AssigneeSelector
                      assignee={addIssueForm.assignee}

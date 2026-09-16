@@ -23,6 +23,7 @@ export interface CreateIssuePayload {
    statusId?: string;
    statusCategory?: string;
    priorityId?: string;
+   estimate?: number | null;
    assigneeId?: string;
    creatorId?: string;
    teamId?: string;
@@ -42,6 +43,7 @@ export interface UpdateIssuePayload {
    statusId?: string;
    statusCategory?: string;
    priorityId?: string;
+   estimate?: number | null;
    assigneeId?: string | null;
    teamId?: string;
    projectId?: string | null;

@@ -24,6 +24,7 @@ type IssueFilterRecord = {
   assigneeId?: string;
   projectId?: string;
   cycleId?: string;
+  estimate?: number | null;
   rank?: string;
   dueDate?: Date;
   createdAt?: Date;
@@ -123,6 +124,15 @@ function textValue(issue: IssueFilterRecord, columnId: string): string | undefin
   }
 }
 
+function numberValue(issue: IssueFilterRecord, columnId: string): number | undefined {
+  switch (columnId) {
+    case 'estimate':
+      return issue.estimate ?? undefined;
+    default:
+      return undefined;
+  }
+}
+
 function dateValue(issue: IssueFilterRecord, columnId: string): Date | undefined {
   switch (columnId) {
     case 'dueDate':
@@ -189,9 +199,9 @@ function matchesText(value: string | undefined, filter: AdvancedIssueFilter): bo
   return false;
 }
 
-function matchesNumber(value: string | undefined, filter: AdvancedIssueFilter): boolean {
+function matchesNumber(value: number | undefined, filter: AdvancedIssueFilter): boolean {
   if (value === undefined) return false;
-  const number = Number(value);
+  const number = value;
   if (!Number.isFinite(number)) return false;
   const first = Number(filter.values[0]);
   const second = Number(filter.values[1]);
@@ -266,7 +276,7 @@ function matchesCondition(
   if (filter.type === 'text')
     return matchesText(textValue(issue, filter.columnId), filter);
   if (filter.type === 'number')
-    return matchesNumber(textValue(issue, filter.columnId), filter);
+    return matchesNumber(numberValue(issue, filter.columnId), filter);
   if (filter.type === 'date')
     return matchesDate(dateValue(issue, filter.columnId), filter);
   return false;
