@@ -4,14 +4,18 @@ import { SidebarTrigger } from '@/components/ui/sidebar';
 import { useTeams } from '@/hooks/queries/use-teams-query';
 import { CreateCycleDialog } from '@/components/common/cycles/create-cycle-dialog';
 import { CycleCalendarSubscriptionDialog } from '@/components/common/cycles/cycle-calendar-subscription-dialog';
+import QueryErrorState from '@/components/common/query-error-state';
 import { ChevronRight, Star } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 
 export default function HeaderNav() {
    const { orgId, teamId } = useParams<{ orgId: string; teamId: string }>();
-   const { data: teams = [], isLoading } = useTeams();
+   const { data: teams = [], isLoading, error, refetch } = useTeams();
    const team = teams.find((t) => t.id === teamId);
+   if (error) {
+      return <QueryErrorState subject="team" error={error} onRetry={() => refetch()} compact />;
+   }
    if (!team) {
       return (
          <div className="w-full flex items-center gap-2 border-b py-1.5 px-6 h-10">

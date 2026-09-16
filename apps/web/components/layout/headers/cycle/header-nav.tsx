@@ -29,14 +29,25 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { CycleView } from '@/components/common/issues/cycle-issues';
 import { CompleteCycleDialog } from '@/components/common/cycles/complete-cycle-dialog';
+import QueryErrorState from '@/components/common/query-error-state';
 
 export default function HeaderNav({ cycleView }: { cycleView: CycleView }) {
    const { orgId, teamId } = useParams<{ orgId: string; teamId: string }>();
-   const { data: teams = [], isLoading } = useTeams();
+   const { data: teams = [], isLoading, error: teamsError, refetch: refetchTeams } = useTeams();
    const team = teams.find((t) => t.id === teamId);
-   const { data: cycles = [] } = useCycles(teamId);
+   const { data: cycles = [], error: cyclesError, refetch: refetchCycles } = useCycles(teamId);
    const [isCompleteOpen, setIsCompleteOpen] = useState(false);
    const deleteCycleMutation = useDeleteCycle();
+   if (teamsError) {
+      return (
+         <QueryErrorState
+            subject="team"
+            error={teamsError}
+            onRetry={() => refetchTeams()}
+            compact
+         />
+      );
+   }
    if (!team) {
       return (
          <div className="w-full flex items-center gap-2 border-b py-1.5 px-6 h-10">
@@ -45,6 +56,16 @@ export default function HeaderNav({ cycleView }: { cycleView: CycleView }) {
                {isLoading ? 'Loading team…' : 'Team not found'}
             </span>
          </div>
+      );
+   }
+   if (cyclesError) {
+      return (
+         <QueryErrorState
+            subject="cycles"
+            error={cyclesError}
+            onRetry={() => refetchCycles()}
+            compact
+         />
       );
    }
    const cycle = cycles.find((c) => c.status === (cycleView === 'active' ? 'current' : 'upcoming'));

@@ -4,11 +4,15 @@ import { SidebarTrigger } from '@/components/ui/sidebar';
 import { useTeams } from '@/hooks/queries/use-teams-query';
 import { Link2, MoreHorizontal, Star } from 'lucide-react';
 import { useParams } from 'next/navigation';
+import QueryErrorState from '@/components/common/query-error-state';
 
 export default function HeaderNav() {
    const { teamId } = useParams<{ orgId: string; teamId: string }>();
-   const { data: teams = [], isLoading } = useTeams();
+   const { data: teams = [], isLoading, error, refetch } = useTeams();
    const team = teams.find((t) => t.id === teamId);
+   if (error) {
+      return <QueryErrorState subject="team" error={error} onRetry={() => refetch()} compact />;
+   }
    if (!team) {
       return (
          <div className="w-full flex items-center gap-2 border-b py-1.5 px-6 h-10">

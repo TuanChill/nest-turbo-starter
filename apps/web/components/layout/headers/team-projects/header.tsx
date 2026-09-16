@@ -6,11 +6,15 @@ import { ChevronRight, Star } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { CreateProjectDialog } from '@/components/common/projects/create-project-dialog';
+import QueryErrorState from '@/components/common/query-error-state';
 
 export default function Header() {
    const { orgId, teamId } = useParams<{ orgId: string; teamId: string }>();
-   const { data: teams = [], isLoading } = useTeams();
+   const { data: teams = [], isLoading, error, refetch } = useTeams();
    const team = teams.find((t) => t.id === teamId);
+   if (error) {
+      return <QueryErrorState subject="team" error={error} onRetry={() => refetch()} compact />;
+   }
    if (!team) {
       return (
          <div className="w-full flex items-center gap-2 border-b py-1.5 px-6 h-10">
