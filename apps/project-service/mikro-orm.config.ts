@@ -7,6 +7,10 @@ const cliConfig = {
   ...databaseConfig,
   migrations: {
     path: path.join(__dirname, 'src/database/migrations'),
+    // The shared auth-owned `users` table is not part of this service's
+    // migration baseline. Compare checks against the live schema so a stale
+    // cross-service snapshot cannot propose dropping it.
+    snapshot: false,
   },
   schemaGenerator: {
     // The auth service owns this shared table; project-service schema
