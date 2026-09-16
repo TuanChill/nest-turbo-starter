@@ -53,6 +53,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { renderPriorityIcon } from '@/lib/priority-utils';
+import { projectStatus } from '@/lib/workflow-status';
 import { useParams } from 'next/navigation';
 
 interface CreateProjectDialogProps {
@@ -83,15 +84,6 @@ const HEALTH_OPTIONS = [
    { id: 'at-risk', name: 'At risk', color: '#f76808' },
    { id: 'off-track', name: 'Off track', color: '#e5484d' },
    { id: 'no-update', name: 'No update', color: '#95a2b3' },
-];
-
-const STATUS_OPTIONS = [
-   { id: 'backlog', name: 'Backlog', category: 'backlog' },
-   { id: 'unstarted', name: 'Planned', category: 'unstarted' },
-   { id: 'in-progress', name: 'In Progress', category: 'started' },
-   { id: 'paused', name: 'Paused', category: 'started' },
-   { id: 'done', name: 'Completed', category: 'completed' },
-   { id: 'canceled', name: 'Canceled', category: 'canceled' },
 ];
 
 const PRIORITY_OPTIONS = [
@@ -212,7 +204,10 @@ export function CreateProjectDialog({
          return;
       }
 
-      const selectedStatus = STATUS_OPTIONS.find((s) => s.id === statusId) || STATUS_OPTIONS[2];
+      const selectedStatus =
+         projectStatus.find((s) => s.id === statusId) ??
+         projectStatus.find((s) => s.id === 'in-progress') ??
+         projectStatus[0];
 
       setIsSubmitting(true);
       try {
@@ -484,7 +479,7 @@ export function CreateProjectDialog({
                               <SelectValue />
                            </SelectTrigger>
                            <SelectContent className="bg-popover border-border/60">
-                              {STATUS_OPTIONS.map((s) => (
+                              {projectStatus.map((s) => (
                                  <SelectItem key={s.id} value={s.id} className="text-xs">
                                     {s.name}
                                  </SelectItem>

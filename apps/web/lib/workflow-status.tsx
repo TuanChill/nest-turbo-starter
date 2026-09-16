@@ -167,7 +167,7 @@ export const status: Status[] = [
       icon: TechnicalReviewIcon,
    },
    { id: 'done', name: 'Done', color: '#5e6ad2', category: 'completed', icon: DoneIcon },
-   { id: 'paused', name: 'Paused', color: '#26b5ce', category: 'started', icon: PausedIcon },
+   { id: 'paused', name: 'Paused', color: '#26b5ce', category: 'unstarted', icon: PausedIcon },
    { id: 'to-do', name: 'Todo', color: '#99a2b2', category: 'unstarted', icon: ToDoIcon },
    { id: 'backlog', name: 'Backlog', color: '#95a2b3', category: 'backlog', icon: BacklogIcon },
    { id: 'triage', name: 'Triage', color: '#f2790f', category: 'triage', icon: TriageIcon },

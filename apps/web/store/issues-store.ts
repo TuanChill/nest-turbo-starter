@@ -140,7 +140,6 @@ export const useIssuesStore = create<IssuesState>((set, get) => ({
          if (updatedIssue.description !== undefined) payload.description = updatedIssue.description;
          if (updatedIssue.status !== undefined) {
             payload.statusId = updatedIssue.status.id;
-            payload.statusCategory = updatedIssue.status.category;
          }
          if (updatedIssue.priority !== undefined) payload.priorityId = updatedIssue.priority.id;
          if (updatedIssue.assignee !== undefined)
