@@ -113,6 +113,7 @@ Reference set: [Linear Docs](https://linear.app/docs), [Projects](https://linear
 - Frontend API clients now require `NEXT_PUBLIC_API_URL` to be configured as an absolute HTTP(S) URL in production; only local development may use the localhost gateway default. This prevents a misconfigured production build from silently calling localhost.
 - Onboarding no longer creates a synthetic welcome issue or generates a random workspace slug; invalid workspace names now fail explicitly instead of creating fallback production data.
 - The direct workspace-creation API now applies the same rule as onboarding: names/slugs that cannot produce a real slug return a validation error and never persist a workspace or membership.
+- Issue create/update now treats milestone as a project-owned reference: a non-empty milestone must resolve by ID or name within the selected project, is stored using the canonical milestone name, and cannot survive project removal/change unless it remains valid; an empty value explicitly clears it. Focused scope and service-wiring regression tests cover these paths.
 
 ## Verification evidence (2026-09-15)
 

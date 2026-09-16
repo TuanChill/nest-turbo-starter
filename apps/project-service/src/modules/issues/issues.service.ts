@@ -14,6 +14,7 @@ import {
   UpdateIssueDto,
 } from './dto/issue.dto';
 import { IssueEstimateSettings, validateIssueEstimate } from './issue-estimates';
+import { resolveIssueMilestone } from './issue-milestone-scope';
 import {
   getIssuePropertyValidationError,
   resolveDefaultIssueTeamId,
@@ -33,6 +34,7 @@ import {
   Notification,
   PrLink,
   Project,
+  ProjectMilestone,
   ProjectTeam,
   Team,
   TeamMember,
@@ -208,6 +210,28 @@ export class IssuesService {
     }
     await this.assertTeamAccess(actorId, teamId, `Team ${teamId} not found`);
     return project;
+  }
+
+  private async resolveMilestoneForProject(
+    projectId: string | null | undefined,
+    milestone: string | null | undefined,
+  ) {
+    const trimmedMilestone = milestone?.trim() ?? '';
+    if (!trimmedMilestone) return undefined;
+
+    const matchingProjectMilestone = projectId
+      ? await this.em.findOne(ProjectMilestone, {
+          projectId,
+          $or: [{ id: trimmedMilestone }, { name: trimmedMilestone }],
+        })
+      : null;
+    const result = resolveIssueMilestone({
+      projectId,
+      milestone: trimmedMilestone,
+      matchingProjectMilestone,
+    });
+    if (result.error) throw new BadRequestException(result.error);
+    return result.value;
   }
 
   private async getMemberIdsForTeam(teamId: string) {
@@ -1158,6 +1182,8 @@ export class IssuesService {
       );
     }
 
+    const milestone = await this.resolveMilestoneForProject(dto.projectId, dto.milestone);
+
     const prefix = team.id.toUpperCase();
 
     // If identifier is not provided, or already taken in DB, generate unique sequential identifier
@@ -1208,7 +1234,7 @@ export class IssuesService {
       parentIssueId: dto.parentIssueId,
       rank: dto.rank || '0|hzzzzz:',
       dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
-      milestone: dto.milestone,
+      milestone,
     });
 
     this.em.persist(issue);
@@ -1302,6 +1328,14 @@ export class IssuesService {
     const nextProjectId = dto.projectId !== undefined ? dto.projectId : issue.projectId;
     if (nextProjectId) {
       await this.validateProjectForTeam(nextProjectId, nextTeamId, actorId);
+    }
+
+    let nextMilestone = issue.milestone;
+    if (dto.milestone !== undefined || dto.projectId !== undefined) {
+      nextMilestone = await this.resolveMilestoneForProject(
+        nextProjectId,
+        dto.milestone !== undefined ? dto.milestone : issue.milestone,
+      );
     }
 
     const nextCycleId = dto.cycleId !== undefined ? dto.cycleId : issue.cycleId;
@@ -1467,7 +1501,9 @@ export class IssuesService {
     if (dto.rank !== undefined) issue.rank = dto.rank;
     if (dto.dueDate !== undefined)
       issue.dueDate = dto.dueDate ? new Date(dto.dueDate) : undefined;
-    if (dto.milestone !== undefined) issue.milestone = dto.milestone;
+    if (dto.milestone !== undefined || dto.projectId !== undefined) {
+      issue.milestone = nextMilestone;
+    }
 
     if (dto.labelIds !== undefined) {
       const labelIds = await this.validateLabelIds(dto.labelIds, nextTeamId);
