@@ -1,5 +1,6 @@
 import { EntityManager } from '@mikro-orm/core';
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { v7 } from 'uuid';
 import { CreateReviewDto, UpdateReviewDto } from './dto/review.dto';
 import { assertReviewIssueScope } from './review-scope';
 import {
@@ -138,7 +139,7 @@ export class ReviewsService {
     if (dto.resolves) {
       await this.assertResolvesIssue(dto.resolves, workspaceId, authorId);
     }
-    const id = dto.id || `rev-${Date.now()}`;
+    const id = dto.id || v7();
     const review = new Review({
       id,
       title: dto.title,

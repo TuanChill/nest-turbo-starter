@@ -1,5 +1,6 @@
 import { EntityManager } from '@mikro-orm/core';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { v7 } from 'uuid';
 import {
   CreateNotificationDto,
   MarkReadDto,
@@ -125,8 +126,16 @@ export class InboxService {
       { orderBy: { createdAt: 'DESC' } },
     );
 
-    const results = await Promise.allSettled(
+    const results = await Promise.all(
       notifications.map(async (notif) => {
+        // A deleted issue leaves an old inbox row behind. That row is safe to
+        // omit, but any other lookup/authorization failure must remain visible
+        // to the caller instead of being silently converted to an empty inbox.
+        const storedIssue = await this.em.findOne(Issue, {
+          identifier: notif.issueIdentifier,
+        });
+        if (!storedIssue) return null;
+
         const issue = await this.issuesService.findOne(notif.issueIdentifier, userId);
         const team = await this.em.findOne(Team, { id: issue.teamId });
         const actor = await this.em.findOne(Member, { id: notif.actorId });
@@ -157,9 +166,9 @@ export class InboxService {
     );
 
     // Skip orphaned notifications if their issue was deleted
-    return results
-      .filter((r): r is PromiseFulfilledResult<any> => r.status === 'fulfilled')
-      .map((r) => r.value);
+    return results.filter(
+      (result): result is NonNullable<typeof result> => result !== null,
+    );
   }
 
   async markAsRead(userId: string, id: string, dto: MarkReadDto) {
@@ -254,7 +263,7 @@ export class InboxService {
     }
 
     const notif = new Notification({
-      id: `notification-${Date.now()}`,
+      id: v7(),
       issueIdentifier: dto.issueIdentifier,
       userId: recipientId,
       actorId,

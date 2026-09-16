@@ -1,6 +1,6 @@
 import { EntityManager } from '@mikro-orm/core';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuidv4, v7 } from 'uuid';
 import { CreateMemberDto, UpdateMemberDto } from './dto/member.dto';
 import { filterVisibleTeamIds } from './member-scope';
 import { Member, Team, TeamMember, Workspace, WorkspaceMember } from '../../data-access';
@@ -129,7 +129,7 @@ export class MembersService {
     let id = dto.id || dto.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
     const existing = await this.em.findOne(Member, { id });
     if (existing) {
-      id = `${id}-${Date.now().toString().slice(-4)}`;
+      id = `${id}-${v7()}`;
     }
     const { teamIds, ...memberData } = dto;
     if (teamIds && Array.isArray(teamIds) && teamIds.length > 0) {

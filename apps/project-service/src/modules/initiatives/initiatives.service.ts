@@ -5,6 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { v7 } from 'uuid';
 import {
   CreateInitiativeDto,
   CreateInitiativeUpdateDto,
@@ -422,7 +423,7 @@ export class InitiativesService {
     let id = dto.id || dto.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
     const existing = await this.em.findOne(Initiative, { id });
     if (existing) {
-      id = `${id}-${Date.now().toString().slice(-4)}`;
+      id = `${id}-${v7()}`;
     }
     const initiative = new Initiative({
       id,

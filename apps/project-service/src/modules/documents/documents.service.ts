@@ -1,5 +1,6 @@
 import { EntityManager } from '@mikro-orm/core';
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { v7 } from 'uuid';
 import {
   CreateDocumentDto,
   CreateFolderDto,
@@ -158,7 +159,7 @@ export class DocumentsService {
       `Folder ${dto.folderId} not found`,
     );
 
-    const id = dto.id || `doc-${Date.now()}`;
+    const id = dto.id || v7();
     const doc = new TeamDocument({
       id,
       folderId: dto.folderId,

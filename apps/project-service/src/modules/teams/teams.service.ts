@@ -1,5 +1,6 @@
 import { EntityManager } from '@mikro-orm/core';
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { v7 } from 'uuid';
 import { AddTeamMemberDto, CreateTeamDto, UpdateTeamDto } from './dto/team.dto';
 import {
   Member,
@@ -206,10 +207,10 @@ export class TeamsService {
     }
 
     let id = (dto.id || dto.name.toUpperCase().replace(/[^A-Z0-9]+/g, '')).slice(0, 10);
-    if (!id) id = `TEAM${Date.now().toString().slice(-3)}`;
+    if (!id) id = `TEAM${v7().replace(/-/g, '').slice(0, 6).toUpperCase()}`;
     const existing = await this.em.findOne(Team, { id });
     if (existing) {
-      id = `${id.slice(0, 7)}${Date.now().toString().slice(-3)}`;
+      id = `${id.slice(0, 7)}${v7().replace(/-/g, '').slice(0, 3).toUpperCase()}`;
     }
     const { memberIds, ...teamData } = dto;
     const team = new Team({

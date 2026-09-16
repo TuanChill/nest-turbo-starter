@@ -1577,7 +1577,7 @@ export class IssuesService {
       targetIdentifier: target.identifier,
       relationType: dto.relationType,
     });
-    if (existing) return this.findDetail(issue.identifier);
+    if (existing) return this.findDetail(issue.identifier, memberId);
 
     const relation = new IssueRelation({
       sourceIdentifier: issue.identifier,
@@ -1587,7 +1587,7 @@ export class IssuesService {
 
     this.em.persist(relation);
     await this.em.flush();
-    return this.findDetail(issue.identifier);
+    return this.findDetail(issue.identifier, memberId);
   }
 
   async deleteRelation(identifierOrId: string, relationId: string, memberId: string) {
@@ -1612,7 +1612,7 @@ export class IssuesService {
 
     this.em.remove(relation);
     await this.em.flush();
-    return this.findDetail(issue.identifier);
+    return this.findDetail(issue.identifier, memberId);
   }
 }
 

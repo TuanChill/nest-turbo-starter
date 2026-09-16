@@ -1,5 +1,6 @@
 import { EntityManager } from '@mikro-orm/core';
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { v7 } from 'uuid';
 import { CreateViewDto, UpdateViewDto } from './dto/view.dto';
 import { assertProjectTargetReferences } from './view-target';
 import {
@@ -182,7 +183,7 @@ export class ViewsService {
     let id = dto.id || dto.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
     const existing = await this.em.findOne(SavedView, { id });
     if (existing) {
-      id = `${id}-${Date.now().toString().slice(-4)}`;
+      id = `${id}-${v7()}`;
     }
     const view = new SavedView({
       id,

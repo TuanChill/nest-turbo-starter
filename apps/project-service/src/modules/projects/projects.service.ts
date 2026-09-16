@@ -1006,7 +1006,7 @@ export class ProjectsService {
     this.em.persist(milestone);
     this.recordActivity(projectId, memberId, 'milestone_added', { name: dto.name });
     await this.em.flush();
-    return this.findDetail(projectId);
+    return this.findDetail(projectId, memberId);
   }
 
   async toggleMilestone(projectId: string, milestoneId: string, memberId: string) {
@@ -1025,6 +1025,6 @@ export class ProjectsService {
       completed: milestone.completed,
     });
     await this.em.flush();
-    return this.findDetail(projectId);
+    return this.findDetail(projectId, memberId);
   }
 }
