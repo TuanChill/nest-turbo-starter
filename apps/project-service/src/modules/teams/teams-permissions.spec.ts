@@ -1,6 +1,6 @@
 import type { EntityManager } from '@mikro-orm/core';
 import { TeamsService } from './teams.service';
-import { Team, TeamMember, WorkspaceMember } from '../../data-access';
+import { Team, TeamMember, Workspace, WorkspaceMember } from '../../data-access';
 
 jest.mock('@mikro-orm/core', () => ({ EntityManager: class MockEntityManager {} }));
 jest.mock('../../data-access', () => {
@@ -74,6 +74,37 @@ describe('TeamsService role permissions', () => {
     await expect(service.delete('team-1', 'member-1')).rejects.toThrow(
       'Team team-1 not found',
     );
+    expect(em.flush).not.toHaveBeenCalled();
+  });
+
+  it('rejects a duplicate explicit team key instead of changing it silently', async () => {
+    const existingTeam = new Team({
+      id: 'ENG',
+      name: 'Existing Engineering',
+      workspaceId: 'workspace-1',
+    });
+    const em = {
+      findOne: jest.fn(async (entity: unknown) => {
+        if (entity === Workspace) return { id: 'workspace-1', ownerId: 'member-1' };
+        if (entity === WorkspaceMember) return { role: 'Owner' };
+        if (entity === Team) return existingTeam;
+        return null;
+      }),
+      persist: jest.fn(),
+      flush: jest.fn(),
+    } as unknown as EntityManager;
+    const workspacesService = {
+      getAccessibleWorkspaceIds: jest.fn().mockResolvedValue(['workspace-1']),
+    };
+    const service = new TeamsService(em, workspacesService as never);
+
+    await expect(
+      service.create(
+        { id: 'ENG', name: 'New Engineering', workspaceId: 'workspace-1' },
+        'member-1',
+      ),
+    ).rejects.toThrow('Team key ENG is already in use');
+    expect(em.persist).not.toHaveBeenCalled();
     expect(em.flush).not.toHaveBeenCalled();
   });
 });
