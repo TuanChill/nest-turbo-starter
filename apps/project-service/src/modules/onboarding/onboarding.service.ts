@@ -16,7 +16,10 @@ import {
   WorkspaceMember,
 } from '../../data-access';
 import { SesMailerService } from '../email/ses-mailer.service';
-import { createInvitationToken } from '../workspaces/invitation-token';
+import {
+  createInvitationToken,
+  createWorkspaceInviteCode,
+} from '../workspaces/invitation-token';
 
 @Injectable()
 export class OnboardingService {
@@ -37,15 +40,6 @@ export class OnboardingService {
       .replace(/--+/g, '-')
       .replace(/^-+/, '')
       .replace(/-+$/, '');
-  }
-
-  private generateInviteCode(): string {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    let code = 'CIR-';
-    for (let i = 0; i < 6; i++) {
-      code += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return code;
   }
 
   async complete(
@@ -85,10 +79,10 @@ export class OnboardingService {
       counter++;
     }
 
-    let inviteCode = this.generateInviteCode();
+    let inviteCode = createWorkspaceInviteCode();
     // oxlint-disable-next-line no-await-in-loop -- each candidate code depends on the previous one being taken
     while (await this.em.findOne(Workspace, { inviteCode })) {
-      inviteCode = this.generateInviteCode();
+      inviteCode = createWorkspaceInviteCode();
     }
 
     // 2. Create Workspace

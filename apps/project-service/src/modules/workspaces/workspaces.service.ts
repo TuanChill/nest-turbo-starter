@@ -3,7 +3,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { v4 as uuidv4 } from 'uuid';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
 import { JoinWorkspaceDto } from './dto/join-workspace.dto';
-import { hashInvitationToken } from './invitation-token';
+import { createWorkspaceInviteCode, hashInvitationToken } from './invitation-token';
 import {
   Member,
   Team,
@@ -82,15 +82,6 @@ export class WorkspacesService {
       .replace(/--+/g, '-') // Replace multiple - with single -
       .replace(/^-+/, '') // Trim - from start of text
       .replace(/-+$/, ''); // Trim - from end of text
-  }
-
-  private generateInviteCode(): string {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    let code = 'CIR-';
-    for (let i = 0; i < 6; i++) {
-      code += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return code;
   }
 
   async findAll(memberId?: string, memberEmail?: string): Promise<any[]> {
@@ -227,10 +218,10 @@ export class WorkspacesService {
     }
 
     // Generate invite code
-    let inviteCode = this.generateInviteCode();
+    let inviteCode = createWorkspaceInviteCode();
     // oxlint-disable-next-line no-await-in-loop -- each candidate code depends on the previous one being taken
     while (await this.em.findOne(Workspace, { inviteCode })) {
-      inviteCode = this.generateInviteCode();
+      inviteCode = createWorkspaceInviteCode();
     }
 
     const workspaceId = finalSlug;
@@ -412,7 +403,7 @@ export class WorkspacesService {
       throw new NotFoundException('Workspace not found');
     }
 
-    const newCode = this.generateInviteCode();
+    const newCode = createWorkspaceInviteCode();
     workspace.inviteCode = newCode;
     await this.em.flush();
 
