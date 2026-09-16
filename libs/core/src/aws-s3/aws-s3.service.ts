@@ -1,5 +1,10 @@
 import { s3Configuration, StorageType } from '@app/common';
-import { HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import {
+  GetObjectCommand,
+  HeadObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Inject, Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
@@ -104,5 +109,25 @@ export class AwsS3Service {
         Key: fileKey,
       }),
     );
+  }
+
+  async getPresignedDownloadUrl(
+    fileKey: string,
+    fileName?: string,
+    contentType?: string,
+  ): Promise<string> {
+    this.assertConfigured();
+    const command = new GetObjectCommand({
+      Bucket: this.bucket,
+      Key: fileKey,
+      ...(contentType ? { ResponseContentType: contentType } : {}),
+      ...(fileName
+        ? {
+            ResponseContentDisposition: `attachment; filename*=UTF-8''${encodeURIComponent(fileName)}`,
+          }
+        : {}),
+    });
+
+    return getSignedUrl(this.s3Client, command, { expiresIn: 900 });
   }
 }

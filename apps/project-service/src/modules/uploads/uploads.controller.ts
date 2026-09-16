@@ -21,6 +21,12 @@ export class UploadsController {
     return this.uploadsService.complete(id, memberId);
   }
 
+  @ApiOperation({ summary: 'Create a target-scoped signed download URL' })
+  @Get(':id/download')
+  getDownloadUrl(@Param('id') id: string, @User('id') memberId: string) {
+    return this.uploadsService.getDownloadUrl(id, memberId);
+  }
+
   @ApiOperation({ summary: 'List target-scoped completed uploads' })
   @ApiQuery({ name: 'issueIdentifier', required: false })
   @ApiQuery({ name: 'projectId', required: false })

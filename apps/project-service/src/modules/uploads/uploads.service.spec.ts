@@ -43,6 +43,7 @@ describe('UploadsService', () => {
   const s3Service = {
     isConfigured: jest.fn(),
     getPresignedUploadUrl: jest.fn(),
+    getPresignedDownloadUrl: jest.fn(),
     assertObjectExists: jest.fn(),
   };
 
@@ -157,5 +158,49 @@ describe('UploadsService', () => {
     );
     expect(attachment.status).toBe('pending');
     expect(em.flush).not.toHaveBeenCalled();
+  });
+
+  it('creates a signed download URL only for completed attachments in accessible teams', async () => {
+    workspacesService.getAccessibleTeamIds.mockResolvedValue(['team-a']);
+    const attachment = new FileAttachment({
+      id: 'attachment-1',
+      teamId: 'team-a',
+      fileName: 'design.png',
+      contentType: 'image/png',
+      fileKey: 'workspaces/ws-a/attachments/design.png',
+      status: 'completed',
+    });
+    em.findOne.mockResolvedValue(attachment);
+    s3Service.getPresignedDownloadUrl.mockResolvedValue('https://storage.test/download');
+    const service = new UploadsService(
+      em as any,
+      workspacesService as any,
+      s3Service as any,
+    );
+
+    await expect(service.getDownloadUrl('attachment-1', 'member-1')).resolves.toEqual({
+      downloadUrl: 'https://storage.test/download',
+    });
+    expect(s3Service.getPresignedDownloadUrl).toHaveBeenCalledWith(
+      'workspaces/ws-a/attachments/design.png',
+      'design.png',
+      'image/png',
+    );
+  });
+
+  it('does not create a download URL for pending attachments', async () => {
+    em.findOne.mockResolvedValue(
+      new FileAttachment({ id: 'attachment-1', status: 'pending' }),
+    );
+    const service = new UploadsService(
+      em as any,
+      workspacesService as any,
+      s3Service as any,
+    );
+
+    await expect(service.getDownloadUrl('attachment-1', 'member-1')).rejects.toThrow(
+      NotFoundException,
+    );
+    expect(s3Service.getPresignedDownloadUrl).not.toHaveBeenCalled();
   });
 });

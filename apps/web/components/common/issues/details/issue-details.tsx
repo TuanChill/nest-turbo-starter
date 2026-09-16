@@ -36,6 +36,7 @@ import { Input } from '@/components/ui/input';
 import { LinearEditor } from '@/components/common/editor/linear-editor';
 import { contentBlocksToMarkdown } from '@/lib/content-blocks-to-markdown';
 import QueryErrorState from '@/components/common/query-error-state';
+import { FileAttachments } from '@/components/common/attachments/file-attachments';
 
 function IssueDetailsSkeleton() {
    return (
@@ -652,6 +653,8 @@ export default function IssueDetails() {
                </div>
 
                <div className="border-t border-border/60 mt-8" />
+
+               <FileAttachments target={{ issueIdentifier: issue.identifier }} />
 
                <ActivityFeed
                   activity={detail.activity}

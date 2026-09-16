@@ -21,6 +21,7 @@ import { format, parseISO } from 'date-fns';
 import { Sparkles } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { ProjectSidePanel } from './project-side-panel';
+import { FileAttachments } from '@/components/common/attachments/file-attachments';
 
 interface ProjectActivityProps {
    projectId: string;
@@ -287,6 +288,8 @@ export default function ProjectActivity({ projectId }: ProjectActivityProps) {
                      </div>
                   </div>
                </div>
+
+               <FileAttachments target={{ projectId: project.id }} />
 
                {/* Persisted activity */}
                {activities.length > 0 && (

@@ -152,6 +152,22 @@ export class UploadsService {
     return this.toResponse(attachment);
   }
 
+  async getDownloadUrl(id: string, memberId: string) {
+    const attachment = await this.em.findOne(FileAttachment, {
+      id,
+      status: 'completed',
+    });
+    if (!attachment) throw new NotFoundException(`Upload ${id} not found`);
+    await this.assertAttachmentAccess(memberId, attachment);
+
+    const downloadUrl = await this.s3Service.getPresignedDownloadUrl(
+      attachment.fileKey,
+      attachment.fileName,
+      attachment.contentType,
+    );
+    return { downloadUrl };
+  }
+
   async findAll(memberId: string, issueIdentifier?: string, projectId?: string) {
     const target = await this.resolveTarget(memberId, issueIdentifier, projectId);
     const where: Record<string, unknown> = {

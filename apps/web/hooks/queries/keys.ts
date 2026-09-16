@@ -104,6 +104,13 @@ export const reviewKeys = {
    detail: (id: string) => [...reviewKeys.details(), id] as const,
 };
 
+export const attachmentKeys = {
+   all: ['attachments'] as const,
+   lists: () => [...attachmentKeys.all, 'list'] as const,
+   list: (target: { issueIdentifier?: string; projectId?: string }) =>
+      [...attachmentKeys.lists(), target] as const,
+};
+
 export const agentKeys = {
    all: ['agent'] as const,
    examples: () => [...agentKeys.all, 'examples'] as const,
