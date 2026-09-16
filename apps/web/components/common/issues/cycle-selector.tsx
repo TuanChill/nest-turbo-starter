@@ -27,7 +27,7 @@ export function CycleSelector({ cycleId, issueId, teamId }: CycleSelectorProps) 
    const id = useId();
    const [open, setOpen] = useState<boolean>(false);
    const [value, setValue] = useState<string>(cycleId ?? '');
-   const { data: cycles = [] } = useCycles(teamId);
+   const { data: cycles = [] } = useCycles(teamId, { requireTeamId: true });
    const { updateIssue } = useIssuesStore();
 
    useEffect(() => {

@@ -65,7 +65,7 @@ export function IssueContextMenu({ issue }: IssueContextMenuProps) {
    const { data: members = [] } = useMembers();
    const { data: labels = [] } = useLabels('issue');
    const { data: projects = [] } = useProjects();
-   const { data: cycles = [] } = useCycles(issue?.teamId);
+   const { data: cycles = [] } = useCycles(issue?.teamId, { requireTeamId: true });
    const deleteIssueMutation = useDeleteIssue();
    const subscriptionMutation = useToggleIssueSubscription();
    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);

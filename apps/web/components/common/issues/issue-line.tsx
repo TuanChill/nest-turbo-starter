@@ -19,7 +19,7 @@ import { IssueContextMenu } from './issue-context-menu';
 export function IssueLine({ issue, layoutId = false }: { issue: Issue; layoutId?: boolean }) {
    const { orgId } = useParams<{ orgId: string }>();
    const { displayProperties } = useDisplaySettingsStore();
-   const { data: cycles = [] } = useCycles(issue.teamId);
+   const { data: cycles = [] } = useCycles(issue.teamId, { requireTeamId: true });
    const cycle =
       displayProperties.cycle && issue.cycleId
          ? cycles.find((c) => c.id === issue.cycleId)

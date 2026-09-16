@@ -34,6 +34,7 @@ import { useProjects } from '@/hooks/queries/use-projects-query';
 import { useCycles } from '@/hooks/queries/use-cycles-query';
 import { useWorkspaces } from '@/hooks/queries/use-workspaces-query';
 import { useQueryClient } from '@tanstack/react-query';
+import QueryErrorState from '@/components/common/query-error-state';
 import { issueKeys, projectKeys } from '@/hooks/queries/keys';
 import { usePathname } from 'next/navigation';
 import { useParams } from 'next/navigation';
@@ -58,11 +59,16 @@ export function CreateNewIssue() {
       closeModal,
    } = useCreateIssueStore();
    const createIssueMutation = useCreateIssue();
-   const { data: projects = [] } = useProjects();
-   const { data: teams = [] } = useTeams();
-   const { data: members = [] } = useMembers();
-   const { data: labels = [] } = useLabels('issue');
-   const { data: workspaces = [] } = useWorkspaces();
+   const projectsQuery = useProjects();
+   const teamsQuery = useTeams();
+   const membersQuery = useMembers();
+   const labelsQuery = useLabels('issue');
+   const workspacesQuery = useWorkspaces();
+   const { data: projects = [] } = projectsQuery;
+   const { data: teams = [] } = teamsQuery;
+   const { data: members = [] } = membersQuery;
+   const { data: labels = [] } = labelsQuery;
+   const { data: workspaces = [] } = workspacesQuery;
    const queryClient = useQueryClient();
    const pathname = usePathname();
    const { orgId } = useParams<{ orgId: string }>();
@@ -81,13 +87,25 @@ export function CreateNewIssue() {
    const activeProject = defaultProject || routeProject || undefined;
    const activeTeamId = activeProject?.teamId || defaultTeamId || routeTeamId || undefined;
    const activeTeam = teams.find((t) => t.id === activeTeamId);
-   const { data: issueTemplates = [] } = useIssueTemplates(resolvedWorkspaceId, activeTeamId);
+   const issueTemplatesQuery = useIssueTemplates(resolvedWorkspaceId, activeTeamId);
+   const { data: issueTemplates = [] } = issueTemplatesQuery;
 
    // Creating an issue from within a cycle's page (/cycle/active or
    // /cycle/upcoming) should scope it to that cycle, same as the project
    // route-detection above — mirrors cycle-issues.tsx's own cycle lookup.
    const routeCycleMatch = pathname.match(/\/cycle\/(active|upcoming)/);
-   const { data: teamCycles = [] } = useCycles(activeTeamId);
+   const teamCyclesQuery = useCycles(activeTeamId, { requireTeamId: true });
+   const { data: teamCycles = [] } = teamCyclesQuery;
+   const optionQueries = [
+      projectsQuery,
+      teamsQuery,
+      membersQuery,
+      labelsQuery,
+      workspacesQuery,
+      issueTemplatesQuery,
+      teamCyclesQuery,
+   ];
+   const optionError = optionQueries.find((query) => query.isError)?.error;
    const routeCycle = routeCycleMatch
       ? teamCycles.find(
            (c) => c.status === (routeCycleMatch[1] === 'active' ? 'current' : 'upcoming')
@@ -259,6 +277,16 @@ export function CreateNewIssue() {
                   </div>
                </DialogTitle>
             </DialogHeader>
+
+            {optionError && (
+               <QueryErrorState
+                  subject="issue creation options"
+                  error={optionError}
+                  onRetry={() => {
+                     void Promise.all(optionQueries.map((query) => query.refetch()));
+                  }}
+               />
+            )}
 
             <div className="px-4 pb-0 space-y-3 w-full">
                {issueTemplates.length > 0 && (

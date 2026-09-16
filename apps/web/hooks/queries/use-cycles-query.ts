@@ -8,10 +8,11 @@ import {
 import { cycleKeys } from './keys';
 import { toast } from 'sonner';
 
-export function useCycles(teamId?: string) {
+export function useCycles(teamId?: string, options?: { requireTeamId?: boolean }) {
    return useQuery({
       queryKey: cycleKeys.list(teamId),
       queryFn: () => cyclesService.getCycles(teamId),
+      enabled: !options?.requireTeamId || Boolean(teamId),
    });
 }
 
