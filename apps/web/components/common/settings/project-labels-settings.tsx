@@ -23,9 +23,11 @@ import {
 } from '@/hooks/queries/use-labels-query';
 import type { LabelGroup, LabelItem } from '@/services/labels.service';
 import { useProjects } from '@/hooks/queries/use-projects-query';
+import { useTeams } from '@/hooks/queries/use-teams-query';
 import { Loader2 } from 'lucide-react';
 import { FormEvent, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
+import { SelectMenu } from './shared';
 
 const LABEL_COLOR_OPTIONS = [
    'red',
@@ -52,7 +54,12 @@ const slugify = (value: string) =>
 export default function ProjectLabelsSettings() {
    const [query, setQuery] = useState('');
    const { data: projects = [] } = useProjects();
-   const { data: labels = [] } = useLabels('project');
+   const { data: teams = [] } = useTeams();
+   const [labelTeamFilter, setLabelTeamFilter] = useState('all');
+   const { data: labels = [] } = useLabels(
+      'project',
+      labelTeamFilter === 'all' ? undefined : labelTeamFilter
+   );
    const { data: groups = [] } = useLabelGroups('project');
    const createLabel = useCreateLabel();
    const createLabelGroup = useCreateLabelGroup();
@@ -65,6 +72,7 @@ export default function ProjectLabelsSettings() {
    const [newLabelName, setNewLabelName] = useState('');
    const [newLabelColor, setNewLabelColor] = useState(LABEL_COLOR_OPTIONS[0]);
    const [newLabelGroupId, setNewLabelGroupId] = useState('');
+   const [newLabelTeamId, setNewLabelTeamId] = useState('workspace');
    const [isGroupOpen, setIsGroupOpen] = useState(false);
    const [newGroupName, setNewGroupName] = useState('');
    const [newGroupMutuallyExclusive, setNewGroupMutuallyExclusive] = useState(false);
@@ -72,6 +80,7 @@ export default function ProjectLabelsSettings() {
    const [editLabelName, setEditLabelName] = useState('');
    const [editLabelColor, setEditLabelColor] = useState(LABEL_COLOR_OPTIONS[0]);
    const [editLabelGroupId, setEditLabelGroupId] = useState('');
+   const [editLabelTeamId, setEditLabelTeamId] = useState('workspace');
    const [editingGroup, setEditingGroup] = useState<LabelGroup | null>(null);
    const [editGroupName, setEditGroupName] = useState('');
    const [editGroupMutuallyExclusive, setEditGroupMutuallyExclusive] = useState(false);
@@ -99,12 +108,14 @@ export default function ProjectLabelsSettings() {
          name,
          color: newLabelColor,
          scope: 'project',
+         ...(newLabelTeamId !== 'workspace' ? { teamId: newLabelTeamId } : {}),
          ...(newLabelGroupId ? { groupId: newLabelGroupId } : {}),
       });
       setIsCreateOpen(false);
       setNewLabelName('');
       setNewLabelColor(LABEL_COLOR_OPTIONS[0]);
       setNewLabelGroupId('');
+      setNewLabelTeamId('workspace');
    };
 
    return (
@@ -116,12 +127,25 @@ export default function ProjectLabelsSettings() {
             </p>
 
             <div className="flex items-center justify-between gap-3 mb-6">
-               <Input
-                  placeholder="Filter by name..."
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  className="w-64 h-8"
-               />
+               <div className="flex items-center gap-2">
+                  <Input
+                     placeholder="Filter by name..."
+                     value={query}
+                     onChange={(event) => setQuery(event.target.value)}
+                     className="w-64 h-8"
+                  />
+                  <SelectMenu
+                     options={[
+                        { label: 'All labels', value: 'all' },
+                        ...teams.map((team) => ({
+                           label: `${team.name} + workspace labels`,
+                           value: team.id,
+                        })),
+                     ]}
+                     value={labelTeamFilter}
+                     onChange={setLabelTeamFilter}
+                  />
+               </div>
                <div className="flex items-center gap-2">
                   <Button size="xs" variant="secondary" onClick={() => setIsGroupOpen(true)}>
                      New group
@@ -189,6 +213,12 @@ export default function ProjectLabelsSettings() {
                            style={{ backgroundColor: label.color }}
                         />
                         <span className="truncate">{label.name}</span>
+                        <span className="text-[11px] text-muted-foreground shrink-0">
+                           {label.teamId
+                              ? (teams.find((team) => team.id === label.teamId)?.name ??
+                                label.teamId)
+                              : 'Workspace'}
+                        </span>
                      </div>
                      <div className="w-[100px] text-xs text-muted-foreground">
                         {label.projects || ''}
@@ -203,6 +233,7 @@ export default function ProjectLabelsSettings() {
                               setEditLabelName(label.name);
                               setEditLabelColor(label.color);
                               setEditLabelGroupId(label.groupId ?? '');
+                              setEditLabelTeamId(label.teamId ?? 'workspace');
                            }}
                         >
                            Edit
@@ -245,6 +276,7 @@ export default function ProjectLabelsSettings() {
                            name: editLabelName.trim(),
                            color: editLabelColor,
                            scope: 'project',
+                           teamId: editLabelTeamId === 'workspace' ? null : editLabelTeamId,
                            groupId: editLabelGroupId || undefined,
                         },
                      });
@@ -294,6 +326,22 @@ export default function ProjectLabelsSettings() {
                            {groups.map((group) => (
                               <option key={group.id} value={group.id}>
                                  {group.name}
+                              </option>
+                           ))}
+                        </select>
+                     </div>
+                     <div className="space-y-1.5">
+                        <FormLabel htmlFor="edit-project-label-team">Team scope</FormLabel>
+                        <select
+                           id="edit-project-label-team"
+                           value={editLabelTeamId}
+                           onChange={(event) => setEditLabelTeamId(event.target.value)}
+                           className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                        >
+                           <option value="workspace">Workspace (all teams)</option>
+                           {teams.map((team) => (
+                              <option key={team.id} value={team.id}>
+                                 {team.name}
                               </option>
                            ))}
                         </select>
@@ -424,6 +472,22 @@ export default function ProjectLabelsSettings() {
                            {groups.map((group) => (
                               <option key={group.id} value={group.id}>
                                  {group.name}
+                              </option>
+                           ))}
+                        </select>
+                     </div>
+                     <div className="space-y-1.5">
+                        <FormLabel htmlFor="new-project-label-team">Team scope</FormLabel>
+                        <select
+                           id="new-project-label-team"
+                           value={newLabelTeamId}
+                           onChange={(event) => setNewLabelTeamId(event.target.value)}
+                           className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                        >
+                           <option value="workspace">Workspace (all teams)</option>
+                           {teams.map((team) => (
+                              <option key={team.id} value={team.id}>
+                                 {team.name}
                               </option>
                            ))}
                         </select>

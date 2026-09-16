@@ -8,7 +8,7 @@ export interface LabelItem {
    description?: string;
    createdAt?: string;
    scope?: 'issue' | 'project' | 'both';
-   teamId?: string;
+   teamId?: string | null;
    groupId?: string;
 }
 

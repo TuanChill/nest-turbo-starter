@@ -12,6 +12,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label as FormLabel } from '@/components/ui/label';
 import { useIssues } from '@/hooks/queries/use-issues-query';
+import { useTeams } from '@/hooks/queries/use-teams-query';
 import {
    useCreateLabel,
    useCreateLabelGroup,
@@ -59,7 +60,12 @@ const formatCount = (count: number) =>
 export default function IssueLabelsSettings() {
    const [query, setQuery] = useState('');
    const { data: issues = [] } = useIssues();
-   const { data: labels = [] } = useLabels();
+   const { data: teams = [] } = useTeams();
+   const [labelTeamFilter, setLabelTeamFilter] = useState('all');
+   const { data: labels = [] } = useLabels(
+      'issue',
+      labelTeamFilter === 'all' ? undefined : labelTeamFilter
+   );
    const createLabel = useCreateLabel();
    const createLabelGroup = useCreateLabelGroup();
    const updateLabel = useUpdateLabel();
@@ -73,6 +79,7 @@ export default function IssueLabelsSettings() {
    const [newLabelName, setNewLabelName] = useState('');
    const [newLabelColor, setNewLabelColor] = useState(LABEL_COLOR_OPTIONS[0]);
    const [newLabelGroupId, setNewLabelGroupId] = useState('');
+   const [newLabelTeamId, setNewLabelTeamId] = useState('workspace');
    const [isGroupOpen, setIsGroupOpen] = useState(false);
    const [newGroupName, setNewGroupName] = useState('');
    const [newGroupMutuallyExclusive, setNewGroupMutuallyExclusive] = useState(false);
@@ -80,6 +87,7 @@ export default function IssueLabelsSettings() {
    const [editLabelName, setEditLabelName] = useState('');
    const [editLabelColor, setEditLabelColor] = useState(LABEL_COLOR_OPTIONS[0]);
    const [editLabelGroupId, setEditLabelGroupId] = useState('');
+   const [editLabelTeamId, setEditLabelTeamId] = useState('workspace');
    const [editingGroup, setEditingGroup] = useState<LabelGroup | null>(null);
    const [editGroupName, setEditGroupName] = useState('');
    const [editGroupMutuallyExclusive, setEditGroupMutuallyExclusive] = useState(false);
@@ -94,12 +102,14 @@ export default function IssueLabelsSettings() {
          name,
          color: newLabelColor,
          scope: 'issue',
+         ...(newLabelTeamId !== 'workspace' ? { teamId: newLabelTeamId } : {}),
          ...(newLabelGroupId ? { groupId: newLabelGroupId } : {}),
       });
       setIsCreateOpen(false);
       setNewLabelName('');
       setNewLabelColor(LABEL_COLOR_OPTIONS[0]);
       setNewLabelGroupId('');
+      setNewLabelTeamId('workspace');
    };
 
    const rows = useMemo(() => {
@@ -131,7 +141,17 @@ export default function IssueLabelsSettings() {
                      onChange={(event) => setQuery(event.target.value)}
                      className="w-64 h-8"
                   />
-                  <SelectMenu options={['Workspace', 'All teams']} />
+                  <SelectMenu
+                     options={[
+                        { label: 'All labels', value: 'all' },
+                        ...teams.map((team) => ({
+                           label: `${team.name} + workspace labels`,
+                           value: team.id,
+                        })),
+                     ]}
+                     value={labelTeamFilter}
+                     onChange={setLabelTeamFilter}
+                  />
                </div>
                <div className="flex items-center gap-2">
                   <Button size="xs" variant="secondary" onClick={() => setIsGroupOpen(true)}>
@@ -206,6 +226,12 @@ export default function IssueLabelsSettings() {
                            style={{ backgroundColor: label.color }}
                         />
                         <span className="truncate">{label.name}</span>
+                        <span className="text-[11px] text-muted-foreground shrink-0">
+                           {label.teamId
+                              ? (teams.find((team) => team.id === label.teamId)?.name ??
+                                label.teamId)
+                              : 'Workspace'}
+                        </span>
                      </div>
                      <div className="hidden md:block w-[260px] text-xs text-muted-foreground truncate pr-4">
                         {label.description || '—'}
@@ -229,6 +255,7 @@ export default function IssueLabelsSettings() {
                               setEditLabelName(label.name);
                               setEditLabelColor(label.color);
                               setEditLabelGroupId(label.groupId ?? '');
+                              setEditLabelTeamId(label.teamId ?? 'workspace');
                            }}
                         >
                            Edit
@@ -271,6 +298,7 @@ export default function IssueLabelsSettings() {
                            name: editLabelName.trim(),
                            color: editLabelColor,
                            scope: editingLabel.scope ?? 'issue',
+                           teamId: editLabelTeamId === 'workspace' ? null : editLabelTeamId,
                            groupId: editLabelGroupId || undefined,
                         },
                      });
@@ -320,6 +348,22 @@ export default function IssueLabelsSettings() {
                            {groups.map((group) => (
                               <option key={group.id} value={group.id}>
                                  {group.name}
+                              </option>
+                           ))}
+                        </select>
+                     </div>
+                     <div className="space-y-1.5">
+                        <FormLabel htmlFor="edit-issue-label-team">Team scope</FormLabel>
+                        <select
+                           id="edit-issue-label-team"
+                           value={editLabelTeamId}
+                           onChange={(event) => setEditLabelTeamId(event.target.value)}
+                           className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                        >
+                           <option value="workspace">Workspace (all teams)</option>
+                           {teams.map((team) => (
+                              <option key={team.id} value={team.id}>
+                                 {team.name}
                               </option>
                            ))}
                         </select>
@@ -450,6 +494,22 @@ export default function IssueLabelsSettings() {
                            {groups.map((group) => (
                               <option key={group.id} value={group.id}>
                                  {group.name}
+                              </option>
+                           ))}
+                        </select>
+                     </div>
+                     <div className="space-y-1.5">
+                        <FormLabel htmlFor="new-label-team">Team scope</FormLabel>
+                        <select
+                           id="new-label-team"
+                           value={newLabelTeamId}
+                           onChange={(event) => setNewLabelTeamId(event.target.value)}
+                           className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                        >
+                           <option value="workspace">Workspace (all teams)</option>
+                           {teams.map((team) => (
+                              <option key={team.id} value={team.id}>
+                                 {team.name}
                               </option>
                            ))}
                         </select>
