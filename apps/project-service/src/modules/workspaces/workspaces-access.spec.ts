@@ -1,4 +1,5 @@
 import type { EntityManager } from '@mikro-orm/core';
+import { BadRequestException } from '@nestjs/common';
 import { WorkspacesService } from './workspaces.service';
 import { Team, TeamMember, Workspace, WorkspaceMember } from '../../data-access';
 
@@ -47,5 +48,20 @@ describe('WorkspacesService access graph', () => {
     const service = new WorkspacesService(em);
 
     await expect(service.getAccessibleTeamIds('member-1')).resolves.toEqual(['team-1']);
+  });
+
+  it('rejects a workspace name that cannot produce a real slug instead of generating a random one', async () => {
+    const em = {
+      findOne: jest.fn(),
+      persist: jest.fn(),
+      flush: jest.fn(),
+    } as unknown as EntityManager;
+    const service = new WorkspacesService(em);
+
+    await expect(service.create({ name: '你好' }, 'member-1')).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+    expect(em.findOne).not.toHaveBeenCalled();
+    expect(em.persist).not.toHaveBeenCalled();
   });
 });

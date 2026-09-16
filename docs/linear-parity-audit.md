@@ -104,6 +104,7 @@ Reference set: [Linear Docs](https://linear.app/docs), [Projects](https://linear
 - Runtime-created notification, document, review, view, initiative, member, and generated team IDs no longer use timestamp-based fallback IDs; issue relation and project milestone responses now retain authenticated member scope. Inbox hydration no longer swallows non-deleted issue lookup failures. The local repository scan found no tracked AWS/Google private credentials; `.env` remains ignored and `.env.example` contains placeholders only.
 - Frontend API clients now require `NEXT_PUBLIC_API_URL` to be configured as an absolute HTTP(S) URL in production; only local development may use the localhost gateway default. This prevents a misconfigured production build from silently calling localhost.
 - Onboarding no longer creates a synthetic welcome issue or generates a random workspace slug; invalid workspace names now fail explicitly instead of creating fallback production data.
+- The direct workspace-creation API now applies the same rule as onboarding: names/slugs that cannot produce a real slug return a validation error and never persist a workspace or membership.
 
 ## Verification evidence (2026-09-15)
 

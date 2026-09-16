@@ -199,7 +199,9 @@ export class WorkspacesService {
   async create(dto: CreateWorkspaceDto, currentMemberId: string): Promise<any> {
     let rawSlug = dto.slug ? this.slugify(dto.slug) : this.slugify(dto.name);
     if (!rawSlug) {
-      rawSlug = `workspace-${Math.floor(1000 + Math.random() * 9000)}`;
+      throw new BadRequestException(
+        'Workspace name or slug must contain at least one alphanumeric character',
+      );
     }
 
     // Check slug collision
