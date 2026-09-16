@@ -73,4 +73,30 @@ describe('MembersService invitations', () => {
       }),
     );
   });
+
+  it('rejects an invitation without a real invitee name', async () => {
+    const em = {
+      findOne: jest.fn(),
+      find: jest.fn(),
+      persist: jest.fn(),
+      flush: jest.fn(),
+    } as unknown as EntityManager;
+    const service = new MembersService(
+      em,
+      { sendMemberInviteEmail: jest.fn() } as never,
+      { getAccessibleWorkspaceIds: jest.fn() } as never,
+    );
+
+    await expect(
+      service.create(
+        {
+          name: '   ',
+          email: 'invitee@example.com',
+          workspaceId: 'workspace-1',
+        },
+        'owner-1',
+      ),
+    ).rejects.toThrow('name is required');
+    expect(em.persist).not.toHaveBeenCalled();
+  });
 });

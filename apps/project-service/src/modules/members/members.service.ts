@@ -137,6 +137,10 @@ export class MembersService {
     if (!dto.workspaceId) {
       throw new BadRequestException('workspaceId is required when creating a member');
     }
+    const name = dto.name?.trim();
+    if (!name) {
+      throw new BadRequestException('name is required when inviting a member');
+    }
     const resolvedWorkspaceId = await this.resolveWorkspaceId(actorId, dto.workspaceId);
     const email = dto.email.trim().toLowerCase();
     const existingMember = await this.em.findOne(Member, { email });
@@ -177,11 +181,11 @@ export class MembersService {
         workspaceId: resolvedWorkspaceId,
         inviterMemberId: actorId,
         email,
-        name: dto.name.trim(),
+        name,
       });
     invitation.inviterMemberId = actorId;
     invitation.email = email;
-    invitation.name = dto.name.trim();
+    invitation.name = name;
     invitation.role = role;
     invitation.teamIds = teamIds;
     invitation.tokenHash = tokenHash;
@@ -205,6 +209,11 @@ export class MembersService {
         .catch((err) => console.error('Failed to send invite email:', err));
     }
 
+    const frontendUrl = process.env.FRONTEND_URL?.trim();
+    const inviteUrl = frontendUrl
+      ? `${frontendUrl}/signup?org=${encodeURIComponent(workspace?.slug ?? '')}&email=${encodeURIComponent(invitation.email)}&invite=${encodeURIComponent(token)}`
+      : undefined;
+
     return {
       invitationId: invitation.id,
       email: invitation.email,
@@ -212,6 +221,7 @@ export class MembersService {
       role: invitation.role,
       teamIds: invitation.teamIds,
       expiresAt: invitation.expiresAt,
+      ...(inviteUrl ? { inviteUrl } : {}),
     };
   }
 

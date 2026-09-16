@@ -21,6 +21,7 @@ export interface MemberInvitation {
    role: string;
    teamIds: string[];
    expiresAt: string;
+   inviteUrl?: string;
 }
 
 export const membersService = {

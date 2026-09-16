@@ -22,9 +22,8 @@ import {
 } from '@/components/ui/select';
 import { useCreateMember } from '@/hooks/queries/use-members-query';
 import { useTeams } from '@/hooks/queries/use-teams-query';
-import { Check, Copy, Loader2, Plus, Search, UserPlus, X } from 'lucide-react';
+import { Check, Loader2, Plus, Search, UserPlus, X } from 'lucide-react';
 import { toast } from 'sonner';
-import { SITE_URL } from '@/lib/utils/site-url';
 import { cn } from '@/lib/utils';
 import { useParams } from 'next/navigation';
 
@@ -54,7 +53,6 @@ export function InviteMemberDialog({
    const [selectedTeamIds, setSelectedTeamIds] = React.useState<string[]>([]);
    const [teamSearch, setTeamSearch] = React.useState('');
    const [isSubmitting, setIsSubmitting] = React.useState(false);
-   const [copied, setCopied] = React.useState(false);
 
    const filteredTeams = React.useMemo(() => {
       if (!teamSearch.trim()) return teams;
@@ -64,29 +62,14 @@ export function InviteMemberDialog({
       );
    }, [teams, teamSearch]);
 
-   // Auto-suggest name when email is typed if name is empty or matched previous prefix
    const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const newEmail = e.target.value;
-      setEmail(newEmail);
-      if (!name || name === email.split('@')[0]) {
-         const suggested = newEmail.split('@')[0];
-         setName(suggested);
-      }
+      setEmail(e.target.value);
    };
 
    const toggleTeam = (teamId: string) => {
       setSelectedTeamIds((prev) =>
          prev.includes(teamId) ? prev.filter((id) => id !== teamId) : [...prev, teamId]
       );
-   };
-
-   const handleCopyInviteLink = () => {
-      const origin = typeof window !== 'undefined' ? window.location.origin : SITE_URL;
-      const inviteUrl = orgId ? `${origin}/signup?org=${orgId}` : `${origin}/signup`;
-      navigator.clipboard.writeText(inviteUrl);
-      setCopied(true);
-      toast.success('Invite link copied to clipboard');
-      setTimeout(() => setCopied(false), 2000);
    };
 
    const handleSubmit = async (e: React.FormEvent) => {
@@ -102,23 +85,33 @@ export function InviteMemberDialog({
          return;
       }
 
-      const displayName = name.trim() || trimmedEmail.split('@')[0];
-      const memberId = displayName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      const displayName = name.trim();
+      if (!displayName) {
+         toast.error("Please enter the invitee's full name");
+         return;
+      }
 
       setIsSubmitting(true);
       try {
-         await createMemberMutation.mutateAsync({
-            id: memberId,
+         const invitation = await createMemberMutation.mutateAsync({
             name: displayName,
             email: trimmedEmail,
             role,
-            status: 'offline',
-            avatarUrl: `https://api.dicebear.com/9.x/glass/svg?seed=${encodeURIComponent(displayName)}`,
             teamIds: selectedTeamIds,
             workspaceId: orgId,
          });
 
-         toast.success(`Invitation sent to ${trimmedEmail}`);
+         if (invitation.inviteUrl) {
+            try {
+               await navigator.clipboard.writeText(invitation.inviteUrl);
+               toast.success(`Invitation sent and secure link copied for ${trimmedEmail}`);
+            } catch {
+               toast.success(`Invitation sent to ${trimmedEmail}`);
+               toast.info('The secure invitation link could not be copied automatically.');
+            }
+         } else {
+            toast.success(`Invitation sent to ${trimmedEmail}`);
+         }
          setEmail('');
          setName('');
          setRole('Member');
@@ -185,7 +178,7 @@ export function InviteMemberDialog({
                   {/* Name field */}
                   <div className="space-y-1.5">
                      <Label htmlFor="invite-name" className="text-xs font-medium">
-                        Full name (optional)
+                        Full name <span className="text-destructive">*</span>
                      </Label>
                      <Input
                         id="invite-name"
@@ -306,20 +299,9 @@ export function InviteMemberDialog({
                </div>
 
                <DialogFooter className="p-4 bg-muted/20 border-t border-border/40 flex items-center justify-between sm:justify-between">
-                  <Button
-                     type="button"
-                     variant="outline"
-                     size="sm"
-                     onClick={handleCopyInviteLink}
-                     className="h-8 text-xs gap-1.5"
-                  >
-                     {copied ? (
-                        <Check className="size-3.5 text-emerald-500" />
-                     ) : (
-                        <Copy className="size-3.5" />
-                     )}
-                     {copied ? 'Copied' : 'Copy invite link'}
-                  </Button>
+                  <span className="text-[11px] text-muted-foreground">
+                     The secure invitation link is copied after the invite is sent.
+                  </span>
 
                   <div className="flex items-center gap-2">
                      <Button
