@@ -4,6 +4,7 @@ import {
    InitiativeMutationPayload,
    InitiativeUpdatePatchPayload,
    InitiativeUpdatePayload,
+   InitiativeUpdateReactionPayload,
 } from '@/services/initiatives.service';
 import { initiativeKeys } from './keys';
 import { toast } from 'sonner';
@@ -127,5 +128,49 @@ export function useDeleteInitiativeUpdate() {
          toast.success('Initiative update deleted');
       },
       onError: (error: Error) => toast.error(error.message || 'Failed to delete initiative update'),
+   });
+}
+
+function useInitiativeUpdateReactionMutation(
+   mutationFn: (args: {
+      initiativeId: string;
+      updateId: string;
+      payload: InitiativeUpdateReactionPayload;
+   }) => Promise<import('@/services/initiatives.service').Initiative>
+) {
+   const queryClient = useQueryClient();
+   return useMutation({
+      mutationFn,
+      onSuccess: (updated) => {
+         queryClient.invalidateQueries({ queryKey: initiativeKeys.lists() });
+         queryClient.setQueryData(initiativeKeys.detail(updated.id), updated);
+      },
+      onError: (error: Error) => toast.error(error.message || 'Failed to update reaction'),
+   });
+}
+
+export function useAddInitiativeUpdateReaction() {
+   return useInitiativeUpdateReactionMutation(({ initiativeId, updateId, payload }) =>
+      initiativesService.addInitiativeUpdateReaction(initiativeId, updateId, payload)
+   );
+}
+
+export function useRemoveInitiativeUpdateReaction() {
+   const queryClient = useQueryClient();
+   return useMutation({
+      mutationFn: ({
+         initiativeId,
+         updateId,
+         emoji,
+      }: {
+         initiativeId: string;
+         updateId: string;
+         emoji: string;
+      }) => initiativesService.removeInitiativeUpdateReaction(initiativeId, updateId, emoji),
+      onSuccess: (updated) => {
+         queryClient.invalidateQueries({ queryKey: initiativeKeys.lists() });
+         queryClient.setQueryData(initiativeKeys.detail(updated.id), updated);
+      },
+      onError: (error: Error) => toast.error(error.message || 'Failed to update reaction'),
    });
 }

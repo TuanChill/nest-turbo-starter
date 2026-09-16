@@ -20,6 +20,8 @@ import type { Project } from '@/services/projects.service';
 import { useProjects } from '@/hooks/queries/use-projects-query';
 import {
    useDeleteInitiativeUpdate,
+   useAddInitiativeUpdateReaction,
+   useRemoveInitiativeUpdateReaction,
    usePostInitiativeUpdate,
    useUpdateInitiativeUpdate,
 } from '@/hooks/queries/use-initiatives-query';
@@ -46,6 +48,7 @@ import { InitiativeProgressPanel } from './initiative-progress-panel';
 import { InitiativeStatusIcon } from './initiative-status-icon';
 
 const TABS = ['overview', 'activity', 'projects'] as const;
+const UPDATE_REACTIONS = ['👍', '❤️', '🚀'];
 
 const formatTarget = (iso: string): string => {
    const [, month, day] = iso.split('-').map(Number);
@@ -179,6 +182,8 @@ function Overview({ initiative }: { initiative: Initiative }) {
    const postUpdate = usePostInitiativeUpdate();
    const updateInitiativeUpdate = useUpdateInitiativeUpdate();
    const deleteInitiativeUpdate = useDeleteInitiativeUpdate();
+   const addUpdateReaction = useAddInitiativeUpdateReaction();
+   const removeUpdateReaction = useRemoveInitiativeUpdateReaction();
    const currentUser = useAuthStore((state) => state.user);
    const [isUpdateEditorOpen, setIsUpdateEditorOpen] = useState(false);
    const [isEditOpen, setIsEditOpen] = useState(false);
@@ -233,6 +238,24 @@ function Overview({ initiative }: { initiative: Initiative }) {
          },
       });
       setEditingUpdateId(null);
+   };
+
+   const toggleUpdateReaction = async (update: Initiative['updates'][number], emoji: string) => {
+      if (!currentUser?.id) return;
+      const reaction = update.reactions?.find((entry) => entry.emoji === emoji);
+      if (reaction?.userIds?.includes(currentUser.id)) {
+         await removeUpdateReaction.mutateAsync({
+            initiativeId: initiative.id,
+            updateId: update.id,
+            emoji,
+         });
+      } else {
+         await addUpdateReaction.mutateAsync({
+            initiativeId: initiative.id,
+            updateId: update.id,
+            payload: { emoji },
+         });
+      }
    };
 
    return (
@@ -462,6 +485,32 @@ function Overview({ initiative }: { initiative: Initiative }) {
                                     .join('\n')}
                               </p>
                            )}
+                           <div className="mt-3 flex items-center gap-1.5">
+                              {UPDATE_REACTIONS.map((emoji) => {
+                                 const reaction = update.reactions?.find(
+                                    (entry) => entry.emoji === emoji
+                                 );
+                                 const reacted = Boolean(
+                                    currentUser?.id && reaction?.userIds?.includes(currentUser.id)
+                                 );
+                                 return (
+                                    <button
+                                       key={emoji}
+                                       type="button"
+                                       onClick={() => toggleUpdateReaction(update, emoji)}
+                                       disabled={
+                                          addUpdateReaction.isPending ||
+                                          removeUpdateReaction.isPending ||
+                                          !currentUser?.id
+                                       }
+                                       className={`rounded-full border px-2 py-0.5 text-xs transition-colors ${reacted ? 'border-primary bg-primary/10' : 'hover:bg-accent'}`}
+                                       aria-label={`${reacted ? 'Remove' : 'Add'} ${emoji} reaction`}
+                                    >
+                                       {emoji} {reaction?.count ? reaction.count : ''}
+                                    </button>
+                                 );
+                              })}
+                           </div>
                         </div>
                      ))}
                   </div>

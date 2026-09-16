@@ -4,6 +4,7 @@ import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import {
   CreateInitiativeDto,
   CreateInitiativeUpdateDto,
+  InitiativeUpdateReactionDto,
   UpdateInitiativeDto,
   UpdateInitiativeUpdateDto,
 } from './dto/initiative.dto';
@@ -72,6 +73,35 @@ export class InitiativesController {
     @User('id') memberId: string,
   ) {
     return this.initiativesService.deleteUpdate(id, updateId, memberId);
+  }
+
+  @ApiOperation({ summary: 'Add a reaction to an initiative update' })
+  @Post(':id/updates/:updateId/reactions')
+  addUpdateReaction(
+    @Param('id') id: string,
+    @Param('updateId') updateId: string,
+    @Body() dto: InitiativeUpdateReactionDto,
+    @User('id') memberId: string,
+  ) {
+    return this.initiativesService.addUpdateReaction(id, updateId, dto.emoji, memberId);
+  }
+
+  @ApiOperation({
+    summary: 'Remove the authenticated member reaction from an initiative update',
+  })
+  @Delete(':id/updates/:updateId/reactions/:emoji')
+  removeUpdateReaction(
+    @Param('id') id: string,
+    @Param('updateId') updateId: string,
+    @Param('emoji') emoji: string,
+    @User('id') memberId: string,
+  ) {
+    return this.initiativesService.removeUpdateReaction(
+      id,
+      updateId,
+      decodeURIComponent(emoji),
+      memberId,
+    );
   }
 
   @ApiOperation({ summary: 'Delete initiative' })

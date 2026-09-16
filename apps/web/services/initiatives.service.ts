@@ -32,6 +32,7 @@ export interface Initiative {
       author?: { id: string; name: string; avatarUrl?: string } | null;
       health: 'no-update' | 'on-track' | 'at-risk' | 'off-track';
       blocks: unknown[];
+      reactions: Array<{ emoji: string; count: number; userIds?: string[] }>;
       createdAt: string;
    }>;
    createdAt: string;
@@ -60,6 +61,10 @@ export interface InitiativeUpdatePayload {
 export interface InitiativeUpdatePatchPayload {
    health?: InitiativeUpdatePayload['health'];
    blocks?: unknown[];
+}
+
+export interface InitiativeUpdateReactionPayload {
+   emoji: string;
 }
 
 export const initiativesService = {
@@ -115,5 +120,27 @@ export const initiativesService = {
       return apiClient<Initiative>(`/circle/api/initiatives/${initiativeId}/updates/${updateId}`, {
          method: 'DELETE',
       });
+   },
+
+   async addInitiativeUpdateReaction(
+      initiativeId: string,
+      updateId: string,
+      payload: InitiativeUpdateReactionPayload
+   ): Promise<Initiative> {
+      return apiClient<Initiative>(
+         `/circle/api/initiatives/${initiativeId}/updates/${updateId}/reactions`,
+         { method: 'POST', body: JSON.stringify(payload) }
+      );
+   },
+
+   async removeInitiativeUpdateReaction(
+      initiativeId: string,
+      updateId: string,
+      emoji: string
+   ): Promise<Initiative> {
+      return apiClient<Initiative>(
+         `/circle/api/initiatives/${initiativeId}/updates/${updateId}/reactions/${encodeURIComponent(emoji)}`,
+         { method: 'DELETE' }
+      );
    },
 };

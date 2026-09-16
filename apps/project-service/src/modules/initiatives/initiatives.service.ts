@@ -148,6 +148,7 @@ export class InitiativesService {
         author: membersMap.get(update.authorId) ?? null,
         health: update.health,
         blocks: update.blocks,
+        reactions: Array.isArray(update.reactions) ? update.reactions : [],
         createdAt: update.createdAt,
       })),
       createdAt: initiative.createdAt
@@ -574,6 +575,24 @@ export class InitiativesService {
     updateId: string,
     memberId: string,
   ) {
+    const { initiative, update } = await this.assertUpdateAccess(
+      initiativeId,
+      updateId,
+      memberId,
+    );
+    if (update.authorId !== memberId) {
+      throw new ForbiddenException(
+        'Only the update author can change this initiative update',
+      );
+    }
+    return { initiative, update };
+  }
+
+  private async assertUpdateAccess(
+    initiativeId: string,
+    updateId: string,
+    memberId: string,
+  ) {
     const initiative = await this.em.findOne(Initiative, { id: initiativeId });
     if (!initiative) throw new NotFoundException(`Initiative ${initiativeId} not found`);
     await this.assertWorkspaceAccess(memberId, initiative);
@@ -583,11 +602,6 @@ export class InitiativesService {
       initiativeId,
     });
     if (!update) throw new NotFoundException(`Initiative update ${updateId} not found`);
-    if (update.authorId !== memberId) {
-      throw new ForbiddenException(
-        'Only the update author can change this initiative update',
-      );
-    }
     return { initiative, update };
   }
 
@@ -652,6 +666,69 @@ export class InitiativesService {
         actorId: memberId,
         event: 'deleted initiative update',
         metadata: { updateId },
+      }),
+    );
+    await this.em.flush();
+    return this.findOne(initiativeId, memberId);
+  }
+
+  async addUpdateReaction(
+    initiativeId: string,
+    updateId: string,
+    emoji: string,
+    memberId: string,
+  ) {
+    const { update } = await this.assertUpdateAccess(initiativeId, updateId, memberId);
+    const reactions = Array.isArray(update.reactions) ? [...update.reactions] : [];
+    const found = reactions.find((reaction: any) => reaction.emoji === emoji);
+    if (found) {
+      const userIds = Array.isArray(found.userIds) ? found.userIds : [];
+      if (!userIds.includes(memberId)) {
+        found.userIds = [...userIds, memberId];
+        found.count = found.userIds.length;
+      }
+    } else {
+      reactions.push({ emoji, count: 1, userIds: [memberId] });
+    }
+    update.reactions = reactions;
+    this.em.persist(
+      new InitiativeActivity({
+        initiativeId,
+        actorId: memberId,
+        event: 'reacted to initiative update',
+        metadata: { updateId, emoji },
+      }),
+    );
+    await this.em.flush();
+    return this.findOne(initiativeId, memberId);
+  }
+
+  async removeUpdateReaction(
+    initiativeId: string,
+    updateId: string,
+    emoji: string,
+    memberId: string,
+  ) {
+    const { update } = await this.assertUpdateAccess(initiativeId, updateId, memberId);
+    const reactions = Array.isArray(update.reactions) ? update.reactions : [];
+    const found = reactions.find((reaction: any) => reaction.emoji === emoji);
+    if (!found || !Array.isArray(found.userIds)) {
+      return this.findOne(initiativeId, memberId);
+    }
+    const userIds = found.userIds.filter((userId: string) => userId !== memberId);
+    update.reactions = reactions
+      .map((reaction: any) =>
+        reaction.emoji === emoji
+          ? { ...reaction, userIds, count: userIds.length }
+          : reaction,
+      )
+      .filter((reaction: any) => reaction.emoji !== emoji || reaction.count > 0);
+    this.em.persist(
+      new InitiativeActivity({
+        initiativeId,
+        actorId: memberId,
+        event: 'removed reaction from initiative update',
+        metadata: { updateId, emoji },
       }),
     );
     await this.em.flush();

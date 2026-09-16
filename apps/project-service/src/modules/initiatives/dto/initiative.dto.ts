@@ -150,3 +150,10 @@ export class UpdateInitiativeUpdateDto {
   @IsOptional()
   blocks?: any[];
 }
+
+export class InitiativeUpdateReactionDto {
+  @ApiProperty({ example: '👍' })
+  @IsString()
+  @IsNotEmpty()
+  emoji: string;
+}

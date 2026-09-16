@@ -19,6 +19,9 @@ export class InitiativeUpdate {
   @Property({ type: 'jsonb', default: '[]' })
   blocks: any[] = [];
 
+  @Property({ type: 'jsonb', default: '[]' })
+  reactions: any[] = []; // { emoji: string, count: number, userIds?: string[] }[]
+
   @Property({
     type: 'timestamp with time zone',
     onCreate: () => new Date(),
