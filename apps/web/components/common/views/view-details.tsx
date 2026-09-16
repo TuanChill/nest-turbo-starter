@@ -13,6 +13,7 @@ import { useDisplaySettingsStore } from '@/store/display-settings-store';
 import { useRightPanelStore } from '@/store/right-panel-store';
 import { useViewStore } from '@/store/view-store';
 import { Skeleton } from '@/components/ui/skeleton';
+import QueryErrorState from '@/components/common/query-error-state';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useMemo } from 'react';
@@ -40,7 +41,13 @@ function ViewSkeleton() {
 
 function IssueViewBody({ view }: { view: View }) {
    const { openPanel } = useRightPanelStore();
-   const { data: allIssues = [] } = useIssues({
+   const {
+      data: allIssues = [],
+      isLoading,
+      isError,
+      error,
+      refetch,
+   } = useIssues({
       teamId: view.teamId,
       projectId: view.projectId,
    });
@@ -50,6 +57,10 @@ function IssueViewBody({ view }: { view: View }) {
       const scoped = filterIssuesForView(view, allIssues, currentUserId);
       return Array.isArray(filter.filters) ? applyIssueFilters(scoped, filter.filters) : scoped;
    }, [view, allIssues, currentUserId, filter.filters]);
+   if (isError) {
+      return <QueryErrorState subject="issues for this view" error={error} onRetry={refetch} />;
+   }
+   if (isLoading) return <ViewSkeleton />;
 
    return (
       <div className="w-full h-full flex flex-col overflow-hidden">
@@ -76,7 +87,7 @@ function IssueViewBody({ view }: { view: View }) {
 }
 
 function ProjectViewBody({ view }: { view: View }) {
-   const { data: allProjects = [] } = useProjects();
+   const { data: allProjects = [], isLoading, isError, error, refetch } = useProjects();
    const groups = useMemo<ProjectGroup[]>(() => {
       const projects = filterProjectsForView(view, allProjects).filter(
          (project) => !view.projectId || project.id === view.projectId
@@ -91,6 +102,10 @@ function ProjectViewBody({ view }: { view: View }) {
       }
       return [...byStatus.values()];
    }, [view, allProjects]);
+   if (isError) {
+      return <QueryErrorState subject="projects for this view" error={error} onRetry={refetch} />;
+   }
+   if (isLoading) return <ViewSkeleton />;
 
    return <ProjectsList groups={groups} />;
 }
@@ -116,10 +131,14 @@ import { useView } from '@/hooks/queries/use-views-query';
 /** Saved-view detail page: filtered issues (with insights) or projects. */
 export default function ViewDetails({ viewId }: { viewId: string }) {
    const { orgId } = useParams<{ orgId: string }>();
-   const { data: view, isLoading } = useView(viewId);
+   const { data: view, isLoading, isError, error, refetch } = useView(viewId);
 
    if (isLoading) {
       return <ViewSkeleton />;
+   }
+
+   if (isError) {
+      return <QueryErrorState subject="this saved view" error={error} onRetry={refetch} />;
    }
 
    if (!view) {
