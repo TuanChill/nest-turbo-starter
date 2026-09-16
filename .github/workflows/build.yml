@@ -15,6 +15,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Reject tracked runtime environment files
+        shell: bash
+        run: |
+          if git ls-files | grep -E '(^|/)\.env($|\.local$)'; then
+            echo 'Runtime environment files must never be committed; use repository secrets or deployment environment variables.' >&2
+            exit 1
+          fi
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
