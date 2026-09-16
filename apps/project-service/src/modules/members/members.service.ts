@@ -246,6 +246,15 @@ export class MembersService {
     if (!member) throw new NotFoundException(`Member ${id} not found`);
     await this.findOne(id, actorId);
 
+    const hasProfileChanges =
+      dto.name !== undefined ||
+      dto.avatarUrl !== undefined ||
+      dto.status !== undefined ||
+      dto.timezone !== undefined;
+    if (hasProfileChanges && id !== actorId) {
+      throw new NotFoundException(`Member ${id} not found`);
+    }
+
     if (dto.role) {
       if (!dto.workspaceId) {
         throw new BadRequestException(
