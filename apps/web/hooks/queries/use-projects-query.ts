@@ -1,5 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { projectsService, Project, ProjectUpdatePayload } from '@/services/projects.service';
+import {
+   projectsService,
+   Project,
+   ProjectUpdatePatchPayload,
+   ProjectUpdatePayload,
+} from '@/services/projects.service';
 import { projectKeys } from './keys';
 import { toast } from 'sonner';
 import { useParams } from 'next/navigation';
@@ -156,6 +161,43 @@ export function usePostProjectUpdate() {
       onError: (error: Error) => {
          toast.error(error.message || 'Failed to post update');
       },
+   });
+}
+
+export function useUpdateProjectUpdate() {
+   const queryClient = useQueryClient();
+
+   return useMutation({
+      mutationFn: ({
+         projectId,
+         updateId,
+         payload,
+      }: {
+         projectId: string;
+         updateId: string;
+         payload: ProjectUpdatePatchPayload;
+      }) => projectsService.updateProjectUpdate(projectId, updateId, payload),
+      onSuccess: (detail, { projectId }) => {
+         queryClient.setQueryData(projectKeys.activity(projectId), detail);
+         queryClient.invalidateQueries({ queryKey: projectKeys.detail(projectId) });
+         toast.success('Project update edited');
+      },
+      onError: (error: Error) => toast.error(error.message || 'Failed to edit project update'),
+   });
+}
+
+export function useDeleteProjectUpdate() {
+   const queryClient = useQueryClient();
+
+   return useMutation({
+      mutationFn: ({ projectId, updateId }: { projectId: string; updateId: string }) =>
+         projectsService.deleteProjectUpdate(projectId, updateId),
+      onSuccess: (detail, { projectId }) => {
+         queryClient.setQueryData(projectKeys.activity(projectId), detail);
+         queryClient.invalidateQueries({ queryKey: projectKeys.detail(projectId) });
+         toast.success('Project update deleted');
+      },
+      onError: (error: Error) => toast.error(error.message || 'Failed to delete project update'),
    });
 }
 

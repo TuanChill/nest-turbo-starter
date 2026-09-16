@@ -138,3 +138,15 @@ export class CreateInitiativeUpdateDto {
   @IsOptional()
   blocks?: any[];
 }
+
+export class UpdateInitiativeUpdateDto {
+  @ApiPropertyOptional({ enum: ['no-update', 'on-track', 'at-risk', 'off-track'] })
+  @IsEnum(['no-update', 'on-track', 'at-risk', 'off-track'])
+  @IsOptional()
+  health?: 'no-update' | 'on-track' | 'at-risk' | 'off-track';
+
+  @ApiPropertyOptional({ type: Array })
+  @IsArray()
+  @IsOptional()
+  blocks?: any[];
+}

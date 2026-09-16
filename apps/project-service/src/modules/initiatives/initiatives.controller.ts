@@ -5,6 +5,7 @@ import {
   CreateInitiativeDto,
   CreateInitiativeUpdateDto,
   UpdateInitiativeDto,
+  UpdateInitiativeUpdateDto,
 } from './dto/initiative.dto';
 import { InitiativesService } from './initiatives.service';
 
@@ -50,6 +51,27 @@ export class InitiativesController {
     @User('id') memberId: string,
   ) {
     return this.initiativesService.addUpdate(id, dto, memberId);
+  }
+
+  @ApiOperation({ summary: 'Edit an initiative update created by the current member' })
+  @Patch(':id/updates/:updateId')
+  updateUpdate(
+    @Param('id') id: string,
+    @Param('updateId') updateId: string,
+    @Body() dto: UpdateInitiativeUpdateDto,
+    @User('id') memberId: string,
+  ) {
+    return this.initiativesService.updateUpdate(id, updateId, dto, memberId);
+  }
+
+  @ApiOperation({ summary: 'Delete an initiative update created by the current member' })
+  @Delete(':id/updates/:updateId')
+  deleteUpdate(
+    @Param('id') id: string,
+    @Param('updateId') updateId: string,
+    @User('id') memberId: string,
+  ) {
+    return this.initiativesService.deleteUpdate(id, updateId, memberId);
   }
 
   @ApiOperation({ summary: 'Delete initiative' })

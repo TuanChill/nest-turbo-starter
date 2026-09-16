@@ -1,9 +1,15 @@
 import { EntityManager } from '@mikro-orm/core';
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import {
   CreateInitiativeDto,
   CreateInitiativeUpdateDto,
   UpdateInitiativeDto,
+  UpdateInitiativeUpdateDto,
 } from './dto/initiative.dto';
 import { deriveInitiativeProgress } from './initiative-progress';
 import {
@@ -137,6 +143,7 @@ export class InitiativesService {
       })),
       updates: updates.map((update) => ({
         id: update.id,
+        authorId: update.authorId,
         author: membersMap.get(update.authorId) ?? null,
         health: update.health,
         blocks: update.blocks,
@@ -558,5 +565,94 @@ export class InitiativesService {
     );
     await this.em.flush();
     return this.findOne(id, memberId);
+  }
+
+  private async assertOwnUpdate(
+    initiativeId: string,
+    updateId: string,
+    memberId: string,
+  ) {
+    const initiative = await this.em.findOne(Initiative, { id: initiativeId });
+    if (!initiative) throw new NotFoundException(`Initiative ${initiativeId} not found`);
+    await this.assertWorkspaceAccess(memberId, initiative);
+
+    const update = await this.em.findOne(InitiativeUpdate, {
+      id: updateId,
+      initiativeId,
+    });
+    if (!update) throw new NotFoundException(`Initiative update ${updateId} not found`);
+    if (update.authorId !== memberId) {
+      throw new ForbiddenException(
+        'Only the update author can change this initiative update',
+      );
+    }
+    return { initiative, update };
+  }
+
+  private async syncHealthFromLatestUpdate(
+    initiative: Initiative,
+    excludedUpdateId?: string,
+  ) {
+    const [latest] = await this.em.find(
+      InitiativeUpdate,
+      {
+        initiativeId: initiative.id,
+        ...(excludedUpdateId ? { id: { $ne: excludedUpdateId } } : {}),
+      },
+      { orderBy: { createdAt: 'DESC' }, limit: 1 },
+    );
+    initiative.healthId = latest?.health ?? 'no-update';
+  }
+
+  async updateUpdate(
+    initiativeId: string,
+    updateId: string,
+    dto: UpdateInitiativeUpdateDto,
+    memberId: string,
+  ) {
+    const { initiative, update } = await this.assertOwnUpdate(
+      initiativeId,
+      updateId,
+      memberId,
+    );
+    if (dto.health !== undefined) update.health = dto.health;
+    if (dto.blocks !== undefined) update.blocks = dto.blocks;
+
+    const latest = await this.em.findOne(
+      InitiativeUpdate,
+      { initiativeId: initiative.id },
+      { orderBy: { createdAt: 'DESC' } },
+    );
+    if (latest?.id === update.id) initiative.healthId = update.health;
+    this.em.persist(
+      new InitiativeActivity({
+        initiativeId,
+        actorId: memberId,
+        event: 'updated initiative update',
+        metadata: { updateId, fields: Object.keys(dto) },
+      }),
+    );
+    await this.em.flush();
+    return this.findOne(initiativeId, memberId);
+  }
+
+  async deleteUpdate(initiativeId: string, updateId: string, memberId: string) {
+    const { initiative, update } = await this.assertOwnUpdate(
+      initiativeId,
+      updateId,
+      memberId,
+    );
+    this.em.remove(update);
+    await this.syncHealthFromLatestUpdate(initiative, update.id);
+    this.em.persist(
+      new InitiativeActivity({
+        initiativeId,
+        actorId: memberId,
+        event: 'deleted initiative update',
+        metadata: { updateId },
+      }),
+    );
+    await this.em.flush();
+    return this.findOne(initiativeId, memberId);
   }
 }

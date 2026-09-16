@@ -239,6 +239,19 @@ export class CreateProjectUpdateDto {
   blocks: any[];
 }
 
+export class UpdateProjectUpdateDto {
+  @ApiPropertyOptional({ enum: ['on-track', 'at-risk', 'off-track'] })
+  @IsEnum(['on-track', 'at-risk', 'off-track'])
+  @IsOptional()
+  health?: 'on-track' | 'at-risk' | 'off-track';
+
+  @ApiPropertyOptional({ type: Array })
+  @IsArray()
+  @IsOptional()
+  @Type(() => Object)
+  blocks?: any[];
+}
+
 export class ReplaceProjectMembersDto {
   @ApiProperty({ type: [String] })
   @IsArray()

@@ -17,6 +17,7 @@ import {
   CreateProjectUpdateDto,
   ReplaceProjectMembersDto,
   UpdateProjectDto,
+  UpdateProjectUpdateDto,
 } from './dto/project.dto';
 import { ProjectsService } from './projects.service';
 
@@ -119,6 +120,27 @@ export class ProjectsController {
     @User('id') memberId: string,
   ) {
     return this.projectsService.addUpdate(id, dto, memberId);
+  }
+
+  @ApiOperation({ summary: 'Edit a project update created by the current member' })
+  @Patch(':id/updates/:updateId')
+  updateUpdate(
+    @Param('id') id: string,
+    @Param('updateId') updateId: string,
+    @Body() dto: UpdateProjectUpdateDto,
+    @User('id') memberId: string,
+  ) {
+    return this.projectsService.updateUpdate(id, updateId, dto, memberId);
+  }
+
+  @ApiOperation({ summary: 'Delete a project update created by the current member' })
+  @Delete(':id/updates/:updateId')
+  deleteUpdate(
+    @Param('id') id: string,
+    @Param('updateId') updateId: string,
+    @User('id') memberId: string,
+  ) {
+    return this.projectsService.deleteUpdate(id, updateId, memberId);
   }
 
   @ApiOperation({ summary: 'Add milestone to project' })

@@ -6,9 +6,14 @@ import type { Member } from './members.service';
 export type { Project, ProjectDetail };
 
 export interface ProjectUpdatePayload {
-   authorId: string;
+   authorId?: string;
    health: string;
    blocks: Array<{ type: string; text: string }>;
+}
+
+export interface ProjectUpdatePatchPayload {
+   health?: string;
+   blocks?: Array<{ type: string; text: string }>;
 }
 
 export const projectsService = {
@@ -76,10 +81,27 @@ export const projectsService = {
    async postProjectUpdate(
       projectId: string,
       payload: ProjectUpdatePayload
-   ): Promise<{ success: boolean }> {
-      return apiClient<{ success: boolean }>(`/circle/api/projects/${projectId}/updates`, {
+   ): Promise<ProjectDetail> {
+      return apiClient<ProjectDetail>(`/circle/api/projects/${projectId}/updates`, {
          method: 'POST',
          body: JSON.stringify(payload),
+      });
+   },
+
+   async updateProjectUpdate(
+      projectId: string,
+      updateId: string,
+      payload: ProjectUpdatePatchPayload
+   ): Promise<ProjectDetail> {
+      return apiClient<ProjectDetail>(`/circle/api/projects/${projectId}/updates/${updateId}`, {
+         method: 'PATCH',
+         body: JSON.stringify(payload),
+      });
+   },
+
+   async deleteProjectUpdate(projectId: string, updateId: string): Promise<ProjectDetail> {
+      return apiClient<ProjectDetail>(`/circle/api/projects/${projectId}/updates/${updateId}`, {
+         method: 'DELETE',
       });
    },
 

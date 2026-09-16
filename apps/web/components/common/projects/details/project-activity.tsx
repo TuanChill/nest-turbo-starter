@@ -3,6 +3,7 @@
 import { ContentBlocks } from '@/components/common/issues/details/content-blocks';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import {
    DropdownMenu,
    DropdownMenuContent,
@@ -18,7 +19,7 @@ import {
 import type { ProjectUpdate } from '@/mock-data/project-details';
 import { useAuthStore } from '@/store/auth-store';
 import { format, parseISO } from 'date-fns';
-import { Sparkles } from 'lucide-react';
+import { Ellipsis, Sparkles } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { ProjectSidePanel } from './project-side-panel';
 import { FileAttachments } from '@/components/common/attachments/file-attachments';
@@ -39,7 +40,58 @@ function HealthBadge({ health }: { health: ProjectUpdateHealth }) {
    );
 }
 
-function UpdateCard({ update }: { update: ProjectUpdate }) {
+function UpdateCard({
+   update,
+   projectId,
+   currentUserId,
+}: {
+   update: ProjectUpdate;
+   projectId: string;
+   currentUserId?: string;
+}) {
+   const updateMutation = useUpdateProjectUpdate();
+   const deleteMutation = useDeleteProjectUpdate();
+   const [editing, setEditing] = useState(false);
+   const [text, setText] = useState('');
+   const [health, setHealth] = useState<ProjectUpdateHealth>(update.health);
+   const canEdit = Boolean(
+      currentUserId && currentUserId === (update.authorId ?? update.author?.id)
+   );
+
+   const startEditing = () => {
+      setText(
+         update.blocks
+            .flatMap((block) =>
+               typeof block === 'object' &&
+               block !== null &&
+               'text' in block &&
+               typeof block.text === 'string'
+                  ? [block.text]
+                  : []
+            )
+            .join('\n\n')
+      );
+      setHealth(update.health);
+      setEditing(true);
+   };
+
+   const save = async () => {
+      const trimmed = text.trim();
+      if (!trimmed) return;
+      await updateMutation.mutateAsync({
+         projectId,
+         updateId: update.id,
+         payload: {
+            health,
+            blocks: trimmed
+               .split(/\n{2,}/)
+               .map((paragraph) => ({ type: 'paragraph', text: paragraph.trim() }))
+               .filter((block) => block.text),
+         },
+      });
+      setEditing(false);
+   };
+
    return (
       <div className="border rounded-lg p-4">
          <div className="flex items-center gap-2 text-sm">
@@ -55,13 +107,69 @@ function UpdateCard({ update }: { update: ProjectUpdate }) {
             <span className="text-xs text-muted-foreground">
                {format(parseISO(update.date), 'MMM d')}
             </span>
-            <span className="ml-auto">
-               <HealthBadge health={update.health} />
-            </span>
+            <div className="ml-auto flex items-center gap-2">
+               <HealthBadge health={editing ? health : update.health} />
+               {canEdit && (
+                  <DropdownMenu>
+                     <DropdownMenuTrigger asChild>
+                        <Button
+                           variant="ghost"
+                           size="icon"
+                           className="size-7"
+                           aria-label="Project update actions"
+                        >
+                           <Ellipsis className="size-3.5" />
+                        </Button>
+                     </DropdownMenuTrigger>
+                     <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={startEditing}>Edit update</DropdownMenuItem>
+                        <DropdownMenuItem
+                           className="text-destructive"
+                           onClick={() => {
+                              if (window.confirm('Delete this project update?')) {
+                                 deleteMutation.mutate({ projectId, updateId: update.id });
+                              }
+                           }}
+                        >
+                           Delete update
+                        </DropdownMenuItem>
+                     </DropdownMenuContent>
+                  </DropdownMenu>
+               )}
+            </div>
          </div>
-         <div className="mt-2 text-sm leading-relaxed">
-            <ContentBlocks blocks={update.blocks} />
-         </div>
+         {editing ? (
+            <div className="mt-3 space-y-2">
+               <Textarea autoFocus value={text} onChange={(event) => setText(event.target.value)} />
+               <div className="flex items-center justify-between gap-2">
+                  <select
+                     value={health}
+                     onChange={(event) => setHealth(event.target.value as ProjectUpdateHealth)}
+                     className="h-8 rounded-md border bg-background px-2 text-xs"
+                  >
+                     <option value="on-track">On track</option>
+                     <option value="at-risk">At risk</option>
+                     <option value="off-track">Off track</option>
+                  </select>
+                  <div className="flex gap-2">
+                     <Button variant="ghost" size="sm" onClick={() => setEditing(false)}>
+                        Cancel
+                     </Button>
+                     <Button
+                        size="sm"
+                        disabled={updateMutation.isPending || !text.trim()}
+                        onClick={save}
+                     >
+                        {updateMutation.isPending ? 'Saving...' : 'Save'}
+                     </Button>
+                  </div>
+               </div>
+            </div>
+         ) : (
+            <div className="mt-2 text-sm leading-relaxed">
+               <ContentBlocks blocks={update.blocks} />
+            </div>
+         )}
       </div>
    );
 }
@@ -95,7 +203,9 @@ function ProjectActivitySkeleton() {
 import {
    useProject,
    useProjectDetail,
+   useDeleteProjectUpdate,
    usePostProjectUpdate,
+   useUpdateProjectUpdate,
 } from '@/hooks/queries/use-projects-query';
 import { useIssues } from '@/hooks/queries/use-issues-query';
 import QueryErrorState from '@/components/common/query-error-state';
@@ -373,7 +483,12 @@ export default function ProjectActivity({ projectId }: ProjectActivityProps) {
                         <h3 className="text-lg font-semibold mb-3">{month}</h3>
                         <div className="flex flex-col gap-3">
                            {monthUpdates.map((update) => (
-                              <UpdateCard key={update.id} update={update} />
+                              <UpdateCard
+                                 key={update.id}
+                                 update={update}
+                                 projectId={project.id}
+                                 currentUserId={currentUser?.id}
+                              />
                            ))}
                         </div>
                      </div>

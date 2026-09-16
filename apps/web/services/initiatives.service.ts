@@ -28,6 +28,7 @@ export interface Initiative {
    }>;
    updates: Array<{
       id: string;
+      authorId?: string;
       author?: { id: string; name: string; avatarUrl?: string } | null;
       health: 'no-update' | 'on-track' | 'at-risk' | 'off-track';
       blocks: unknown[];
@@ -53,6 +54,11 @@ export interface InitiativeMutationPayload {
 
 export interface InitiativeUpdatePayload {
    health: 'no-update' | 'on-track' | 'at-risk' | 'off-track';
+   blocks?: unknown[];
+}
+
+export interface InitiativeUpdatePatchPayload {
+   health?: InitiativeUpdatePayload['health'];
    blocks?: unknown[];
 }
 
@@ -91,6 +97,23 @@ export const initiativesService = {
       return apiClient<Initiative>(`/circle/api/initiatives/${id}/updates`, {
          method: 'POST',
          body: JSON.stringify(payload),
+      });
+   },
+
+   async updateInitiativeUpdate(
+      initiativeId: string,
+      updateId: string,
+      payload: InitiativeUpdatePatchPayload
+   ): Promise<Initiative> {
+      return apiClient<Initiative>(`/circle/api/initiatives/${initiativeId}/updates/${updateId}`, {
+         method: 'PATCH',
+         body: JSON.stringify(payload),
+      });
+   },
+
+   async deleteInitiativeUpdate(initiativeId: string, updateId: string): Promise<Initiative> {
+      return apiClient<Initiative>(`/circle/api/initiatives/${initiativeId}/updates/${updateId}`, {
+         method: 'DELETE',
       });
    },
 };

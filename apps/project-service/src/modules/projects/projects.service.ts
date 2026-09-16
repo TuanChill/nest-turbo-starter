@@ -1,11 +1,17 @@
 import { EntityManager } from '@mikro-orm/core';
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { v7 } from 'uuid';
 import {
   CreateMilestoneDto,
   CreateProjectDto,
   CreateProjectUpdateDto,
   UpdateProjectDto,
+  UpdateProjectUpdateDto,
 } from './dto/project.dto';
 import { getProjectPropertyValidationError } from './project-rules';
 import { isProjectScopeVisible, projectIssueWhere } from './project-scope';
@@ -656,6 +662,7 @@ export class ProjectsService {
 
     const enrichedUpdates = updates.map((u) => ({
       id: u.id,
+      authorId: u.authorId,
       author: membersMap.get(u.authorId) ?? null,
       date: u.createdAt.toISOString().split('T')[0],
       health: u.health,
@@ -917,7 +924,71 @@ export class ProjectsService {
     this.em.persist([update, project]);
     this.recordActivity(projectId, memberId, 'health_update', { health: dto.health });
     await this.em.flush();
-    return this.findDetail(projectId);
+    return this.findDetail(projectId, memberId);
+  }
+
+  private async assertOwnUpdate(projectId: string, updateId: string, memberId: string) {
+    const project = await this.em.findOne(Project, { id: projectId });
+    if (!project) throw new NotFoundException(`Project ${projectId} not found`);
+    await this.assertProjectAccess(memberId, project);
+
+    const update = await this.em.findOne(ProjectUpdate, {
+      id: updateId,
+      projectId,
+    });
+    if (!update) throw new NotFoundException(`Project update ${updateId} not found`);
+    if (update.authorId !== memberId) {
+      throw new ForbiddenException(
+        'Only the update author can change this project update',
+      );
+    }
+    return { project, update };
+  }
+
+  private async syncHealthFromLatestUpdate(project: Project, excludedUpdateId?: string) {
+    const [latest] = await this.em.find(
+      ProjectUpdate,
+      {
+        projectId: project.id,
+        ...(excludedUpdateId ? { id: { $ne: excludedUpdateId } } : {}),
+      },
+      { orderBy: { createdAt: 'DESC' }, limit: 1 },
+    );
+    project.healthId = latest?.health ?? 'no-update';
+    project.healthUpdatedAt = new Date();
+  }
+
+  async updateUpdate(
+    projectId: string,
+    updateId: string,
+    dto: UpdateProjectUpdateDto,
+    memberId: string,
+  ) {
+    const { project, update } = await this.assertOwnUpdate(projectId, updateId, memberId);
+    if (dto.health !== undefined) update.health = dto.health;
+    if (dto.blocks !== undefined) update.blocks = dto.blocks;
+
+    const latest = await this.em.findOne(
+      ProjectUpdate,
+      { projectId: project.id },
+      { orderBy: { createdAt: 'DESC' } },
+    );
+    if (latest?.id === update.id) {
+      project.healthId = update.health;
+      project.healthUpdatedAt = new Date();
+    }
+    this.recordActivity(projectId, memberId, 'health_update_edited', { updateId });
+    await this.em.flush();
+    return this.findDetail(projectId, memberId);
+  }
+
+  async deleteUpdate(projectId: string, updateId: string, memberId: string) {
+    const { project, update } = await this.assertOwnUpdate(projectId, updateId, memberId);
+    this.em.remove(update);
+    await this.syncHealthFromLatestUpdate(project, update.id);
+    this.recordActivity(projectId, memberId, 'health_update_deleted', { updateId });
+    await this.em.flush();
+    return this.findDetail(projectId, memberId);
   }
 
   async addMilestone(projectId: string, dto: CreateMilestoneDto, memberId: string) {

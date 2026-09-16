@@ -5,6 +5,12 @@ import { ProjectGroup } from '@/components/common/projects/projects';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
+   DropdownMenu,
+   DropdownMenuContent,
+   DropdownMenuItem,
+   DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
    countCompletedProjects,
    getInitiativeProjects,
    INITIATIVE_STATUS_META,
@@ -12,11 +18,24 @@ import {
 import { Initiative } from '@/services/initiatives.service';
 import type { Project } from '@/services/projects.service';
 import { useProjects } from '@/hooks/queries/use-projects-query';
-import { usePostInitiativeUpdate } from '@/hooks/queries/use-initiatives-query';
+import {
+   useDeleteInitiativeUpdate,
+   usePostInitiativeUpdate,
+   useUpdateInitiativeUpdate,
+} from '@/hooks/queries/use-initiatives-query';
 import { Textarea } from '@/components/ui/textarea';
 import { renderProjectIcon } from '@/lib/project-utils';
 import { renderPriorityIcon } from '@/lib/priority-utils';
-import { CalendarRange, ChevronDown, FilePenLine, FileText, Tag, UserRound } from 'lucide-react';
+import { useAuthStore } from '@/store/auth-store';
+import {
+   CalendarRange,
+   ChevronDown,
+   Ellipsis,
+   FilePenLine,
+   FileText,
+   Tag,
+   UserRound,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { parseAsStringLiteral, useQueryState } from 'nuqs';
@@ -158,9 +177,17 @@ function Overview({ initiative }: { initiative: Initiative }) {
    const { orgId } = useParams<{ orgId: string }>();
    const { data: liveProjects = [] } = useProjects();
    const postUpdate = usePostInitiativeUpdate();
+   const updateInitiativeUpdate = useUpdateInitiativeUpdate();
+   const deleteInitiativeUpdate = useDeleteInitiativeUpdate();
+   const currentUser = useAuthStore((state) => state.user);
    const [isUpdateEditorOpen, setIsUpdateEditorOpen] = useState(false);
    const [isEditOpen, setIsEditOpen] = useState(false);
    const [updateText, setUpdateText] = useState('');
+   const [editingUpdateId, setEditingUpdateId] = useState<string | null>(null);
+   const [editingUpdateText, setEditingUpdateText] = useState('');
+   const [editingUpdateHealth, setEditingUpdateHealth] = useState<
+      'no-update' | 'on-track' | 'at-risk' | 'off-track'
+   >('on-track');
    const [updateHealth, setUpdateHealth] = useState<
       'no-update' | 'on-track' | 'at-risk' | 'off-track'
    >('on-track');
@@ -179,6 +206,33 @@ function Overview({ initiative }: { initiative: Initiative }) {
       });
       setUpdateText('');
       setIsUpdateEditorOpen(false);
+   };
+
+   const beginEditUpdate = (update: Initiative['updates'][number]) => {
+      setEditingUpdateId(update.id);
+      setEditingUpdateHealth(update.health);
+      setEditingUpdateText(
+         update.blocks
+            .filter((block): block is { text: string } =>
+               Boolean(block && typeof block === 'object' && 'text' in block)
+            )
+            .map((block) => block.text)
+            .join('\n\n')
+      );
+   };
+
+   const saveEditedUpdate = async (updateId: string) => {
+      const text = editingUpdateText.trim();
+      if (!text) return;
+      await updateInitiativeUpdate.mutateAsync({
+         initiativeId: initiative.id,
+         updateId,
+         payload: {
+            health: editingUpdateHealth,
+            blocks: [{ type: 'paragraph', text }],
+         },
+      });
+      setEditingUpdateId(null);
    };
 
    return (
@@ -315,16 +369,99 @@ function Overview({ initiative }: { initiative: Initiative }) {
                               <span>
                                  {update.author?.name ?? 'Member'} · {update.health}
                               </span>
-                              <span>{new Date(update.createdAt).toLocaleDateString()}</span>
+                              <div className="flex items-center gap-2">
+                                 <span>{new Date(update.createdAt).toLocaleDateString()}</span>
+                                 {currentUser?.id === (update.authorId ?? update.author?.id) && (
+                                    <DropdownMenu>
+                                       <DropdownMenuTrigger asChild>
+                                          <Button
+                                             variant="ghost"
+                                             size="icon"
+                                             className="size-7"
+                                             aria-label="Initiative update actions"
+                                          >
+                                             <Ellipsis className="size-3.5" />
+                                          </Button>
+                                       </DropdownMenuTrigger>
+                                       <DropdownMenuContent align="end">
+                                          <DropdownMenuItem onClick={() => beginEditUpdate(update)}>
+                                             Edit update
+                                          </DropdownMenuItem>
+                                          <DropdownMenuItem
+                                             className="text-destructive"
+                                             onClick={() => {
+                                                if (
+                                                   window.confirm('Delete this initiative update?')
+                                                ) {
+                                                   deleteInitiativeUpdate.mutate({
+                                                      initiativeId: initiative.id,
+                                                      updateId: update.id,
+                                                   });
+                                                }
+                                             }}
+                                          >
+                                             Delete update
+                                          </DropdownMenuItem>
+                                       </DropdownMenuContent>
+                                    </DropdownMenu>
+                                 )}
+                              </div>
                            </div>
-                           <p className="mt-2 text-muted-foreground">
-                              {update.blocks
-                                 .filter((block): block is { text: string } =>
-                                    Boolean(block && typeof block === 'object' && 'text' in block)
-                                 )
-                                 .map((block) => block.text)
-                                 .join('\n')}
-                           </p>
+                           {editingUpdateId === update.id ? (
+                              <div className="mt-3 space-y-2">
+                                 <Textarea
+                                    autoFocus
+                                    value={editingUpdateText}
+                                    onChange={(event) => setEditingUpdateText(event.target.value)}
+                                 />
+                                 <div className="flex items-center justify-between gap-2">
+                                    <select
+                                       value={editingUpdateHealth}
+                                       onChange={(event) =>
+                                          setEditingUpdateHealth(
+                                             event.target.value as typeof editingUpdateHealth
+                                          )
+                                       }
+                                       className="h-8 rounded-md border bg-background px-2 text-xs"
+                                    >
+                                       <option value="on-track">On track</option>
+                                       <option value="at-risk">At risk</option>
+                                       <option value="off-track">Off track</option>
+                                       <option value="no-update">No update</option>
+                                    </select>
+                                    <div className="flex gap-2">
+                                       <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => setEditingUpdateId(null)}
+                                       >
+                                          Cancel
+                                       </Button>
+                                       <Button
+                                          size="sm"
+                                          disabled={
+                                             updateInitiativeUpdate.isPending ||
+                                             !editingUpdateText.trim()
+                                          }
+                                          onClick={() => saveEditedUpdate(update.id)}
+                                       >
+                                          {updateInitiativeUpdate.isPending ? 'Saving...' : 'Save'}
+                                       </Button>
+                                    </div>
+                                 </div>
+                              </div>
+                           ) : (
+                              <p className="mt-2 whitespace-pre-wrap text-muted-foreground">
+                                 {update.blocks
+                                    .filter((block): block is { text: string } =>
+                                       Boolean(
+                                          block && typeof block === 'object' && 'text' in block
+                                       )
+                                    )
+                                    .map((block) => block.text)
+                                    .join('\n')}
+                              </p>
+                           )}
                         </div>
                      ))}
                   </div>

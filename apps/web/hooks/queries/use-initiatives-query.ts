@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
    initiativesService,
    InitiativeMutationPayload,
+   InitiativeUpdatePatchPayload,
    InitiativeUpdatePayload,
 } from '@/services/initiatives.service';
 import { initiativeKeys } from './keys';
@@ -91,5 +92,40 @@ export function usePostInitiativeUpdate() {
          toast.success('Initiative update posted');
       },
       onError: (error: Error) => toast.error(error.message || 'Failed to post initiative update'),
+   });
+}
+
+export function useUpdateInitiativeUpdate() {
+   const queryClient = useQueryClient();
+   return useMutation({
+      mutationFn: ({
+         initiativeId,
+         updateId,
+         payload,
+      }: {
+         initiativeId: string;
+         updateId: string;
+         payload: InitiativeUpdatePatchPayload;
+      }) => initiativesService.updateInitiativeUpdate(initiativeId, updateId, payload),
+      onSuccess: (updated) => {
+         queryClient.invalidateQueries({ queryKey: initiativeKeys.lists() });
+         queryClient.setQueryData(initiativeKeys.detail(updated.id), updated);
+         toast.success('Initiative update edited');
+      },
+      onError: (error: Error) => toast.error(error.message || 'Failed to edit initiative update'),
+   });
+}
+
+export function useDeleteInitiativeUpdate() {
+   const queryClient = useQueryClient();
+   return useMutation({
+      mutationFn: ({ initiativeId, updateId }: { initiativeId: string; updateId: string }) =>
+         initiativesService.deleteInitiativeUpdate(initiativeId, updateId),
+      onSuccess: (updated) => {
+         queryClient.invalidateQueries({ queryKey: initiativeKeys.lists() });
+         queryClient.setQueryData(initiativeKeys.detail(updated.id), updated);
+         toast.success('Initiative update deleted');
+      },
+      onError: (error: Error) => toast.error(error.message || 'Failed to delete initiative update'),
    });
 }

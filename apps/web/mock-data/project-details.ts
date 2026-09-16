@@ -18,6 +18,7 @@ export type { ProjectUpdateHealth } from '@/lib/project-health';
 /** A posted project update (the "Activity" tab timeline). */
 export interface ProjectUpdate {
    id: string;
+   authorId?: string;
    author?: User | null;
    date: string; // ISO date
    health: ProjectUpdateHealth;
