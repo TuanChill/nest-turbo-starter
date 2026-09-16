@@ -7,6 +7,7 @@ import {
   kafkaConfiguration,
   rabbitmqConfiguration,
   tcpConfiguration,
+  validationSchema,
 } from '@app/common';
 import { AppAuthGuard, RedisModule, RoleBasedAccessControlGuard } from '@app/core';
 import { BaseRepository } from '@app/core';
@@ -26,7 +27,7 @@ import { UserModule } from './user';
     ConfigModule.forRoot({
       isGlobal: true,
       cache: true,
-      // validationSchema,
+      validationSchema,
       validationOptions: {
         abortEarly: false,
       },

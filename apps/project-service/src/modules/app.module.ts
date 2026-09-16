@@ -3,6 +3,7 @@ import {
   appCommonConfiguration,
   getWinstonConfig,
   HttpLoggerMiddleware,
+  validationSchema,
 } from '@app/common';
 import { AwsS3Module, BaseRepository } from '@app/core';
 import { MikroOrmModule } from '@mikro-orm/nestjs';
@@ -39,6 +40,8 @@ import { appConfiguration, dbConfiguration } from '../config';
       isGlobal: true,
       cache: true,
       envFilePath: ['.env', '../../.env'],
+      validationSchema,
+      validationOptions: { abortEarly: false },
       load: [appCommonConfiguration, appConfiguration, dbConfiguration],
     }),
     MikroOrmModule.forRootAsync({

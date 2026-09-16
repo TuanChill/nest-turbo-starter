@@ -7,6 +7,7 @@ import {
   kafkaConfiguration,
   rabbitmqConfiguration,
   tcpConfiguration,
+  validationSchema,
 } from '@app/common';
 import {
   AppAuthGuard,
@@ -30,7 +31,7 @@ import { AuthModule } from './auth';
     ConfigModule.forRoot({
       isGlobal: true,
       cache: true,
-      // validationSchema,
+      validationSchema,
       validationOptions: {
         abortEarly: false,
       },

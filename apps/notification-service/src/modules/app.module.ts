@@ -6,6 +6,7 @@ import {
   kafkaConfiguration,
   rabbitmqConfiguration,
   tcpConfiguration,
+  validationSchema,
 } from '@app/common';
 import { HttpLoggerMiddleware } from '@app/common';
 import {
@@ -32,7 +33,7 @@ import { SendMailModule } from './send-mail';
     ConfigModule.forRoot({
       isGlobal: true,
       cache: true,
-      // validationSchema,
+      validationSchema,
       validationOptions: {
         abortEarly: false,
       },
