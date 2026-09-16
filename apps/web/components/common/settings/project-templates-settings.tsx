@@ -106,6 +106,7 @@ function TemplateEditor({
    teams,
    members,
    initiatives,
+   optionError,
    onClose,
    onCreate,
    onUpdate,
@@ -178,6 +179,14 @@ function TemplateEditor({
                   <DialogDescription>
                      Reusable project setup with milestones and issues.
                   </DialogDescription>
+                  {optionError && (
+                     <QueryErrorState
+                        subject="project template options"
+                        error={optionError.error}
+                        onRetry={() => void optionError.refetch()}
+                        compact
+                     />
+                  )}
                </DialogHeader>
                <div className="space-y-4 py-4">
                   <Input
@@ -354,7 +363,12 @@ function TemplateEditor({
                   <Button type="button" variant="ghost" onClick={() => onClose(false)}>
                      Cancel
                   </Button>
-                  <Button type="submit" disabled={!name.trim() || (scope === 'team' && !teamId)}>
+                  <Button
+                     type="submit"
+                     disabled={
+                        !name.trim() || (scope === 'team' && !teamId) || Boolean(optionError)
+                     }
+                  >
                      {template ? 'Save changes' : 'Create template'}
                   </Button>
                </DialogFooter>
@@ -367,9 +381,13 @@ function TemplateEditor({
 export default function ProjectTemplatesSettings() {
    const { orgId } = useParams<{ orgId: string }>();
    const { data: templates = [], isLoading, isError, error, refetch } = useProjectTemplates(orgId);
-   const { data: teams = [] } = useTeams();
-   const { data: members = [] } = useMembers();
-   const { data: initiatives = [] } = useInitiatives();
+   const teamsQuery = useTeams();
+   const membersQuery = useMembers();
+   const initiativesQuery = useInitiatives();
+   const { data: teams = [] } = teamsQuery;
+   const { data: members = [] } = membersQuery;
+   const { data: initiatives = [] } = initiativesQuery;
+   const optionError = [teamsQuery, membersQuery, initiativesQuery].find((query) => query.isError);
    const create = useCreateProjectTemplate();
    const update = useUpdateProjectTemplate();
    const duplicate = useDuplicateProjectTemplate();
@@ -397,6 +415,7 @@ export default function ProjectTemplatesSettings() {
                />
                <Button
                   size="xs"
+                  disabled={Boolean(optionError)}
                   onClick={() => {
                      setEditing(null);
                      setOpen(true);
@@ -405,6 +424,14 @@ export default function ProjectTemplatesSettings() {
                   New template
                </Button>
             </div>
+            {optionError && (
+               <QueryErrorState
+                  subject="project template options"
+                  error={optionError.error}
+                  onRetry={() => void optionError.refetch()}
+                  compact
+               />
+            )}
             {isError && (
                <QueryErrorState subject="project templates" error={error} onRetry={refetch} />
             )}
@@ -491,6 +518,7 @@ export default function ProjectTemplatesSettings() {
             teams={teams}
             members={members}
             initiatives={initiatives}
+            optionError={optionError}
             onCreate={async (payload: any) => {
                await create.mutateAsync(payload);
                setOpen(false);

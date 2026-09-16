@@ -63,6 +63,7 @@ type EditorProps = {
    labels: Array<{ id: string; name: string; color: string }>;
    projects: Project[];
    cycles: Cycle[];
+   optionError?: { error?: unknown; refetch: () => Promise<unknown> };
    onClose: (open: boolean) => void;
    onCreate: (payload: CreateIssueTemplatePayload) => Promise<void>;
    onUpdate: (id: string, payload: Partial<CreateIssueTemplatePayload>) => Promise<void>;
@@ -77,6 +78,7 @@ function TemplateEditor({
    labels,
    projects,
    cycles,
+   optionError,
    onClose,
    onCreate,
    onUpdate,
@@ -190,6 +192,14 @@ function TemplateEditor({
                   <DialogDescription>
                      Save real issue defaults for workspace or team issue creation.
                   </DialogDescription>
+                  {optionError && (
+                     <QueryErrorState
+                        subject="issue template options"
+                        error={optionError.error}
+                        onRetry={() => void optionError.refetch()}
+                        compact
+                     />
+                  )}
                </DialogHeader>
                <div className="space-y-4 py-4">
                   <Input
@@ -515,7 +525,12 @@ function TemplateEditor({
                   <Button type="button" variant="ghost" onClick={() => onClose(false)}>
                      Cancel
                   </Button>
-                  <Button type="submit" disabled={!name.trim() || (scope === 'team' && !teamId)}>
+                  <Button
+                     type="submit"
+                     disabled={
+                        !name.trim() || (scope === 'team' && !teamId) || Boolean(optionError)
+                     }
+                  >
                      {template ? 'Save changes' : 'Create template'}
                   </Button>
                </DialogFooter>
@@ -528,11 +543,19 @@ function TemplateEditor({
 export default function IssueTemplatesSettings() {
    const { orgId } = useParams<{ orgId: string }>();
    const { data: templates = [], isLoading, isError, error, refetch } = useIssueTemplates(orgId);
-   const { data: teams = [] } = useTeams();
-   const { data: members = [] } = useMembers();
-   const { data: labels = [] } = useLabels('issue');
-   const { data: projects = [] } = useProjects(undefined, orgId);
-   const { data: cycles = [] } = useCycles();
+   const teamsQuery = useTeams();
+   const membersQuery = useMembers();
+   const labelsQuery = useLabels('issue');
+   const projectsQuery = useProjects(undefined, orgId);
+   const cyclesQuery = useCycles();
+   const { data: teams = [] } = teamsQuery;
+   const { data: members = [] } = membersQuery;
+   const { data: labels = [] } = labelsQuery;
+   const { data: projects = [] } = projectsQuery;
+   const { data: cycles = [] } = cyclesQuery;
+   const optionError = [teamsQuery, membersQuery, labelsQuery, projectsQuery, cyclesQuery].find(
+      (query) => query.isError
+   );
    const create = useCreateIssueTemplate();
    const update = useUpdateIssueTemplate();
    const duplicate = useDuplicateIssueTemplate();
@@ -560,6 +583,7 @@ export default function IssueTemplatesSettings() {
                />
                <Button
                   size="xs"
+                  disabled={Boolean(optionError)}
                   onClick={() => {
                      setEditing(null);
                      setOpen(true);
@@ -568,6 +592,14 @@ export default function IssueTemplatesSettings() {
                   New template
                </Button>
             </div>
+            {optionError && (
+               <QueryErrorState
+                  subject="issue template options"
+                  error={optionError.error}
+                  onRetry={() => void optionError.refetch()}
+                  compact
+               />
+            )}
             {isError && (
                <QueryErrorState subject="issue templates" error={error} onRetry={refetch} />
             )}
@@ -656,6 +688,7 @@ export default function IssueTemplatesSettings() {
             labels={labels}
             projects={projects}
             cycles={cycles}
+            optionError={optionError}
             onCreate={async (payload) => {
                await create.mutateAsync(payload);
                setOpen(false);

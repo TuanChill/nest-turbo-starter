@@ -18,6 +18,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useCreateTeam } from '@/hooks/queries/use-teams-query';
 import { useMembers } from '@/hooks/queries/use-members-query';
 import { useWorkspaces } from '@/hooks/queries';
+import QueryErrorState from '@/components/common/query-error-state';
 import { Check, Hash, Loader2, Plus, Search, Users, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -52,9 +53,12 @@ export function CreateTeamDialog({
    const setOpen = isControlled ? setControlledOpen! : setInternalOpen;
 
    const createTeamMutation = useCreateTeam();
-   const { data: members = [] } = useMembers();
+   const membersQuery = useMembers();
+   const { data: members = [] } = membersQuery;
    const { orgId } = useParams<{ orgId?: string }>();
-   const { data: workspaces = [] } = useWorkspaces();
+   const workspacesQuery = useWorkspaces();
+   const { data: workspaces = [] } = workspacesQuery;
+   const optionError = [membersQuery, workspacesQuery].find((query) => query.isError);
    const currentWorkspaceId = workspaces.find((ws) => ws.slug === orgId || ws.id === orgId)?.id;
 
    const [name, setName] = React.useState('');
@@ -116,6 +120,7 @@ export function CreateTeamDialog({
 
    const handleSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
+      if (optionError) return;
       const trimmedName = name.trim();
       if (!trimmedName) {
          toast.error('Please enter a team name');
@@ -197,6 +202,14 @@ export function CreateTeamDialog({
                </DialogHeader>
 
                <div className="p-5 space-y-4 max-h-[65vh] overflow-y-auto">
+                  {optionError && (
+                     <QueryErrorState
+                        subject="team options"
+                        error={optionError.error}
+                        onRetry={() => void optionError.refetch()}
+                        compact
+                     />
+                  )}
                   {/* Name and Identifier Key row */}
                   <div className="grid grid-cols-3 gap-3">
                      <div className="col-span-2 space-y-1.5">
@@ -390,7 +403,7 @@ export function CreateTeamDialog({
                   <Button
                      type="submit"
                      size="sm"
-                     disabled={isSubmitting || !name.trim()}
+                     disabled={isSubmitting || !name.trim() || Boolean(optionError)}
                      className="h-8 text-xs gap-1.5"
                   >
                      {isSubmitting ? (

@@ -25,6 +25,7 @@ import { useCreateInitiative } from '@/hooks/queries/use-initiatives-query';
 import { useProjects } from '@/hooks/queries/use-projects-query';
 import { useMembers } from '@/hooks/queries/use-members-query';
 import { useLabels } from '@/hooks/queries/use-labels-query';
+import QueryErrorState from '@/components/common/query-error-state';
 import { Check, Loader2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -84,9 +85,13 @@ export function CreateInitiativeDialog({
 
    const createInitiativeMutation = useCreateInitiative();
    const { orgId } = useParams<{ orgId: string }>();
-   const { data: projects = [] } = useProjects();
-   const { data: members = [] } = useMembers();
-   const { data: labels = [] } = useLabels('project');
+   const projectsQuery = useProjects();
+   const membersQuery = useMembers();
+   const labelsQuery = useLabels('project');
+   const { data: projects = [] } = projectsQuery;
+   const { data: members = [] } = membersQuery;
+   const { data: labels = [] } = labelsQuery;
+   const optionError = [projectsQuery, membersQuery, labelsQuery].find((query) => query.isError);
 
    const [name, setName] = React.useState('');
    const [selectedIcon, setSelectedIcon] = React.useState('🧱');
@@ -120,6 +125,7 @@ export function CreateInitiativeDialog({
 
    const handleSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
+      if (optionError) return;
       const trimmedName = name.trim();
       if (!trimmedName) {
          toast.error('Please enter an initiative name');
@@ -199,6 +205,14 @@ export function CreateInitiativeDialog({
                </DialogHeader>
 
                <div className="p-5 space-y-4 max-h-[65vh] overflow-y-auto">
+                  {optionError && (
+                     <QueryErrorState
+                        subject="initiative options"
+                        error={optionError.error}
+                        onRetry={() => void optionError.refetch()}
+                        compact
+                     />
+                  )}
                   {/* Name */}
                   <div className="space-y-1.5">
                      <Label htmlFor="init-name" className="text-xs font-medium">
@@ -477,7 +491,7 @@ export function CreateInitiativeDialog({
                   <Button
                      type="submit"
                      size="sm"
-                     disabled={isSubmitting || !name.trim()}
+                     disabled={isSubmitting || !name.trim() || Boolean(optionError)}
                      className="h-8 text-xs gap-1.5"
                   >
                      {isSubmitting ? (
