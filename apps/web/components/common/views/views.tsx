@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils';
 import type { View } from '@/services/views.service';
 import { useViews } from '@/hooks/queries/use-views-query';
 import { useTeams } from '@/hooks/queries/use-teams-query';
+import { useWorkspaces } from '@/hooks/queries/use-workspaces-query';
 import { useViewsDisplayStore, ViewsOrdering } from '@/store/views-display-store';
 import { ArrowDown, Plus, SlidersHorizontal } from 'lucide-react';
 import Link from 'next/link';
@@ -159,8 +160,22 @@ export default function Views({ teamId }: { teamId?: string }) {
    const [tab, setTab] = useQueryState('tab', parseAsStringLiteral(TABS).withDefault('issues'));
    const { ordering } = useViewsDisplayStore();
    const { data: views = [], isLoading, isError, error, refetch } = useViews();
-   const { data: teams = [] } = useTeams();
+   const {
+      data: teams = [],
+      isError: isTeamsError,
+      error: teamsError,
+      refetch: refetchTeams,
+   } = useTeams();
+   const {
+      data: workspaces = [],
+      isError: isWorkspacesError,
+      error: workspacesError,
+      refetch: refetchWorkspaces,
+   } = useWorkspaces();
    const team = teamId ? teams.find((entry) => entry.id === teamId) : undefined;
+   const workspace = !teamId
+      ? workspaces.find((entry) => entry.slug === orgId || entry.id === orgId)
+      : undefined;
 
    const list = useMemo(() => {
       const type = tab === 'issues' ? 'issue' : 'project';
@@ -175,6 +190,26 @@ export default function Views({ teamId }: { teamId?: string }) {
 
    if (isError) {
       return <QueryErrorState subject="views" error={error} onRetry={() => refetch()} />;
+   }
+
+   if (isTeamsError && teamId) {
+      return (
+         <QueryErrorState
+            subject="team for these views"
+            error={teamsError}
+            onRetry={() => void refetchTeams()}
+         />
+      );
+   }
+
+   if (isWorkspacesError && !teamId) {
+      return (
+         <QueryErrorState
+            subject="workspace for these views"
+            error={workspacesError}
+            onRetry={() => void refetchWorkspaces()}
+         />
+      );
    }
 
    if (isLoading) {
@@ -228,11 +263,18 @@ export default function Views({ teamId }: { teamId?: string }) {
                      {team.icon}
                   </span>
                ) : (
-                  <span className="inline-flex size-5 items-center justify-center rounded bg-primary text-primary-foreground text-[10px] font-semibold">
-                     LN
+                  <span
+                     className={cn(
+                        'inline-flex size-5 items-center justify-center rounded bg-gradient-to-tr text-[8px] font-semibold text-white',
+                        workspace?.icon ?? 'from-muted-foreground/70 to-muted-foreground'
+                     )}
+                  >
+                     {(workspace?.name ?? orgId ?? 'W').slice(0, 2).toUpperCase()}
                   </span>
                )}
-               <span className="font-medium">{team ? team.name : 'LNDev UI'}</span>
+               <span className="font-medium">
+                  {team?.name ?? workspace?.name ?? orgId ?? 'Workspace'}
+               </span>
                <span className="text-muted-foreground text-xs">
                   · {team ? 'Team' : 'Workspace'}
                </span>

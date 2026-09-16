@@ -1,7 +1,16 @@
 'use client';
 
 import * as React from 'react';
-import { Check, ChevronsUpDown, LogOut, Plus, Settings, Sparkles, UserPlus } from 'lucide-react';
+import {
+   AlertCircle,
+   Check,
+   ChevronsUpDown,
+   LogOut,
+   Plus,
+   Settings,
+   Sparkles,
+   UserPlus,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 
@@ -36,20 +45,42 @@ export function OrgSwitcher() {
    const currentOrgId = params?.orgId;
 
    const { user, logout } = useAuthStore();
-   const { data: workspaces, isLoading } = useWorkspaces();
+   const {
+      data: workspaces,
+      isLoading,
+      isError: isWorkspacesError,
+      refetch: refetchWorkspaces,
+   } = useWorkspaces();
    const { openModal } = useCreateIssueStore();
    const [dialogOpen, setDialogOpen] = React.useState(false);
    const [defaultTab, setDefaultTab] = React.useState<'create' | 'join'>('create');
 
    if (!currentOrgId) return null;
 
+   if (isWorkspacesError) {
+      return (
+         <SidebarMenu>
+            <SidebarMenuItem>
+               <SidebarMenuButton
+                  type="button"
+                  onClick={() => void refetchWorkspaces()}
+                  className="text-destructive"
+               >
+                  <AlertCircle className="size-4" />
+                  <span>Workspace unavailable — retry</span>
+               </SidebarMenuButton>
+            </SidebarMenuItem>
+         </SidebarMenu>
+      );
+   }
+
    // Determine active workspace
    const activeWorkspace =
       workspaces?.find((ws) => ws.slug === currentOrgId || ws.id === currentOrgId) ||
       workspaces?.[0];
 
-   const workspaceName = activeWorkspace?.name || 'Circle Workspace';
-   const workspaceIcon = activeWorkspace?.icon || 'from-orange-600 to-amber-500';
+   const workspaceName = activeWorkspace?.name || currentOrgId;
+   const workspaceIcon = activeWorkspace?.icon || 'from-muted-foreground/70 to-muted-foreground';
    const initials = workspaceName.slice(0, 2).toUpperCase();
 
    const handleSelectWorkspace = (slug: string) => {

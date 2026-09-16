@@ -18,6 +18,7 @@ import ProjectsInsightsPanel from './projects-insights-panel';
 import ProjectsList from './projects-list';
 import ProjectsTimeline from './projects-timeline';
 import { Skeleton } from '@/components/ui/skeleton';
+import QueryErrorState from '@/components/common/query-error-state';
 
 export interface ProjectGroup {
    id: string;
@@ -50,7 +51,12 @@ export default function Projects({ teamId }: { teamId?: string }) {
    const [tab, setTab] = useQueryState('tab', parseAsStringLiteral(TABS).withDefault('all'));
    const viewType = viewTypes[tab];
    const { data: projects = [], isLoading, isError, error, refetch } = useProjects(teamId);
-   const { data: teams = [] } = useTeams();
+   const {
+      data: teams = [],
+      isError: isTeamsError,
+      error: teamsError,
+      refetch: refetchTeams,
+   } = useTeams();
 
    const displayed = useMemo(() => {
       let list = projects.slice();
@@ -145,6 +151,16 @@ export default function Projects({ teamId }: { teamId?: string }) {
                </Button>
             </div>
          </div>
+      );
+   }
+
+   if (grouping !== 'none' && isTeamsError) {
+      return (
+         <QueryErrorState
+            subject="teams for project grouping"
+            error={teamsError}
+            onRetry={() => void refetchTeams()}
+         />
       );
    }
 
