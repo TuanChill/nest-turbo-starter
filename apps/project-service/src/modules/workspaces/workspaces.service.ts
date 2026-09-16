@@ -379,6 +379,8 @@ export class WorkspacesService {
     await this.em.flush();
 
     const members = await this.em.find(WorkspaceMember, { workspaceId: workspace.id });
+    const canManage =
+      workspace.ownerId === currentMemberId || canManageWorkspaceRole(membership.role);
 
     return {
       id: workspace.id,
@@ -387,7 +389,7 @@ export class WorkspacesService {
       icon: workspace.icon,
       description: workspace.description,
       ownerId: workspace.ownerId,
-      inviteCode: workspace.inviteCode,
+      ...(canManage ? { inviteCode: workspace.inviteCode } : {}),
       role: membership.role,
       memberCount: members.length,
       createdAt: workspace.createdAt,

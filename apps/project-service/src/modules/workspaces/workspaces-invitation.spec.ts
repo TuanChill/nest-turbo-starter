@@ -48,6 +48,7 @@ describe('WorkspacesService invitations', () => {
       name: 'Acme',
       slug: 'acme',
       ownerId: 'owner-1',
+      inviteCode: 'CIR-SECRET',
     };
     const invitation = {
       workspaceId: workspace.id,
@@ -80,6 +81,7 @@ describe('WorkspacesService invitations', () => {
     const result = await service.join({ invitationToken: 'secret-token' }, 'member-1');
 
     expect(result).toEqual(expect.objectContaining({ id: workspace.id, role: 'Member' }));
+    expect(result.inviteCode).toBeUndefined();
     expect(invitation.acceptedAt).toEqual(expect.any(Date));
     expect(persisted).toEqual(
       expect.arrayContaining([
