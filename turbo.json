@@ -54,6 +54,7 @@
   },
   "globalDependencies": [".env", "tsconfig.json"],
   "globalEnv": [
+    "CIRCLE_BUILD_REVISION",
     "TZ",
     "NODE_ENV",
     "FRONTEND_URL",

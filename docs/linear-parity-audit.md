@@ -26,6 +26,7 @@ Reference set: [Linear Docs](https://linear.app/docs), [Projects](https://linear
 - Template instantiation must be atomic and must remap every cloned issue relationship.
 - Unsupported source references must fail before creating records, or the entire transaction must roll back.
 - Every feature slice must pass local checks, CI, deployment and post-deploy browser verification.
+- Frontend deployment revision is a Turbo global environment input, so a changed web source cannot be hidden by a persisted Next/Turbo build cache.
 
 ## Additional P0 fixes in progress (2026-09-15)
 
