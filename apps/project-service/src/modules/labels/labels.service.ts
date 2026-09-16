@@ -14,8 +14,11 @@ import {
   LabelScope,
   ProjectLabel,
   Team,
+  TeamMember,
   Workspace,
+  WorkspaceMember,
 } from '../../data-access';
+import { canManageTeamRole, canManageWorkspaceRole } from '../access-control';
 import { requireWorkspaceSelection } from '../workspaces/workspace-selection';
 import { WorkspacesService } from '../workspaces/workspaces.service';
 
@@ -122,6 +125,40 @@ export class LabelsService {
     }
   }
 
+  private async assertLabelManager(
+    memberId: string,
+    workspaceId: string,
+    teamId?: string,
+  ) {
+    const workspace = await this.em.findOne(Workspace, { id: workspaceId });
+    if (!workspace) throw new NotFoundException(`Workspace ${workspaceId} not found`);
+
+    if (teamId) {
+      const team = await this.em.findOne(Team, { id: teamId });
+      const [workspaceMembership, teamMembership] = await Promise.all([
+        this.em.findOne(WorkspaceMember, { workspaceId, memberId }),
+        this.em.findOne(TeamMember, { teamId, memberId }),
+      ]);
+      if (
+        !team ||
+        team.workspaceId !== workspaceId ||
+        (!canManageTeamRole(workspaceMembership?.role, teamMembership?.role) &&
+          workspace.ownerId !== memberId)
+      ) {
+        throw new NotFoundException(`Label team ${teamId} not found`);
+      }
+      return;
+    }
+
+    const membership = await this.em.findOne(WorkspaceMember, {
+      workspaceId,
+      memberId,
+    });
+    if (workspace.ownerId !== memberId && !canManageWorkspaceRole(membership?.role)) {
+      throw new NotFoundException(`Workspace ${workspaceId} not found`);
+    }
+  }
+
   async findOne(id: string, memberId: string) {
     const workspaceIds = await this.getAccessibleWorkspaceIds(memberId);
     const label = await this.em.findOne(Label, {
@@ -135,6 +172,7 @@ export class LabelsService {
   async create(dto: CreateLabelDto, memberId: string) {
     const workspaceId = await this.resolveWorkspaceId(memberId, dto.workspaceId);
     const teamId = await this.validateTeamId(dto.teamId, workspaceId, memberId);
+    await this.assertLabelManager(memberId, workspaceId, teamId);
     const name = dto.name.trim();
     const scope = dto.scope ?? 'both';
     const labels = await this.em.find(Label, { workspaceId });
@@ -163,13 +201,15 @@ export class LabelsService {
     });
     if (!label) throw new NotFoundException(`Label ${id} not found`);
 
+    await this.assertLabelManager(memberId, label.workspaceId, label.teamId);
+
     const name = dto.name?.trim() ?? label.name;
     const scope = dto.scope ?? label.scope;
-    const teamId = await this.validateTeamId(
-      dto.teamId === null ? undefined : (dto.teamId ?? label.teamId),
-      label.workspaceId,
-      memberId,
-    );
+    const nextTeamId = dto.teamId === null ? undefined : (dto.teamId ?? label.teamId);
+    const teamId = await this.validateTeamId(nextTeamId, label.workspaceId, memberId);
+    if (teamId !== label.teamId) {
+      await this.assertLabelManager(memberId, label.workspaceId, teamId);
+    }
     const labels = await this.em.find(Label, {
       id: { $ne: id },
       workspaceId: label.workspaceId,
@@ -196,6 +236,7 @@ export class LabelsService {
       id,
       workspaceId: { $in: workspaceIds },
     });
+    if (label) await this.assertLabelManager(memberId, label.workspaceId, label.teamId);
     if (label) {
       const [issueLinks, projectLinks] = await Promise.all([
         this.em.find(IssueLabel, { labelId: id }),
@@ -210,6 +251,7 @@ export class LabelsService {
 
   async createGroup(dto: CreateLabelGroupDto, memberId: string) {
     const workspaceId = await this.resolveWorkspaceId(memberId, dto.workspaceId);
+    await this.assertLabelManager(memberId, workspaceId);
     const name = dto.name.trim();
     const scope = dto.scope ?? 'issue';
     const duplicate = await this.em.findOne(LabelGroup, {
@@ -237,6 +279,8 @@ export class LabelsService {
       workspaceId: { $in: workspaceIds },
     });
     if (!group) throw new NotFoundException(`Label group ${id} not found`);
+
+    await this.assertLabelManager(memberId, group.workspaceId);
 
     const name = dto.name?.trim() ?? group.name;
     const scope = dto.scope ?? group.scope;
@@ -269,6 +313,7 @@ export class LabelsService {
       workspaceId: { $in: workspaceIds },
     });
     if (!group) throw new NotFoundException(`Label group ${id} not found`);
+    await this.assertLabelManager(memberId, group.workspaceId);
     const labels = await this.em.find(Label, { groupId: id });
     if (labels.length > 0) {
       throw new ConflictException('Move or ungroup labels before deleting this group');

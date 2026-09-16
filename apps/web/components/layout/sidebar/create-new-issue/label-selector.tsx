@@ -83,6 +83,7 @@ export function LabelSelector({
             name,
             color: '#8b5cf6',
             scope,
+            ...(teamId ? { teamId } : {}),
          });
          onChange([...selectedLabels, created]);
          setSearch('');
