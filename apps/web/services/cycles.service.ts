@@ -1,5 +1,7 @@
 import { apiClient } from './api-client';
 
+const GATEWAY_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:9080';
+
 export type CycleStatus = 'planned' | 'upcoming' | 'current' | 'completed';
 export interface CycleBurnupPoint {
    date: string;
@@ -37,6 +39,14 @@ export interface CycleSettings {
    autoAddActiveIssues: boolean;
 }
 
+export interface CycleCalendarSubscription {
+   teamId: string;
+   subscribed: boolean;
+   feedPath?: string;
+   feedUrl?: string;
+   createdAt?: string;
+}
+
 export const cyclesService = {
    async getCycles(teamId?: string): Promise<Cycle[]> {
       const query = teamId ? `?teamId=${encodeURIComponent(teamId)}` : '';
@@ -67,6 +77,34 @@ export const cyclesService = {
             method: 'PATCH',
             body: JSON.stringify(payload),
          }
+      );
+   },
+
+   async getCalendarSubscription(teamId: string): Promise<CycleCalendarSubscription> {
+      const subscription = await apiClient<CycleCalendarSubscription>(
+         `/circle/api/cycles/calendar-subscription?teamId=${encodeURIComponent(teamId)}`
+      );
+      return {
+         ...subscription,
+         feedUrl: subscription.feedPath ? `${GATEWAY_URL}${subscription.feedPath}` : undefined,
+      };
+   },
+
+   async subscribeCalendar(teamId: string): Promise<CycleCalendarSubscription> {
+      const subscription = await apiClient<CycleCalendarSubscription>(
+         `/circle/api/cycles/calendar-subscription?teamId=${encodeURIComponent(teamId)}`,
+         { method: 'POST' }
+      );
+      return {
+         ...subscription,
+         feedUrl: subscription.feedPath ? `${GATEWAY_URL}${subscription.feedPath}` : undefined,
+      };
+   },
+
+   async unsubscribeCalendar(teamId: string): Promise<CycleCalendarSubscription> {
+      return apiClient<CycleCalendarSubscription>(
+         `/circle/api/cycles/calendar-subscription?teamId=${encodeURIComponent(teamId)}`,
+         { method: 'DELETE' }
       );
    },
 

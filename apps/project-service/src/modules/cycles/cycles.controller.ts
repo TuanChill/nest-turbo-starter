@@ -1,5 +1,15 @@
-import { User } from '@app/common';
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Public, User } from '@app/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Header,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { CyclesService } from './cycles.service';
 import { CreateCycleDto, UpdateCycleDto, UpdateCycleSettingsDto } from './dto/cycle.dto';
@@ -30,6 +40,33 @@ export class CyclesController {
     @User('id') memberId: string,
   ) {
     return this.cyclesService.updateSettings(teamId, dto, memberId);
+  }
+
+  @ApiOperation({ summary: 'Get the authenticated member cycle calendar subscription' })
+  @Get('calendar-subscription')
+  calendarSubscription(@Query('teamId') teamId: string, @User('id') memberId: string) {
+    return this.cyclesService.getCalendarSubscription(teamId, memberId);
+  }
+
+  @ApiOperation({ summary: 'Create or rotate a cycle calendar subscription' })
+  @Post('calendar-subscription')
+  subscribeCalendar(@Query('teamId') teamId: string, @User('id') memberId: string) {
+    return this.cyclesService.subscribeCalendar(teamId, memberId);
+  }
+
+  @ApiOperation({ summary: 'Revoke a cycle calendar subscription' })
+  @Delete('calendar-subscription')
+  unsubscribeCalendar(@Query('teamId') teamId: string, @User('id') memberId: string) {
+    return this.cyclesService.unsubscribeCalendar(teamId, memberId);
+  }
+
+  @Public()
+  @ApiOperation({ summary: 'Public tokenized cycle calendar feed' })
+  @Header('Content-Type', 'text/calendar; charset=utf-8')
+  @Header('Cache-Control', 'private, max-age=300')
+  @Get('calendar/:token.ics')
+  calendarFeed(@Param('token') token: string) {
+    return this.cyclesService.calendarFeed(token);
   }
 
   @ApiOperation({ summary: 'Get cycle by ID' })

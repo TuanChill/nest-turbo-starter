@@ -3,6 +3,7 @@
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { useTeams } from '@/hooks/queries/use-teams-query';
 import { CreateCycleDialog } from '@/components/common/cycles/create-cycle-dialog';
+import { CycleCalendarSubscriptionDialog } from '@/components/common/cycles/cycle-calendar-subscription-dialog';
 import { ChevronRight, Star } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
@@ -40,6 +41,7 @@ export default function HeaderNav() {
             <Star className="size-3.5 text-muted-foreground shrink-0 ml-1" />
          </div>
          <div className="flex items-center gap-2">
+            <CycleCalendarSubscriptionDialog teamId={team.id} />
             <CreateCycleDialog teamId={team.id} />
          </div>
       </div>

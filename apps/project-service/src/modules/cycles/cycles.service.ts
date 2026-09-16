@@ -1,7 +1,18 @@
 import { EntityManager } from '@mikro-orm/core';
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import { v7 } from 'uuid';
 import { allocateCycleId, allocateCycleNumber } from './cycle-allocation';
+import {
+  buildCycleCalendarFeed,
+  createCalendarToken,
+  decryptCalendarToken,
+  hashCalendarToken,
+} from './cycle-calendar';
 import { estimateCycleCapacity } from './cycle-capacity';
 import {
   calculateIdealProgress,
@@ -21,6 +32,7 @@ import {
 import { CreateCycleDto, UpdateCycleDto, UpdateCycleSettingsDto } from './dto/cycle.dto';
 import {
   Cycle,
+  CycleCalendarSubscription,
   CycleHistory,
   CycleSettings,
   Issue,
@@ -55,6 +67,78 @@ export class CyclesService {
       upcomingCycleCount: settings.upcomingCycleCount,
       autoAddActiveIssues: settings.autoAddActiveIssues,
     };
+  }
+
+  private calendarFeedPath(token: string) {
+    return `/circle/api/cycles/calendar/${encodeURIComponent(token)}.ics`;
+  }
+
+  private serializeCalendarSubscription(
+    teamId: string,
+    subscription?: CycleCalendarSubscription | null,
+  ) {
+    if (!subscription) return { teamId, subscribed: false };
+
+    try {
+      const token = decryptCalendarToken(subscription.tokenCiphertext);
+      return {
+        teamId,
+        subscribed: true,
+        feedPath: this.calendarFeedPath(token),
+        createdAt: subscription.createdAt.toISOString(),
+      };
+    } catch {
+      throw new InternalServerErrorException(
+        'Cycle calendar subscription is unavailable',
+      );
+    }
+  }
+
+  async getCalendarSubscription(teamId: string, memberId: string) {
+    await this.assertTeamAccess(teamId, memberId);
+    const subscription = await this.em.findOne(CycleCalendarSubscription, { teamId });
+    return this.serializeCalendarSubscription(teamId, subscription);
+  }
+
+  async subscribeCalendar(teamId: string, memberId: string) {
+    await this.assertTeamAccess(teamId, memberId);
+    const tokenData = createCalendarToken();
+    let subscription = await this.em.findOne(CycleCalendarSubscription, { teamId });
+    if (!subscription) {
+      subscription = new CycleCalendarSubscription({ teamId, ...tokenData });
+      this.em.persist(subscription);
+    } else {
+      Object.assign(subscription, tokenData);
+    }
+    await this.em.flush();
+    return this.serializeCalendarSubscription(teamId, subscription);
+  }
+
+  async unsubscribeCalendar(teamId: string, memberId: string) {
+    await this.assertTeamAccess(teamId, memberId);
+    const subscription = await this.em.findOne(CycleCalendarSubscription, { teamId });
+    if (subscription) {
+      this.em.remove(subscription);
+      await this.em.flush();
+    }
+    return { teamId, subscribed: false };
+  }
+
+  async calendarFeed(token: string) {
+    const subscription = await this.em.findOne(CycleCalendarSubscription, {
+      tokenHash: hashCalendarToken(token),
+    });
+    if (!subscription) throw new NotFoundException('Cycle calendar feed not found');
+
+    const team = await this.em.findOne(Team, { id: subscription.teamId });
+    if (!team) throw new NotFoundException('Cycle calendar feed not found');
+
+    const cycles = await this.em.find(
+      Cycle,
+      { teamId: subscription.teamId },
+      { orderBy: { startDate: 'ASC' } },
+    );
+    return buildCycleCalendarFeed(team.name, cycles);
   }
 
   private async ensureUpcomingCycles(teamId: string, settings: CycleSettings) {

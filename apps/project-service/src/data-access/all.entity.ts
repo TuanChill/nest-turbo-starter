@@ -1,4 +1,5 @@
 import { FileAttachment } from './attachment/file-attachment.entity';
+import { CycleCalendarSubscription } from './cycle/cycle-calendar-subscription.entity';
 import { CycleHistory } from './cycle/cycle-history.entity';
 import { CycleSettings } from './cycle/cycle-settings.entity';
 import { Cycle } from './cycle/cycle.entity';
@@ -66,6 +67,7 @@ export const ALL_ENTITIES = [
   Cycle,
   CycleHistory,
   CycleSettings,
+  CycleCalendarSubscription,
   FileAttachment,
   Issue,
   IssueSubscription,

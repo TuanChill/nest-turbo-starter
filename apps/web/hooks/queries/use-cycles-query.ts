@@ -1,5 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { cyclesService, Cycle, CycleSettings } from '@/services/cycles.service';
+import {
+   cyclesService,
+   Cycle,
+   CycleCalendarSubscription,
+   CycleSettings,
+} from '@/services/cycles.service';
 import { cycleKeys } from './keys';
 import { toast } from 'sonner';
 
@@ -45,6 +50,44 @@ export function useUpdateCycleSettings() {
       },
       onError: (error: Error) => {
          toast.error(error.message || 'Failed to update cycle settings');
+      },
+   });
+}
+
+export function useCycleCalendarSubscription(teamId: string, enabled = true) {
+   return useQuery({
+      queryKey: cycleKeys.calendarSubscription(teamId),
+      queryFn: () => cyclesService.getCalendarSubscription(teamId),
+      enabled: Boolean(teamId) && enabled,
+   });
+}
+
+export function useSubscribeCycleCalendar() {
+   const queryClient = useQueryClient();
+
+   return useMutation({
+      mutationFn: (teamId: string) => cyclesService.subscribeCalendar(teamId),
+      onSuccess: (subscription: CycleCalendarSubscription, teamId) => {
+         queryClient.setQueryData(cycleKeys.calendarSubscription(teamId), subscription);
+         toast.success('Cycle calendar subscription created');
+      },
+      onError: (error: Error) => {
+         toast.error(error.message || 'Failed to create cycle calendar subscription');
+      },
+   });
+}
+
+export function useUnsubscribeCycleCalendar() {
+   const queryClient = useQueryClient();
+
+   return useMutation({
+      mutationFn: (teamId: string) => cyclesService.unsubscribeCalendar(teamId),
+      onSuccess: (subscription: CycleCalendarSubscription, teamId) => {
+         queryClient.setQueryData(cycleKeys.calendarSubscription(teamId), subscription);
+         toast.success('Cycle calendar subscription revoked');
+      },
+      onError: (error: Error) => {
+         toast.error(error.message || 'Failed to revoke cycle calendar subscription');
       },
    });
 }
