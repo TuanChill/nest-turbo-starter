@@ -1,6 +1,12 @@
 import type { EntityManager } from '@mikro-orm/core';
 import { IssuesService } from './issues.service';
-import { IssueSubscription, Team, TeamMember, WorkspaceMember } from '../../data-access';
+import {
+  IssueSubscription,
+  Notification,
+  Team,
+  TeamMember,
+  WorkspaceMember,
+} from '../../data-access';
 
 jest.mock('@mikro-orm/core', () => ({
   EntityManager: class MockEntityManager {},
@@ -8,6 +14,11 @@ jest.mock('@mikro-orm/core', () => ({
 
 jest.mock('../../data-access', () => ({
   IssueSubscription: class MockIssueSubscription {},
+  Notification: class MockNotification {
+    constructor(partial?: Record<string, unknown>) {
+      Object.assign(this, partial);
+    }
+  },
   Team: class MockTeam {},
   TeamMember: class MockTeamMember {},
   WorkspaceMember: class MockWorkspaceMember {},
@@ -46,5 +57,39 @@ describe('IssuesService notification scope', () => {
         'member-actor',
       ),
     ).resolves.toEqual(['member-subscriber']);
+  });
+
+  it('reopens snoozed inbox items before persisting new issue activity notifications', async () => {
+    const persisted: unknown[] = [];
+    const em = {
+      nativeUpdate: jest.fn(async () => 2),
+      persist: jest.fn((entity: unknown) => persisted.push(entity)),
+    } as unknown as EntityManager;
+    const service = new IssuesService(em, {} as never);
+
+    await (
+      service as unknown as {
+        notifyMany: (
+          issueIdentifier: string,
+          actorId: string,
+          recipientIds: Iterable<string>,
+          type: string,
+          content: string,
+        ) => Promise<void>;
+      }
+    ).notifyMany(
+      'ENG-1',
+      'actor-1',
+      ['member-1', 'member-1', 'actor-1', 'member-2'],
+      'comment',
+      'A new comment was added',
+    );
+
+    expect(em.nativeUpdate).toHaveBeenCalledWith(
+      Notification,
+      { issueIdentifier: 'ENG-1', userId: { $in: ['member-1', 'member-2'] } },
+      { snoozedUntil: null },
+    );
+    expect(persisted).toHaveLength(2);
   });
 });

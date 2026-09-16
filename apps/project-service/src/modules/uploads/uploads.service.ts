@@ -91,6 +91,25 @@ export class UploadsService {
 
   private async assertAttachmentAccess(memberId: string, attachment: FileAttachment) {
     const accessibleTeamIds = await this.workspacesService.getAccessibleTeamIds(memberId);
+    const attachmentTeam = await this.em.findOne(Team, { id: attachment.teamId });
+    if (!attachmentTeam || attachmentTeam.workspaceId !== attachment.workspaceId) {
+      throw new NotFoundException(`Upload ${attachment.id} not found`);
+    }
+
+    if (attachment.issueIdentifier) {
+      const issue = await this.em.findOne(Issue, {
+        identifier: attachment.issueIdentifier,
+      });
+      if (
+        !issue ||
+        issue.teamId !== attachmentTeam.id ||
+        !accessibleTeamIds.includes(attachmentTeam.id)
+      ) {
+        throw new NotFoundException(`Upload ${attachment.id} not found`);
+      }
+      return;
+    }
+
     if (attachment.projectId) {
       const project = await this.em.findOne(Project, { id: attachment.projectId });
       if (!project) throw new NotFoundException(`Upload ${attachment.id} not found`);
@@ -110,7 +129,8 @@ export class UploadsService {
       }
       return;
     }
-    if (!accessibleTeamIds.includes(attachment.teamId)) {
+
+    if (!accessibleTeamIds.includes(attachmentTeam.id)) {
       throw new NotFoundException(`Upload ${attachment.id} not found`);
     }
   }

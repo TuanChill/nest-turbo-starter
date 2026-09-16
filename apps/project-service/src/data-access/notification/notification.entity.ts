@@ -38,7 +38,7 @@ export class Notification {
   read: boolean;
 
   @Property({ type: 'timestamp with time zone', nullable: true })
-  snoozedUntil?: Date;
+  snoozedUntil?: Date | null;
 
   @Property({ type: 'timestamp with time zone', onCreate: () => new Date() })
   createdAt: Date = new Date();

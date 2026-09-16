@@ -139,7 +139,11 @@ describe('UploadsService', () => {
 
   it('allows project attachment access through any accessible project team', async () => {
     workspacesService.getAccessibleTeamIds.mockResolvedValue(['team-b']);
-    em.findOne.mockResolvedValue(new Project({ id: 'project-1', teamId: 'team-a' }));
+    em.findOne.mockImplementation(async (entity: unknown) => {
+      if (entity === Project) return new Project({ id: 'project-1', teamId: 'team-a' });
+      if (entity === Team) return new Team({ id: 'team-a', workspaceId: 'ws-a' });
+      return null;
+    });
     em.find.mockImplementation(async (entity: unknown) => {
       if (entity === ProjectTeam)
         return [new ProjectTeam({ projectId: 'project-1', teamId: 'team-b' })];
@@ -258,7 +262,11 @@ describe('UploadsService', () => {
       fileKey: 'workspaces/ws-a/attachments/x.txt',
       fileUrl: 'https://storage.test/x.txt',
     });
-    em.findOne.mockResolvedValue(attachment);
+    em.findOne.mockImplementation(async (entity: unknown) =>
+      entity === FileAttachment
+        ? attachment
+        : new Team({ id: 'team-a', workspaceId: 'ws-a' }),
+    );
     s3Service.assertObjectExists.mockRejectedValue(new Error('not found'));
     const service = new UploadsService(
       em as any,
@@ -277,13 +285,18 @@ describe('UploadsService', () => {
     workspacesService.getAccessibleTeamIds.mockResolvedValue(['team-a']);
     const attachment = new FileAttachment({
       id: 'attachment-1',
+      workspaceId: 'ws-a',
       teamId: 'team-a',
       fileName: 'design.png',
       contentType: 'image/png',
       fileKey: 'workspaces/ws-a/attachments/design.png',
       status: 'completed',
     });
-    em.findOne.mockResolvedValue(attachment);
+    em.findOne.mockImplementation(async (entity: unknown) =>
+      entity === FileAttachment
+        ? attachment
+        : new Team({ id: 'team-a', workspaceId: 'ws-a' }),
+    );
     s3Service.getPresignedDownloadUrl.mockResolvedValue('https://storage.test/download');
     const service = new UploadsService(
       em as any,
@@ -304,6 +317,32 @@ describe('UploadsService', () => {
   it('does not create a download URL for pending attachments', async () => {
     em.findOne.mockResolvedValue(
       new FileAttachment({ id: 'attachment-1', status: 'pending' }),
+    );
+    const service = new UploadsService(
+      em as any,
+      workspacesService as any,
+      s3Service as any,
+    );
+
+    await expect(service.getDownloadUrl('attachment-1', 'member-1')).rejects.toThrow(
+      NotFoundException,
+    );
+    expect(s3Service.getPresignedDownloadUrl).not.toHaveBeenCalled();
+  });
+
+  it('rejects an issue attachment whose workspace does not match its team', async () => {
+    workspacesService.getAccessibleTeamIds.mockResolvedValue(['team-a']);
+    const attachment = new FileAttachment({
+      id: 'attachment-1',
+      workspaceId: 'ws-other',
+      teamId: 'team-a',
+      issueIdentifier: 'ENG-1',
+      status: 'completed',
+    });
+    em.findOne.mockImplementation(async (entity: unknown) =>
+      entity === FileAttachment
+        ? attachment
+        : new Team({ id: 'team-a', workspaceId: 'ws-a' }),
     );
     const service = new UploadsService(
       em as any,

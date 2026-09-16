@@ -280,18 +280,28 @@ export class IssuesService {
     );
   }
 
-  /** Persists one Notification per recipient (deduped, self-notify excluded). Caller flushes. */
-  private notifyMany(
+  /** Persists one Notification per recipient and reopens snoozed issue inbox items. */
+  private async notifyMany(
     issueIdentifier: string,
     actorId: string,
     recipientIds: Iterable<string>,
     type: Notification['type'],
     content: string,
-  ) {
+  ): Promise<void> {
     const seen = new Set<string>();
-    for (const userId of recipientIds) {
-      if (!userId || userId === actorId || seen.has(userId)) continue;
+    const recipients = [...recipientIds].filter((userId) => {
+      if (!userId || userId === actorId || seen.has(userId)) return false;
       seen.add(userId);
+      return true;
+    });
+    if (recipients.length === 0) return;
+
+    await this.em.nativeUpdate(
+      Notification,
+      { issueIdentifier, userId: { $in: recipients } },
+      { snoozedUntil: null },
+    );
+    for (const userId of recipients) {
       this.em.persist(
         new Notification({
           id: v7(),
@@ -1273,7 +1283,7 @@ export class IssuesService {
 
     if (dto.assigneeId && dto.assigneeId !== actorId) {
       const actor = await this.em.findOne(Member, { id: actorId });
-      this.notifyMany(
+      await this.notifyMany(
         identifier,
         actorId,
         [dto.assigneeId],
@@ -1445,7 +1455,7 @@ export class IssuesService {
 
         const name = await getActorName();
         const statusRecipients = await this.resolveRecipients(issue, actorId);
-        this.notifyMany(
+        await this.notifyMany(
           issue.identifier,
           actorId,
           statusRecipients,
@@ -1467,7 +1477,7 @@ export class IssuesService {
         });
         this.em.persist(act);
         const priorityRecipients = await this.resolveRecipients(issue, actorId);
-        this.notifyMany(
+        await this.notifyMany(
           issue.identifier,
           actorId,
           priorityRecipients,
@@ -1509,7 +1519,7 @@ export class IssuesService {
       if (dto.assigneeId && dto.assigneeId !== previousAssigneeId) {
         await this.ensureSubscription(issue.identifier, dto.assigneeId);
         const name = await getActorName();
-        this.notifyMany(
+        await this.notifyMany(
           issue.identifier,
           actorId,
           [dto.assigneeId],
@@ -1707,14 +1717,14 @@ export class IssuesService {
     );
     const commentRecipients = await this.resolveRecipients(issue, actorId);
 
-    this.notifyMany(
+    await this.notifyMany(
       issue.identifier,
       actorId,
       commentRecipients.filter((id) => !mentionedIds.has(id)),
       'comment',
       `${actorName} commented on "${issue.title}"`,
     );
-    this.notifyMany(
+    await this.notifyMany(
       issue.identifier,
       actorId,
       mentionedIds,
