@@ -35,7 +35,11 @@ ENV NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL}
 # Include the deployed revision in the build environment so a persisted Next
 # incremental cache can never serve stale application code after a deploy.
 ENV CIRCLE_BUILD_REVISION=${CIRCLE_BUILD_REVISION}
+# The production host persists this cache across image builds. Clear it before
+# every release so a changed client module cannot be served from an old Next
+# incremental graph even when the Docker layer and revision env are fresh.
 RUN --mount=type=cache,id=next-cache,target=/work/apps/web/.next/cache \
+    rm -rf /work/apps/web/.next/cache/* && \
     pnpm exec turbo run build --filter=web
 
 FROM base AS runner
