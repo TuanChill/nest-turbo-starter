@@ -2,6 +2,7 @@ import { EntityManager } from '@mikro-orm/core';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { v7 } from 'uuid';
 import { allocateCycleId, allocateCycleNumber } from './cycle-allocation';
+import { estimateCycleCapacity } from './cycle-capacity';
 import {
   calculateIdealProgress,
   mergeCycleBurnup,
@@ -18,7 +19,7 @@ import {
   nextStartOnWeekday,
 } from './cycle-settings';
 import { CreateCycleDto, UpdateCycleDto, UpdateCycleSettingsDto } from './dto/cycle.dto';
-import { Cycle, CycleHistory, CycleSettings, Issue } from '../../data-access';
+import { Cycle, CycleHistory, CycleSettings, Issue, TeamMember } from '../../data-access';
 import { WorkspacesService } from '../workspaces/workspaces.service';
 
 @Injectable()
@@ -241,7 +242,7 @@ export class CyclesService {
     );
   }
 
-  private async enrichCycle(cycle: Cycle) {
+  private async enrichCycle(cycle: Cycle, capacity = cycle.capacity) {
     const issues = await this.em.find(Issue, cycleIssueWhere(cycle.id, cycle.teamId));
     // Scope and progress are derived from the persisted issues. Stored seed counters
     // must never make an empty cycle look like it contains work.
@@ -267,7 +268,7 @@ export class CyclesService {
       status: cycle.status,
       startDate: startDateStr,
       endDate: endDateStr,
-      capacity: cycle.capacity,
+      capacity,
       scope: totalScope,
       scopeDelta: cycle.scopeDelta,
       started: startedCount,
@@ -287,6 +288,51 @@ export class CyclesService {
     const issues = await this.em.find(Issue, cycleIssueWhere(cycle.id, cycle.teamId));
     await this.recordSnapshot(cycle, deriveCycleProgress(issues));
     return this.getHistoricalBurnup(cycle);
+  }
+
+  private async deriveCapacityByCycle(cycles: Cycle[]) {
+    if (cycles.length === 0) return new Map<string, number>();
+
+    const cycleIds = cycles.map((cycle) => cycle.id);
+    const teamIds = [...new Set(cycles.map((cycle) => cycle.teamId))];
+    const issues = await this.em.find(Issue, {
+      teamId: { $in: teamIds },
+      cycleId: { $in: cycleIds },
+    });
+    const teamMembers = await this.em.find(TeamMember, { teamId: { $in: teamIds } });
+    const scopeByCycle = new Map<string, number>();
+    for (const issue of issues) {
+      if (issue.cycleId) {
+        scopeByCycle.set(issue.cycleId, (scopeByCycle.get(issue.cycleId) ?? 0) + 1);
+      }
+    }
+    const membersByTeam = new Map<string, number>();
+    for (const member of teamMembers) {
+      membersByTeam.set(member.teamId, (membersByTeam.get(member.teamId) ?? 0) + 1);
+    }
+
+    const capacityByCycle = new Map<string, number>();
+    for (const cycle of cycles) {
+      const previousCompletedScopes = cycles
+        .filter(
+          (candidate) =>
+            candidate.teamId === cycle.teamId &&
+            candidate.status === 'completed' &&
+            candidate.endDate < cycle.startDate,
+        )
+        .sort((a, b) => b.endDate.getTime() - a.endDate.getTime())
+        .slice(0, 3)
+        .map((candidate) => scopeByCycle.get(candidate.id) ?? 0);
+      capacityByCycle.set(
+        cycle.id,
+        estimateCycleCapacity(
+          scopeByCycle.get(cycle.id) ?? 0,
+          previousCompletedScopes,
+          membersByTeam.get(cycle.teamId) ?? 0,
+        ),
+      );
+    }
+    return capacityByCycle;
   }
 
   async findAll(memberId: string, teamId?: string) {
@@ -314,7 +360,11 @@ export class CyclesService {
       orderBy: { number: 'DESC' },
     });
 
-    return Promise.all(cycles.map((c) => this.enrichCycle(c)));
+    const capacityByCycle = await this.deriveCapacityByCycle(cycles);
+
+    return Promise.all(
+      cycles.map((c) => this.enrichCycle(c, capacityByCycle.get(c.id) ?? 0)),
+    );
   }
 
   async getSettings(teamId: string, memberId: string) {
@@ -377,7 +427,9 @@ export class CyclesService {
         throw new NotFoundException(`Cycle ${id} not found`);
       }
     }
-    return this.enrichCycle(cycle);
+    const teamCycles = await this.em.find(Cycle, { teamId: cycle.teamId });
+    const capacityByCycle = await this.deriveCapacityByCycle(teamCycles);
+    return this.enrichCycle(cycle, capacityByCycle.get(cycle.id) ?? 0);
   }
 
   async create(dto: CreateCycleDto, memberId: string) {
@@ -414,7 +466,8 @@ export class CyclesService {
       status: dto.status,
       startDate,
       endDate,
-      capacity: dto.capacity || 0,
+      // Capacity is derived from persisted cycle scope and team velocity.
+      capacity: 0,
       scope: 0,
       scopeDelta: 0,
       started: 0,
@@ -447,8 +500,6 @@ export class CyclesService {
     }
     cycle.startDate = nextStartDate;
     cycle.endDate = nextEndDate;
-    if (dto.capacity !== undefined) cycle.capacity = dto.capacity;
-
     await this.em.flush();
     return this.findOne(id, memberId);
   }

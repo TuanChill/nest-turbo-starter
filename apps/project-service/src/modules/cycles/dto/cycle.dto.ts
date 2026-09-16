@@ -47,11 +47,6 @@ export class CreateCycleDto {
   @IsString()
   @IsNotEmpty()
   endDate: string;
-
-  @ApiPropertyOptional({ default: 0 })
-  @IsNumber()
-  @IsOptional()
-  capacity?: number;
 }
 
 export class UpdateCycleDto {
@@ -74,11 +69,6 @@ export class UpdateCycleDto {
   @IsString()
   @IsOptional()
   endDate?: string;
-
-  @ApiPropertyOptional()
-  @IsNumber()
-  @IsOptional()
-  capacity?: number;
 }
 
 export class UpdateCycleSettingsDto {

@@ -68,7 +68,6 @@ export function CreateCycleDialog({
    const [status, setStatus] = React.useState<CycleStatus>('planned');
    const [startDate, setStartDate] = React.useState(new Date().toISOString().split('T')[0]);
    const [endDate, setEndDate] = React.useState(addDaysIso(new Date(), 14));
-   const [capacity, setCapacity] = React.useState('0');
    const [isSubmitting, setIsSubmitting] = React.useState(false);
 
    const handleSubmit = async (e: React.FormEvent) => {
@@ -93,12 +92,10 @@ export function CreateCycleDialog({
             status,
             startDate,
             endDate,
-            capacity: Number(capacity) || 0,
          });
 
          setName('');
          setStatus('planned');
-         setCapacity('0');
          setOpen(false);
       } catch (err: unknown) {
          console.error('Failed to create cycle:', err);
@@ -177,41 +174,28 @@ export function CreateCycleDialog({
                      </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
-                     <div className="space-y-1.5">
-                        <Label className="text-xs font-medium">Status</Label>
-                        <Select
-                           value={status}
-                           onValueChange={(v) => setStatus(v as CycleStatus)}
-                           disabled={isSubmitting}
-                        >
-                           <SelectTrigger className="h-9 text-xs">
-                              <SelectValue />
-                           </SelectTrigger>
-                           <SelectContent className="bg-popover border-border/60">
-                              {STATUS_OPTIONS.map((s) => (
-                                 <SelectItem key={s.id} value={s.id} className="text-xs">
-                                    {s.name}
-                                 </SelectItem>
-                              ))}
-                           </SelectContent>
-                        </Select>
-                     </div>
-                     <div className="space-y-1.5">
-                        <Label htmlFor="cycle-capacity" className="text-xs font-medium">
-                           Capacity (%)
-                        </Label>
-                        <Input
-                           id="cycle-capacity"
-                           type="number"
-                           min={0}
-                           max={100}
-                           value={capacity}
-                           onChange={(e) => setCapacity(e.target.value)}
-                           disabled={isSubmitting}
-                           className="h-9 text-xs"
-                        />
-                     </div>
+                  <div className="space-y-1.5">
+                     <Label className="text-xs font-medium">Status</Label>
+                     <Select
+                        value={status}
+                        onValueChange={(v) => setStatus(v as CycleStatus)}
+                        disabled={isSubmitting}
+                     >
+                        <SelectTrigger className="h-9 text-xs">
+                           <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-popover border-border/60">
+                           {STATUS_OPTIONS.map((s) => (
+                              <SelectItem key={s.id} value={s.id} className="text-xs">
+                                 {s.name}
+                              </SelectItem>
+                           ))}
+                        </SelectContent>
+                     </Select>
+                     <p className="text-xs text-muted-foreground">
+                        Capacity is estimated from the team&apos;s previous completed cycles, or
+                        team size when no velocity history exists.
+                     </p>
                   </div>
                </div>
 

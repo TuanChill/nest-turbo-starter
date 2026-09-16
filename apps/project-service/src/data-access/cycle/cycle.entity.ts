@@ -29,6 +29,7 @@ export class Cycle {
   endDate: Date;
 
   @Property({ type: 'integer', default: 0 })
+  /** Legacy storage field; API capacity is derived from scope and velocity. */
   capacity: number;
 
   @Property({ type: 'integer', default: 0 })
