@@ -1,11 +1,9 @@
 'use client';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuthStore } from '@/store/auth-store';
-import { useMembers, useUpdateMember } from '@/hooks/queries/use-members-query';
-import { Pencil } from 'lucide-react';
+import { useUpdateMember } from '@/hooks/queries/use-members-query';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { SettingsCard, SettingsRow, SettingsSection, SettingsShell } from './shared';
@@ -14,9 +12,8 @@ import { SettingsCard, SettingsRow, SettingsSection, SettingsShell } from './sha
 export default function Profile() {
    const authUser = useAuthStore((s) => s.user);
    const setUser = useAuthStore((s) => s.setUser);
-   const { data: members = [] } = useMembers();
    const updateMember = useUpdateMember();
-   const me = authUser ?? members[0];
+   const me = authUser;
    const [name, setName] = useState(me?.name || '');
 
    useEffect(() => {
@@ -69,14 +66,8 @@ export default function Profile() {
                />
                <SettingsRow
                   title="Email"
-                  trailing={
-                     <span className="inline-flex items-center gap-2 text-foreground">
-                        {me.email}
-                        <Button size="icon" variant="ghost" className="size-6">
-                           <Pencil className="size-3" />
-                        </Button>
-                     </span>
-                  }
+                  description="Email changes are not configured in this deployment."
+                  trailing={<span className="text-foreground">{me.email}</span>}
                />
                <SettingsRow
                   title="Full name"
@@ -95,23 +86,13 @@ export default function Profile() {
                />
                <SettingsRow
                   title="Title"
-                  description="Your job title or role"
-                  trailing={<Input placeholder="Software engineer" className="h-8 w-44" />}
+                  description="Job-title persistence is not configured in this deployment."
+                  trailing={<span className="text-xs text-muted-foreground">Unavailable</span>}
                />
                <SettingsRow
                   title="Username"
-                  description="One word, like a nickname or first name"
-                  trailing={
-                     <Input
-                        defaultValue={
-                           ('username' in me
-                              ? (me as { username?: string }).username
-                              : undefined) ||
-                           (me.name ? me.name.toLowerCase().replace(/\s+/g, '') : 'ln')
-                        }
-                        className="h-8 w-44"
-                     />
-                  }
+                  description="Username persistence is not configured in this deployment."
+                  trailing={<span className="text-xs text-muted-foreground">Unavailable</span>}
                />
             </SettingsCard>
          </SettingsSection>
@@ -120,11 +101,8 @@ export default function Profile() {
             <SettingsCard>
                <SettingsRow
                   title="Remove yourself from workspace"
-                  trailing={
-                     <Button size="xs" variant="ghost" className="text-red-500 hover:text-red-500">
-                        Leave workspace
-                     </Button>
-                  }
+                  description="Workspace membership changes require an explicit membership contract."
+                  trailing={<span className="text-xs text-muted-foreground">Unavailable</span>}
                />
             </SettingsCard>
          </SettingsSection>
