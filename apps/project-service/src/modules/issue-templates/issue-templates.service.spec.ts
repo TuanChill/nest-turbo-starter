@@ -63,6 +63,7 @@ describe('IssueTemplatesService parent defaults', () => {
       workspaceRole: 'Owner',
       teamRole: 'member',
     },
+    hasTeamMembership = true,
   ) {
     const em = {
       findOne: jest.fn(async (entity: unknown, where?: Record<string, unknown>) => {
@@ -81,7 +82,7 @@ describe('IssueTemplatesService parent defaults', () => {
           };
         }
         if (entity === TeamMember) {
-          if (where?.memberId !== access.memberId) return null;
+          if (where?.memberId !== access.memberId || !hasTeamMembership) return null;
           return {
             teamId: parentTeamId,
             memberId: access.memberId,
@@ -209,6 +210,25 @@ describe('IssueTemplatesService parent defaults', () => {
         'member-1',
       ),
     ).rejects.toThrow('requires a configured project');
+    expect(em.persist).not.toHaveBeenCalled();
+    expect(em.flush).not.toHaveBeenCalled();
+  });
+
+  it('rejects a team-template assignee outside the configured team', async () => {
+    const { service, em } = buildService('team-a', undefined, false);
+
+    await expect(
+      service.create(
+        {
+          workspaceId: 'workspace-1',
+          name: 'Engineering template',
+          scope: 'team',
+          teamId: 'team-a',
+          config: { assigneeId: 'member-1' },
+        },
+        'member-1',
+      ),
+    ).rejects.toThrow('not a member of the target team');
     expect(em.persist).not.toHaveBeenCalled();
     expect(em.flush).not.toHaveBeenCalled();
   });

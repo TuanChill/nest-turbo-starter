@@ -140,16 +140,24 @@ export class IssueTemplatesService {
       await this.assertTeamAccess(parent.teamId, workspaceId, memberId);
     }
     if (config.assigneeId) {
-      const [assignee, workspaceMembership] = await Promise.all([
+      const [assignee, workspaceMembership, teamMembership] = await Promise.all([
         this.em.findOne(Member, { id: config.assigneeId }),
         this.em.findOne(WorkspaceMember, {
           workspaceId,
           memberId: config.assigneeId,
         }),
+        teamId
+          ? this.em.findOne(TeamMember, {
+              teamId,
+              memberId: config.assigneeId,
+            })
+          : Promise.resolve(null),
       ]);
-      if (!assignee || !workspaceMembership) {
+      if (!assignee || !workspaceMembership || (teamId && !teamMembership)) {
         throw new BadRequestException(
-          'The template assignee is not a member of the target workspace',
+          teamId
+            ? 'The template assignee is not a member of the target team'
+            : 'The template assignee is not a member of the target workspace',
         );
       }
     }
