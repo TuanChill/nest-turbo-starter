@@ -7,14 +7,7 @@ import {
 } from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
 import { OnboardingCompleteDto } from './dto/onboarding.dto';
-import {
-  Issue,
-  Member,
-  Team,
-  TeamMember,
-  Workspace,
-  WorkspaceMember,
-} from '../../data-access';
+import { Member, Team, TeamMember, Workspace, WorkspaceMember } from '../../data-access';
 import { SesMailerService } from '../email/ses-mailer.service';
 
 @Injectable()
@@ -70,7 +63,12 @@ export class OnboardingService {
     const rawSlug = dto.workspaceSlug
       ? this.slugify(dto.workspaceSlug)
       : this.slugify(dto.workspaceName);
-    let finalSlug = rawSlug || `workspace-${Math.floor(1000 + Math.random() * 9000)}`;
+    if (!rawSlug) {
+      throw new BadRequestException(
+        'Workspace name or slug must contain at least one alphanumeric character',
+      );
+    }
+    let finalSlug = rawSlug;
 
     let counter = 1;
     // oxlint-disable-next-line no-await-in-loop -- each candidate slug depends on the previous one being taken
@@ -146,31 +144,8 @@ export class OnboardingService {
     });
     this.em.persist(tm);
 
-    // 6. Create Welcome Issue
-    const issueId = `${finalTeamKey}-1`;
-    const welcomeIssue = new Issue({
-      id: issueId,
-      identifier: issueId,
-      title: 'Welcome to Circle! Explore your new workspace 👋',
-      description:
-        'This is your first issue created in your new team. You can edit this issue, organize cycles, or press C to create new issues.',
-      descriptionBlocks: [
-        {
-          id: uuidv4(),
-          type: 'paragraph',
-          text: 'This is your first issue created in your new team. You can organize cycles, invite teammates, or press C to create new issues.',
-        },
-      ],
-      statusId: 'to-do',
-      statusCategory: 'unstarted',
-      priorityId: 'medium',
-      assigneeId: member.id,
-      creatorId: member.id,
-      teamId: team.id,
-    });
-    this.em.persist(welcomeIssue);
-
-    // 7. Process Invited Teammate Emails if any
+    // Process invited teammate emails if any. Onboarding itself must not
+    // synthesize a welcome issue or any other fake production record.
     if (dto.inviteEmails && dto.inviteEmails.length > 0) {
       const cleanEmails = dto.inviteEmails
         .map((email) => email.trim().toLowerCase())
@@ -262,11 +237,6 @@ export class OnboardingService {
         color: team.color,
         joined: true,
         workspaceId: workspace.id,
-      },
-      welcomeIssue: {
-        id: welcomeIssue.id,
-        identifier: welcomeIssue.identifier,
-        title: welcomeIssue.title,
       },
     };
   }

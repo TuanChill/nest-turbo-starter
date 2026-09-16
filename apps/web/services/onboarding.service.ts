@@ -32,11 +32,6 @@ export interface OnboardingResponse {
       joined: boolean;
       workspaceId: string;
    };
-   welcomeIssue: {
-      id: string;
-      identifier: string;
-      title: string;
-   };
 }
 
 export const onboardingService = {
