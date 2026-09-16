@@ -55,6 +55,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { renderPriorityIcon } from '@/lib/priority-utils';
 import { projectStatus } from '@/lib/workflow-status';
 import { useParams } from 'next/navigation';
+import QueryErrorState from '@/components/common/query-error-state';
 
 interface CreateProjectDialogProps {
    trigger?: React.ReactNode;
@@ -108,15 +109,30 @@ export function CreateProjectDialog({
    const createProjectMutation = useCreateProject();
    const createFromTemplateMutation = useCreateProjectFromTemplate();
    const { orgId } = useParams<{ orgId: string }>();
-   const { data: workspaces = [] } = useWorkspaces();
+   const workspacesQuery = useWorkspaces();
+   const { data: workspaces = [] } = workspacesQuery;
    const resolvedWorkspaceId = workspaces.find(
       (workspace) => workspace.id === orgId || workspace.slug === orgId
    )?.id;
-   const { data: teams = [] } = useTeams();
-   const { data: members = [] } = useMembers();
-   const { data: initiatives = [] } = useInitiatives();
-   const { data: labels = [] } = useLabels('project');
-   const { data: templates = [] } = useProjectTemplates(resolvedWorkspaceId);
+   const teamsQuery = useTeams();
+   const membersQuery = useMembers();
+   const initiativesQuery = useInitiatives();
+   const labelsQuery = useLabels('project');
+   const templatesQuery = useProjectTemplates(resolvedWorkspaceId);
+   const { data: teams = [] } = teamsQuery;
+   const { data: members = [] } = membersQuery;
+   const { data: initiatives = [] } = initiativesQuery;
+   const { data: labels = [] } = labelsQuery;
+   const { data: templates = [] } = templatesQuery;
+   const optionQueries = [
+      workspacesQuery,
+      teamsQuery,
+      membersQuery,
+      initiativesQuery,
+      labelsQuery,
+      templatesQuery,
+   ];
+   const optionError = optionQueries.find((query) => query.isError)?.error;
 
    const [name, setName] = React.useState('');
    const [teamId, setTeamId] = React.useState(defaultTeamId ?? '');
@@ -290,6 +306,16 @@ export function CreateProjectDialog({
                      </div>
                   </div>
                </DialogHeader>
+
+               {optionError && (
+                  <QueryErrorState
+                     subject="project creation options"
+                     error={optionError}
+                     onRetry={() => {
+                        void Promise.all(optionQueries.map((query) => query.refetch()));
+                     }}
+                  />
+               )}
 
                <div className="p-5 space-y-4 max-h-[65vh] overflow-y-auto">
                   {/* Name and Team row */}
