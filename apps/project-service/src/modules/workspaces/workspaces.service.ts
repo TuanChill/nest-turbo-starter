@@ -12,7 +12,7 @@ import {
   WorkspaceInvitation,
   WorkspaceMember,
 } from '../../data-access';
-import { canAccessWorkspace } from '../access-control';
+import { canAccessWorkspace, canManageWorkspaceRole } from '../access-control';
 
 @Injectable()
 export class WorkspacesService {
@@ -123,6 +123,8 @@ export class WorkspacesService {
 
         // Include workspace ONLY if memberId is a member/owner, or if listing all without memberId filter
         if (!resolvedMemberId || currentMemberMembership || isOwner) {
+          const canManage =
+            isOwner || canManageWorkspaceRole(currentMemberMembership?.role);
           return {
             id: ws.id,
             name: ws.name,
@@ -130,7 +132,7 @@ export class WorkspacesService {
             icon: ws.icon,
             description: ws.description,
             ownerId: ws.ownerId,
-            inviteCode: ws.inviteCode,
+            ...(canManage ? { inviteCode: ws.inviteCode } : {}),
             memberCount: Math.max(members.length, 1),
             role: currentMemberMembership
               ? currentMemberMembership.role
@@ -193,14 +195,17 @@ export class WorkspacesService {
       throw new NotFoundException(`Workspace "${idOrSlug}" not found`);
     }
 
+    const canManage = isOwner || canManageWorkspaceRole(currentMemberMembership?.role);
+    const { inviteCode, ...workspaceData } = ws;
     return {
-      ...ws,
+      ...workspaceData,
       memberCount: members.length,
       role: currentMemberMembership
         ? currentMemberMembership.role
         : isOwner
           ? 'Owner'
           : 'Member',
+      ...(canManage ? { inviteCode } : {}),
     };
   }
 
@@ -252,6 +257,8 @@ export class WorkspacesService {
     this.em.persist(membership);
     await this.em.flush();
 
+    const canManage =
+      membership.role === 'Owner' || canManageWorkspaceRole(membership.role);
     return {
       id: workspace.id,
       name: workspace.name,
@@ -259,7 +266,7 @@ export class WorkspacesService {
       icon: workspace.icon,
       description: workspace.description,
       ownerId: workspace.ownerId,
-      inviteCode: workspace.inviteCode,
+      ...(canManage ? { inviteCode: workspace.inviteCode } : {}),
       role: 'Owner',
       memberCount: 1,
       createdAt: workspace.createdAt,
@@ -404,7 +411,10 @@ export class WorkspacesService {
       workspaceId: workspace.id,
       memberId: currentMemberId,
     });
-    if (!membership && workspace.ownerId !== currentMemberId) {
+    if (
+      workspace.ownerId !== currentMemberId &&
+      !canManageWorkspaceRole(membership?.role)
+    ) {
       throw new NotFoundException('Workspace not found');
     }
 

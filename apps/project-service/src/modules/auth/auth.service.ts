@@ -23,6 +23,7 @@ import {
   parseVerifiedGoogleTokenInfo,
 } from './google-profile';
 import { Member, TeamMember, Workspace, WorkspaceMember } from '../../data-access';
+import { canManageWorkspaceRole } from '../access-control';
 
 @Injectable()
 export class AuthService {
@@ -193,7 +194,9 @@ export class AuthService {
           icon: ws.icon,
           description: ws.description,
           role: membership.role,
-          inviteCode: ws.inviteCode,
+          ...(canManageWorkspaceRole(membership.role)
+            ? { inviteCode: ws.inviteCode }
+            : {}),
         };
       }
     }
@@ -362,7 +365,9 @@ export class AuthService {
               icon: ws.icon,
               description: ws.description,
               role: membership.role,
-              inviteCode: ws.inviteCode,
+              ...(canManageWorkspaceRole(membership.role)
+                ? { inviteCode: ws.inviteCode }
+                : {}),
             };
             isNewUser = false;
           }

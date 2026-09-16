@@ -1,7 +1,7 @@
 import type { EntityManager } from '@mikro-orm/core';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { WorkspacesService } from './workspaces.service';
-import { Team, TeamMember, Workspace, WorkspaceMember } from '../../data-access';
+import { Member, Team, TeamMember, Workspace, WorkspaceMember } from '../../data-access';
 
 jest.mock('@mikro-orm/core', () => ({ EntityManager: class MockEntityManager {} }));
 jest.mock('uuid', () => ({ v4: () => 'workspace-membership-id' }));
@@ -63,5 +63,61 @@ describe('WorkspacesService access graph', () => {
     );
     expect(em.findOne).not.toHaveBeenCalled();
     expect(em.persist).not.toHaveBeenCalled();
+  });
+
+  it('does not expose the invite code to a regular workspace member', async () => {
+    const em = {
+      findOne: jest.fn(async (entity: unknown, where: Record<string, unknown>) => {
+        if (entity === Workspace && where.$or) {
+          return {
+            id: 'workspace-1',
+            name: 'Workspace',
+            slug: 'workspace',
+            inviteCode: 'CIR-SECRET',
+            ownerId: 'owner-1',
+          };
+        }
+        if (entity === Member && where.$or) {
+          return { id: 'member-1', email: 'member@example.com' };
+        }
+        return null;
+      }),
+      find: jest.fn(async (entity: unknown, where: Record<string, unknown>) => {
+        if (entity === WorkspaceMember && where.workspaceId === 'workspace-1') {
+          return [{ memberId: 'member-1', role: 'Member' }];
+        }
+        return [];
+      }),
+    } as unknown as EntityManager;
+    const service = new WorkspacesService(em);
+
+    const result = await service.findOne('workspace', 'member-1');
+    expect(result).toMatchObject({
+      id: 'workspace-1',
+      role: 'Member',
+    });
+    expect(result.inviteCode).toBeUndefined();
+  });
+
+  it('rejects invite-code regeneration by a regular workspace member', async () => {
+    const em = {
+      findOne: jest.fn(async (entity: unknown, where: Record<string, unknown>) => {
+        if (entity === Workspace && where.$or) {
+          return { id: 'workspace-1', ownerId: 'owner-1', inviteCode: 'CIR-OLD' };
+        }
+        if (entity === WorkspaceMember) {
+          return { workspaceId: 'workspace-1', memberId: 'member-1', role: 'Member' };
+        }
+        return null;
+      }),
+      find: jest.fn().mockResolvedValue([]),
+      flush: jest.fn(),
+    } as unknown as EntityManager;
+    const service = new WorkspacesService(em);
+
+    await expect(
+      service.regenerateInviteCode('workspace-1', 'member-1'),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(em.flush).not.toHaveBeenCalled();
   });
 });
