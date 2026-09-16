@@ -50,6 +50,11 @@ function IssueViewBody({ view }: { view: View }) {
    } = useIssues({
       teamId: view.teamId,
       projectId: view.projectId,
+      advancedFilters:
+         Array.isArray((view.filter as CustomViewFilter).filters) &&
+         (view.filter as CustomViewFilter).filters!.length > 0
+            ? JSON.stringify((view.filter as CustomViewFilter).filters)
+            : undefined,
    });
    const currentUserId = useAuthStore((s) => s.user?.id);
    const filter = view.filter as CustomViewFilter;

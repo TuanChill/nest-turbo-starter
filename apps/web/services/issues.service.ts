@@ -13,6 +13,8 @@ export interface IssueFilterParams {
    assigneeId?: string;
    labelIds?: string[];
    search?: string;
+   /** Serialized saved-view conditions evaluated by the scoped API. */
+   advancedFilters?: string;
 }
 
 export interface CreateIssuePayload {

@@ -1,6 +1,10 @@
 import { EntityManager } from '@mikro-orm/core';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { v7 } from 'uuid';
+import {
+  matchesAdvancedIssueFilters,
+  parseAdvancedIssueFilters,
+} from './advanced-issue-filter';
 import { canAssignIssueToMember } from './assignee-scope';
 import {
   AddReactionDto,
@@ -345,6 +349,7 @@ export class IssuesService {
       assigneeId?: string;
       labelIds?: string | string[];
       search?: string;
+      advancedFilters?: string;
       limit?: number;
       offset?: number;
     },
@@ -357,6 +362,7 @@ export class IssuesService {
       return [];
     }
 
+    const advancedFilters = parseAdvancedIssueFilters(query?.advancedFilters);
     const where: any = { teamId: { $in: accessibleTeamIds } };
 
     if (query?.teamId) {
@@ -400,7 +406,9 @@ export class IssuesService {
 
     const issues = await this.em.find(Issue, where, {
       orderBy: { rank: 'ASC', createdAt: 'DESC' },
-      limit: query?.limit ?? 200,
+      // Evaluate saved-view filters before applying the default list cap so a
+      // valid match beyond the first page is not silently omitted.
+      limit: query?.limit ?? (advancedFilters.length > 0 ? undefined : 200),
       offset: query?.offset,
     });
 
@@ -497,6 +505,22 @@ export class IssuesService {
       );
       results = results.filter(
         (i) => issueIdsWithLabels.has(i.id) || issueIdsWithLabels.has(i.identifier),
+      );
+    }
+
+    if (advancedFilters.length > 0) {
+      const labelsByIssue = new Map<string, string[]>();
+      for (const issueLabel of issueLabels) {
+        const labelsForIssue = labelsByIssue.get(issueLabel.issueId) ?? [];
+        labelsForIssue.push(issueLabel.labelId);
+        labelsByIssue.set(issueLabel.issueId, labelsForIssue);
+      }
+      results = results.filter((issue) =>
+        matchesAdvancedIssueFilters(
+          issue,
+          labelsByIssue.get(issue.id) ?? labelsByIssue.get(issue.identifier) ?? [],
+          advancedFilters,
+        ),
       );
     }
 

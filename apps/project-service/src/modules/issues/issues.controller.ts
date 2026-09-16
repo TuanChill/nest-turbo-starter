@@ -27,6 +27,11 @@ export class IssuesController {
   @ApiQuery({ name: 'assigneeId', required: false })
   @ApiQuery({ name: 'labelIds', required: false })
   @ApiQuery({ name: 'search', required: false })
+  @ApiQuery({
+    name: 'advancedFilters',
+    required: false,
+    description: 'JSON array of validated issue filter conditions/groups',
+  })
   @ApiQuery({ name: 'limit', required: false })
   @ApiQuery({ name: 'offset', required: false })
   @Get()
@@ -42,6 +47,7 @@ export class IssuesController {
     @Query('assigneeId') assigneeId?: string,
     @Query('labelIds') labelIds?: string,
     @Query('search') search?: string,
+    @Query('advancedFilters') advancedFilters?: string,
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
   ) {
@@ -56,6 +62,7 @@ export class IssuesController {
       assigneeId,
       labelIds,
       search,
+      advancedFilters,
       limit: limit !== undefined ? Number(limit) : undefined,
       offset: offset !== undefined ? Number(offset) : undefined,
     });
