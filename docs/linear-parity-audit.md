@@ -22,6 +22,7 @@ Reference set: [Linear Docs](https://linear.app/docs), [Projects](https://linear
 ## Current implementation rules
 
 - Production responses must never fall back to mock IDs or mock records.
+- Project detail responses preserve an unset persisted summary as an empty value instead of fabricating `Project <name>` content.
 - A failed create/detail request must show an error; it must not synthesize a local record.
 - Template instantiation must be atomic and must remap every cloned issue relationship.
 - Unsupported source references must fail before creating records, or the entire transaction must roll back.

@@ -671,7 +671,7 @@ export class ProjectsService {
 
     return {
       projectId: id,
-      summary: baseProject.summary || `Project ${baseProject.name}`,
+      summary: baseProject.summary ?? '',
       description: baseProject.description || [],
       resources: baseProject.resources || [],
       milestones: milestones.map((m) => ({
