@@ -11,7 +11,13 @@ import {
   Workspace,
   WorkspaceMember,
 } from '../../data-access';
-import { allMembersBelongToWorkspace, canAccessTeam } from '../access-control';
+import {
+  allMembersBelongToWorkspace,
+  canAccessTeam,
+  canDeleteTeamRole,
+  canManageTeamRole,
+  canManageWorkspaceRole,
+} from '../access-control';
 import { requireExplicitWorkspaceId } from '../workspaces/workspace-selection';
 import { WorkspacesService } from '../workspaces/workspaces.service';
 
@@ -56,6 +62,47 @@ export class TeamsService {
     return workspace && accessibleWorkspaceIds.includes(workspace.id)
       ? workspace.id
       : null;
+  }
+
+  private async assertWorkspaceManager(memberId: string, workspaceId: string) {
+    const [workspace, membership] = await Promise.all([
+      this.em.findOne(Workspace, { id: workspaceId }),
+      this.em.findOne(WorkspaceMember, { workspaceId, memberId }),
+    ]);
+    if (
+      !workspace ||
+      !membership ||
+      (!canManageWorkspaceRole(membership.role) && workspace.ownerId !== memberId)
+    ) {
+      throw new NotFoundException(`Workspace ${workspaceId} not found`);
+    }
+  }
+
+  private async assertTeamManager(memberId: string, teamId: string) {
+    const team = await this.em.findOne(Team, { id: teamId });
+    if (!team?.workspaceId) throw new NotFoundException(`Team ${teamId} not found`);
+    await this.assertTeamAccess(memberId, teamId, `Team ${teamId} not found`);
+    const [workspaceMembership, teamMembership] = await Promise.all([
+      this.em.findOne(WorkspaceMember, { workspaceId: team.workspaceId, memberId }),
+      this.em.findOne(TeamMember, { teamId, memberId }),
+    ]);
+    if (!canManageTeamRole(workspaceMembership?.role, teamMembership?.role)) {
+      throw new NotFoundException(`Team ${teamId} not found`);
+    }
+    return team;
+  }
+
+  private async assertTeamDeletionPermission(memberId: string, teamId: string) {
+    const team = await this.assertTeamManager(memberId, teamId);
+    if (!team.workspaceId) throw new NotFoundException(`Team ${teamId} not found`);
+    const membership = await this.em.findOne(WorkspaceMember, {
+      workspaceId: team.workspaceId,
+      memberId,
+    });
+    if (!canDeleteTeamRole(membership?.role)) {
+      throw new NotFoundException(`Team ${teamId} not found`);
+    }
+    return team;
   }
 
   private toPublicMember(member: Member): PublicMember {
@@ -205,6 +252,7 @@ export class TeamsService {
     if (!resolvedWorkspaceId) {
       throw new NotFoundException(`Workspace ${requestedWorkspaceId} not found`);
     }
+    await this.assertWorkspaceManager(currentMemberId, resolvedWorkspaceId);
 
     let id = (dto.id || dto.name.toUpperCase().replace(/[^A-Z0-9]+/g, '')).slice(0, 10);
     if (!id) id = `TEAM${v7().replace(/-/g, '').slice(0, 6).toUpperCase()}`;
@@ -265,7 +313,7 @@ export class TeamsService {
   async update(id: string, dto: UpdateTeamDto, currentMemberId: string) {
     const team = await this.em.findOne(Team, { id });
     if (!team) throw new NotFoundException(`Team ${id} not found`);
-    await this.assertTeamAccess(currentMemberId, id, `Team ${id} not found`);
+    await this.assertTeamManager(currentMemberId, id);
 
     Object.assign(team, dto);
     await this.em.flush();
@@ -302,7 +350,7 @@ export class TeamsService {
   async addMember(teamId: string, dto: AddTeamMemberDto, actorId: string) {
     const team = await this.em.findOne(Team, { id: teamId });
     if (!team) throw new NotFoundException(`Team ${teamId} not found`);
-    await this.assertTeamAccess(actorId, teamId, `Team ${teamId} not found`);
+    await this.assertTeamManager(actorId, teamId);
 
     if (!team.workspaceId) throw new NotFoundException(`Team ${teamId} not found`);
     const member = await this.em.findOne(WorkspaceMember, {
@@ -328,7 +376,7 @@ export class TeamsService {
   }
 
   async removeMember(teamId: string, memberId: string, actorId: string) {
-    await this.assertTeamAccess(actorId, teamId, `Team ${teamId} not found`);
+    await this.assertTeamManager(actorId, teamId);
     const tm = await this.em.findOne(TeamMember, { teamId, memberId });
     if (tm) {
       this.em.remove(tm);
@@ -357,9 +405,7 @@ export class TeamsService {
   }
 
   async delete(id: string, actorId: string) {
-    const team = await this.em.findOne(Team, { id });
-    if (!team) throw new NotFoundException(`Team ${id} not found`);
-    await this.assertTeamAccess(actorId, id, `Team ${id} not found`);
+    const team = await this.assertTeamDeletionPermission(actorId, id);
 
     const teamMembers = await this.em.find(TeamMember, { teamId: id });
     for (const tm of teamMembers) {

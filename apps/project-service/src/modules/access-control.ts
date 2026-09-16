@@ -11,6 +11,23 @@ export function canAccessTeam(accessibleTeamIds: string[], teamId: string) {
   return accessibleTeamIds.includes(teamId);
 }
 
+export function canManageWorkspaceRole(role: string | null | undefined) {
+  return role === 'Owner' || role === 'Admin';
+}
+
+export function canManageTeamRole(
+  workspaceRole: string | null | undefined,
+  teamRole: string | null | undefined,
+) {
+  return (
+    canManageWorkspaceRole(workspaceRole) || teamRole === 'lead' || teamRole === 'admin'
+  );
+}
+
+export function canDeleteTeamRole(role: string | null | undefined) {
+  return canManageWorkspaceRole(role);
+}
+
 export function allMembersBelongToWorkspace(
   workspaceMemberIds: string[],
   memberIds: string[],

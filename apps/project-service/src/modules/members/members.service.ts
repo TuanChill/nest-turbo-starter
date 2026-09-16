@@ -15,6 +15,7 @@ import {
   WorkspaceInvitation,
   WorkspaceMember,
 } from '../../data-access';
+import { canManageWorkspaceRole } from '../access-control';
 import { SesMailerService } from '../email/ses-mailer.service';
 import { createInvitationToken } from '../workspaces/invitation-token';
 import { WorkspacesService } from '../workspaces/workspaces.service';
@@ -37,6 +38,20 @@ export class MembersService {
       throw new NotFoundException(`Workspace ${requestedWorkspaceId} not found`);
     }
     return workspace.id;
+  }
+
+  private async assertWorkspaceManager(actorId: string, workspaceId: string) {
+    const [workspace, membership] = await Promise.all([
+      this.em.findOne(Workspace, { id: workspaceId }),
+      this.em.findOne(WorkspaceMember, { workspaceId, memberId: actorId }),
+    ]);
+    if (
+      !workspace ||
+      !membership ||
+      (!canManageWorkspaceRole(membership.role) && workspace.ownerId !== actorId)
+    ) {
+      throw new NotFoundException(`Workspace ${workspaceId} not found`);
+    }
   }
 
   private async getVisibleTeamIds(
@@ -142,6 +157,7 @@ export class MembersService {
       throw new BadRequestException('name is required when inviting a member');
     }
     const resolvedWorkspaceId = await this.resolveWorkspaceId(actorId, dto.workspaceId);
+    await this.assertWorkspaceManager(actorId, resolvedWorkspaceId);
     const email = dto.email.trim().toLowerCase();
     const existingMember = await this.em.findOne(Member, { email });
     if (existingMember) {
@@ -229,6 +245,32 @@ export class MembersService {
     const member = await this.em.findOne(Member, { id });
     if (!member) throw new NotFoundException(`Member ${id} not found`);
     await this.findOne(id, actorId);
+
+    if (dto.role) {
+      const accessibleWorkspaceIds =
+        await this.workspacesService.getAccessibleWorkspaceIds(actorId);
+      const targetMemberships = await this.em.find(WorkspaceMember, { memberId: id });
+      const sharedWorkspaceIds = targetMemberships
+        .map((membership) => membership.workspaceId)
+        .filter((workspaceId) => accessibleWorkspaceIds.includes(workspaceId));
+      const canChangeRole = (
+        await Promise.all(
+          sharedWorkspaceIds.map(async (workspaceId) => {
+            const [workspace, membership] = await Promise.all([
+              this.em.findOne(Workspace, { id: workspaceId }),
+              this.em.findOne(WorkspaceMember, { workspaceId, memberId: actorId }),
+            ]);
+            return Boolean(
+              workspace &&
+                membership &&
+                (canManageWorkspaceRole(membership.role) ||
+                  workspace.ownerId === actorId),
+            );
+          }),
+        )
+      ).some(Boolean);
+      if (!canChangeRole) throw new NotFoundException(`Member ${id} not found`);
+    }
 
     if (dto.name) member.name = dto.name;
     if (dto.avatarUrl !== undefined) member.avatarUrl = dto.avatarUrl;

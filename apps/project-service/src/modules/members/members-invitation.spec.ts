@@ -1,6 +1,12 @@
 import type { EntityManager } from '@mikro-orm/core';
 import { MembersService } from './members.service';
-import { Member, Team, Workspace, WorkspaceInvitation } from '../../data-access';
+import {
+  Member,
+  Team,
+  Workspace,
+  WorkspaceInvitation,
+  WorkspaceMember,
+} from '../../data-access';
 
 jest.mock('@mikro-orm/core', () => ({ EntityManager: class MockEntityManager {} }));
 jest.mock('../../data-access', () => {
@@ -31,9 +37,10 @@ describe('MembersService invitations', () => {
     const actor = { id: 'owner-1', name: 'Owner' };
     const persisted: unknown[] = [];
     const em = {
-      findOne: jest.fn(async (entity: unknown) => {
+      findOne: jest.fn(async (entity: unknown, where?: Record<string, unknown>) => {
         if (entity === Workspace) return workspace;
-        if (entity === Member) return actor;
+        if (entity === WorkspaceMember) return { role: 'Owner' };
+        if (entity === Member && where?.id === actor.id) return actor;
         return null;
       }),
       find: jest.fn(async (entity: unknown) =>
