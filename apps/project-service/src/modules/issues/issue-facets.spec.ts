@@ -69,11 +69,17 @@ describe('IssuesService facets', () => {
         if (entity === IssueLabel) {
           return [
             { issueId: 'issue-1', labelId: 'label-a' },
-            { issueId: 'issue-1', labelId: 'foreign-label' },
+            { issueId: 'issue-1', labelId: 'foreign-workspace-label' },
+            { issueId: 'issue-1', labelId: 'foreign-team-label' },
           ];
         }
         if (entity === Team) return [{ id: 'team-a', workspaceId: 'workspace-a' }];
-        if (entity === Label) return [{ id: 'label-a', workspaceId: 'workspace-a' }];
+        if (entity === Label)
+          return [
+            { id: 'label-a', workspaceId: 'workspace-a', teamId: null },
+            { id: 'foreign-workspace-label', workspaceId: 'workspace-b', teamId: null },
+            { id: 'foreign-team-label', workspaceId: 'workspace-a', teamId: 'team-b' },
+          ];
         if (entity === WorkspaceMember) return [{ memberId: 'member-a' }];
         if (entity === Project) return [{ id: 'project-a', teamId: 'team-a' }];
         if (entity === ProjectTeam) return [];
@@ -97,6 +103,13 @@ describe('IssuesService facets', () => {
       project: { 'project-a': 1, 'no-project': 1 },
       cycle: { 'cycle-a': 1, 'no-cycle': 1 },
     });
+
+    expect(em.find).toHaveBeenCalledWith(
+      Label,
+      expect.objectContaining({
+        $or: [{ teamId: null }, { teamId: { $in: ['team-a'] } }],
+      }),
+    );
   });
 
   it('returns an empty result for a team outside the authenticated scope', async () => {

@@ -42,6 +42,7 @@ import {
 } from '../../data-access';
 import { assertMutuallyExclusiveLabelSelection } from '../labels/label-rules';
 import { isLabelAvailableForTeam } from '../labels/label-scope';
+import { isProjectScopeVisible } from '../projects/project-scope';
 import { WorkspacesService } from '../workspaces/workspaces.service';
 
 const ALL_STATUSES: Record<
@@ -198,7 +199,11 @@ export class IssuesService {
     const project = await this.em.findOne(Project, { id: projectId });
     if (!project) throw new NotFoundException(`Project ${projectId} not found`);
     const projectTeamIds = await this.getProjectTeamIds(project.id, project.teamId);
-    if (!projectTeamIds.includes(teamId)) {
+    const projectTeams = await this.em.find(Team, { id: { $in: projectTeamIds } });
+    const workspaceByTeamId = new Map(
+      projectTeams.map((team) => [team.id, team.workspaceId]),
+    );
+    if (!isProjectScopeVisible(projectTeamIds, workspaceByTeamId, new Set([teamId]))) {
       throw new BadRequestException('Project and issue must share a project team');
     }
     await this.assertTeamAccess(actorId, teamId, `Team ${teamId} not found`);
@@ -298,12 +303,20 @@ export class IssuesService {
       allowZero: false,
       unestimatedAsOne: true,
     },
+    teamWorkspaceId?: string,
   ) {
     const assignee = issue.assigneeId ? (membersMap.get(issue.assigneeId) ?? null) : null;
     const labelIds = issueLabels
       .filter((il) => il.issueId === issue.id || il.issueId === issue.identifier)
       .map((il) => il.labelId);
-    const labels = labelIds.map((lid) => labelsMap.get(lid)).filter(Boolean);
+    const labels = labelIds
+      .map((lid) => labelsMap.get(lid))
+      .filter(
+        (label) =>
+          label &&
+          label.workspaceId === teamWorkspaceId &&
+          isLabelAvailableForTeam(label.teamId, issue.teamId),
+      );
 
     const project = issue.projectId ? projectsMap.get(issue.projectId) : undefined;
     const subissues =
@@ -453,6 +466,10 @@ export class IssuesService {
     const labels = await this.em.find(Label, {
       scope: { $in: ['issue', 'both'] },
       ...(workspaceIds.length ? { workspaceId: { $in: workspaceIds } } : {}),
+      $or: [
+        { teamId: null },
+        { teamId: { $in: [...new Set(issues.map((issue) => issue.teamId))] } },
+      ],
     });
     const issueProjectIds = issues
       .map((issue) => issue.projectId)
@@ -462,8 +479,19 @@ export class IssuesService {
     });
     const projectTeams = await this.em.find(ProjectTeam, {
       projectId: { $in: issueProjectIds },
-      teamId: { $in: [...new Set(issues.map((issue) => issue.teamId))] },
     });
+    const projectScopeTeamIds = [
+      ...new Set([
+        ...projects.map((project) => project.teamId),
+        ...projectTeams.map((link) => link.teamId),
+      ]),
+    ];
+    const projectScopeTeams = projectScopeTeamIds.length
+      ? await this.em.find(Team, { id: { $in: projectScopeTeamIds } })
+      : [];
+    const projectWorkspaceByTeamId = new Map(
+      projectScopeTeams.map((team) => [team.id, team.workspaceId]),
+    );
     const projectTeamKeys = new Set(
       projectTeams.map((projectTeam) => `${projectTeam.projectId}:${projectTeam.teamId}`),
     );
@@ -474,6 +502,16 @@ export class IssuesService {
           const project = projects.find((candidate) => candidate.id === issue.projectId);
           return Boolean(
             project &&
+              isProjectScopeVisible(
+                [
+                  project.teamId,
+                  ...projectTeams
+                    .filter((link) => link.projectId === project.id)
+                    .map((link) => link.teamId),
+                ],
+                projectWorkspaceByTeamId,
+                new Set([issue.teamId]),
+              ) &&
               (project.teamId === issue.teamId ||
                 projectTeamKeys.has(`${project.id}:${issue.teamId}`)),
           );
@@ -485,12 +523,36 @@ export class IssuesService {
 
     const membersMap = new Map(members.map((m) => [m.id, toSafeMember(m)]));
     const labelsMap = new Map(labels.map((l) => [l.id, l]));
+    const teamWorkspaceById = new Map(teams.map((team) => [team.id, team.workspaceId]));
     const estimateSettingsMap = new Map<string, IssueEstimateSettings>(
       teams.map((team) => [team.id, this.getEstimateSettings(team)]),
     );
     const projectsMap = new Map(
       projects.filter((project) => validProjectIds.has(project.id)).map((p) => [p.id, p]),
     );
+
+    const visibleLabelIdsByIssue = new Map<string, Set<string>>();
+    for (const issueLabel of issueLabels) {
+      const issue = issues.find(
+        (candidate) =>
+          candidate.id === issueLabel.issueId ||
+          candidate.identifier === issueLabel.issueId,
+      );
+      const label = labelsMap.get(issueLabel.labelId);
+      if (
+        !issue ||
+        !label ||
+        label.workspaceId !== teamWorkspaceById.get(issue.teamId) ||
+        !isLabelAvailableForTeam(label.teamId, issue.teamId)
+      ) {
+        continue;
+      }
+      for (const issueKey of [issue.id, issue.identifier]) {
+        const labelIds = visibleLabelIdsByIssue.get(issueKey) ?? new Set<string>();
+        labelIds.add(label.id);
+        visibleLabelIdsByIssue.set(issueKey, labelIds);
+      }
+    }
 
     // subissues mapping
     const subissuesMap = new Map<string, string[]>();
@@ -509,9 +571,15 @@ export class IssuesService {
         ? query.labelIds
         : query.labelIds.split(',');
       const issueIdsWithLabels = new Set(
-        issueLabels
-          .filter((il) => filterLabelIds.includes(il.labelId))
-          .map((il) => il.issueId),
+        issues
+          .filter((issue) =>
+            filterLabelIds.some(
+              (labelId) =>
+                visibleLabelIdsByIssue.get(issue.id)?.has(labelId) ||
+                visibleLabelIdsByIssue.get(issue.identifier)?.has(labelId),
+            ),
+          )
+          .flatMap((issue) => [issue.id, issue.identifier]),
       );
       results = results.filter(
         (i) => issueIdsWithLabels.has(i.id) || issueIdsWithLabels.has(i.identifier),
@@ -520,10 +588,8 @@ export class IssuesService {
 
     if (advancedFilters.length > 0) {
       const labelsByIssue = new Map<string, string[]>();
-      for (const issueLabel of issueLabels) {
-        const labelsForIssue = labelsByIssue.get(issueLabel.issueId) ?? [];
-        labelsForIssue.push(issueLabel.labelId);
-        labelsByIssue.set(issueLabel.issueId, labelsForIssue);
+      for (const [issueKey, labelIds] of visibleLabelIdsByIssue) {
+        labelsByIssue.set(issueKey, [...labelIds]);
       }
       results = results.filter((issue) =>
         matchesAdvancedIssueFilters(
@@ -544,6 +610,7 @@ export class IssuesService {
         subissuesMap,
         subscribedIssueIdentifiers,
         estimateSettingsMap.get(issue.teamId),
+        teamWorkspaceById.get(issue.teamId),
       ),
     );
   }
@@ -646,13 +713,29 @@ export class IssuesService {
     const labels = await this.em.find(Label, {
       scope: { $in: ['issue', 'both'] },
       workspaceId: { $in: workspaceIds },
+      $or: [
+        { teamId: null },
+        { teamId: { $in: [...new Set(issues.map((issue) => issue.teamId))] } },
+      ],
     });
-    const visibleLabelIds = new Set(labels.map((label) => label.id));
+    const labelsById = new Map(labels.map((label) => [label.id, label]));
+    const teamWorkspaceById = new Map(teams.map((team) => [team.id, team.workspaceId]));
+    const issuesById = new Map(
+      issues.flatMap((issue) => [
+        [issue.id, issue] as const,
+        [issue.identifier, issue] as const,
+      ]),
+    );
     const visibleIssueIds = new Set(issueIds);
     for (const issueLabel of issueLabels) {
+      const issue = issuesById.get(issueLabel.issueId);
+      const label = labelsById.get(issueLabel.labelId);
       if (
+        issue &&
+        label &&
         visibleIssueIds.has(issueLabel.issueId) &&
-        visibleLabelIds.has(issueLabel.labelId)
+        label.workspaceId === teamWorkspaceById.get(issue.teamId) &&
+        isLabelAvailableForTeam(label.teamId, issue.teamId)
       ) {
         increment(facets.labels, issueLabel.labelId);
       }
@@ -689,9 +772,20 @@ export class IssuesService {
     const projectTeams = projectIds.length
       ? await this.em.find(ProjectTeam, {
           projectId: { $in: projectIds },
-          teamId: { $in: [...new Set(issues.map((issue) => issue.teamId))] },
         })
       : [];
+    const projectScopeTeamIds = [
+      ...new Set([
+        ...projects.map((project) => project.teamId),
+        ...projectTeams.map((link) => link.teamId),
+      ]),
+    ];
+    const projectScopeTeams = projectScopeTeamIds.length
+      ? await this.em.find(Team, { id: { $in: projectScopeTeamIds } })
+      : [];
+    const projectWorkspaceByTeamId = new Map(
+      projectScopeTeams.map((team) => [team.id, team.workspaceId]),
+    );
     const linkedProjectTeams = new Set(
       projectTeams.map((link) => `${link.projectId}:${link.teamId}`),
     );
@@ -702,6 +796,16 @@ export class IssuesService {
           const project = projects.find((candidate) => candidate.id === issue.projectId);
           return Boolean(
             project &&
+              isProjectScopeVisible(
+                [
+                  project.teamId,
+                  ...projectTeams
+                    .filter((link) => link.projectId === project.id)
+                    .map((link) => link.teamId),
+                ],
+                projectWorkspaceByTeamId,
+                new Set([issue.teamId]),
+              ) &&
               (project.teamId === issue.teamId ||
                 linkedProjectTeams.has(`${project.id}:${issue.teamId}`)),
           );
@@ -749,6 +853,7 @@ export class IssuesService {
     const labels = await this.em.find(Label, {
       scope: { $in: ['issue', 'both'] },
       ...(team?.workspaceId ? { workspaceId: team.workspaceId } : {}),
+      $or: [{ teamId: null }, { teamId: issue.teamId }],
     });
     const projects = issue.projectId
       ? await this.em.find(Project, { id: issue.projectId })
@@ -757,8 +862,21 @@ export class IssuesService {
     const projectTeamIds = project
       ? await this.getProjectTeamIds(project.id, project.teamId)
       : [];
+    const projectTeams = project
+      ? await this.em.find(Team, { id: { $in: projectTeamIds } })
+      : [];
+    const projectWorkspaceByTeamId = new Map(
+      projectTeams.map((candidate) => [candidate.id, candidate.workspaceId]),
+    );
     const visibleProjects =
-      project && projectTeamIds.includes(issue.teamId) ? [project] : [];
+      project &&
+      isProjectScopeVisible(
+        projectTeamIds,
+        projectWorkspaceByTeamId,
+        new Set([issue.teamId]),
+      )
+        ? [project]
+        : [];
     const issueLabels = await this.em.find(IssueLabel, {
       $or: [{ issueId: issue.id }, { issueId: issue.identifier }],
     });
@@ -794,6 +912,7 @@ export class IssuesService {
       subissuesMap,
       new Set(subscription ? [issue.identifier] : []),
       this.getEstimateSettings(team ?? undefined),
+      team?.workspaceId,
     );
   }
 

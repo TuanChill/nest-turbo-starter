@@ -290,11 +290,19 @@ export class ProjectsService {
     issues: Issue[],
     projectTeamIds: string[] = [],
     isSubscribed = false,
+    projectWorkspaceId?: string,
   ) {
     const labelIds = projectLabels
       .filter((pl) => pl.projectId === project.id)
       .map((pl) => pl.labelId);
-    const labels = labelIds.map((lid) => labelsMap.get(lid)).filter(Boolean);
+    const labels = labelIds
+      .map((lid) => labelsMap.get(lid))
+      .filter(
+        (label) =>
+          label &&
+          label.workspaceId === projectWorkspaceId &&
+          projectTeamIds.some((teamId) => isLabelAvailableForTeam(label.teamId, teamId)),
+      );
     const members = projectMembers
       .filter((pm) => pm.projectId === project.id)
       .map((pm) => membersMap.get(pm.memberId))
@@ -483,6 +491,7 @@ export class ProjectsService {
     const labels = await this.em.find(Label, {
       scope: { $in: ['project', 'both'] },
       ...(workspaceIds.length ? { workspaceId: { $in: workspaceIds } } : {}),
+      $or: [{ teamId: null }, { teamId: { $in: visibleTeamIds } }],
     });
     const issues = await this.em.find(Issue, {
       projectId: { $in: projectIds },
@@ -516,6 +525,7 @@ export class ProjectsService {
         issuesByProject.get(p.id) ?? [],
         projectTeamIdsByProject.get(p.id) ?? [],
         subscribedProjectIds.has(p.id),
+        workspaceByTeamId.get(p.teamId),
       ),
     );
   }
@@ -566,6 +576,7 @@ export class ProjectsService {
     const labels = await this.em.find(Label, {
       scope: { $in: ['project', 'both'] },
       ...(team?.workspaceId ? { workspaceId: team.workspaceId } : {}),
+      $or: [{ teamId: null }, { teamId: { $in: projectTeamIds } }],
     });
 
     const membersMap = new Map(members.map((m) => [m.id, toSafeMember(m)]));
@@ -584,6 +595,7 @@ export class ProjectsService {
       issues,
       projectTeamIds,
       Boolean(subscription),
+      team.workspaceId,
     );
   }
 

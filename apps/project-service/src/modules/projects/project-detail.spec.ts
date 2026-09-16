@@ -1,6 +1,17 @@
 import type { EntityManager } from '@mikro-orm/core';
 import { ProjectsService } from './projects.service';
-import { Project, Team } from '../../data-access';
+import {
+  Issue,
+  Label,
+  Member,
+  Project,
+  ProjectLabel,
+  ProjectMember,
+  ProjectSubscription,
+  ProjectTeam,
+  Team,
+  WorkspaceMember,
+} from '../../data-access';
 
 jest.mock('@mikro-orm/core', () => ({
   EntityManager: class MockEntityManager {},
@@ -60,5 +71,53 @@ describe('ProjectsService project detail', () => {
 
     expect(detail.summary).toBe('');
     expect(detail.summary).not.toContain('Project Roadmap');
+  });
+
+  it('does not return labels owned by another team or workspace', async () => {
+    const project = new Project({
+      id: 'project-1',
+      name: 'Roadmap',
+      teamId: 'team-1',
+      description: [],
+      resources: [],
+    });
+    const team = { id: 'team-1', workspaceId: 'workspace-1' };
+    const em = {
+      findOne: jest.fn(async (entity: unknown) => {
+        if (entity === Project) return project;
+        if (entity === ProjectSubscription) return null;
+        return null;
+      }),
+      find: jest.fn(async (entity: unknown) => {
+        if (entity === ProjectTeam) return [];
+        if (entity === Team) return [team];
+        if (entity === ProjectLabel)
+          return [
+            { projectId: 'project-1', labelId: 'workspace-label' },
+            { projectId: 'project-1', labelId: 'foreign-team-label' },
+            { projectId: 'project-1', labelId: 'foreign-workspace-label' },
+          ];
+        if (entity === ProjectMember || entity === Issue || entity === WorkspaceMember)
+          return [];
+        if (entity === Member) return [];
+        if (entity === Label)
+          return [
+            { id: 'workspace-label', workspaceId: 'workspace-1', teamId: null },
+            { id: 'foreign-team-label', workspaceId: 'workspace-1', teamId: 'team-2' },
+            { id: 'foreign-workspace-label', workspaceId: 'workspace-2', teamId: null },
+          ];
+        return [];
+      }),
+    } as unknown as EntityManager;
+    const workspacesService = {
+      getAccessibleTeamIds: jest.fn(async () => ['team-1']),
+    };
+    const service = new ProjectsService(em, workspacesService as never);
+
+    const detail = await service.findOne(project.id, 'member-1');
+
+    expect(detail.labels.map((label: { id: string }) => label.id)).toEqual([
+      'workspace-label',
+    ]);
   });
 });
