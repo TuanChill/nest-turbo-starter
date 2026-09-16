@@ -1,4 +1,5 @@
 import {
+  calendarDateInTimeZone,
   cycleEndDate,
   getCycleSettingsValidationError,
   nextCycleStart,
@@ -46,5 +47,40 @@ describe('cycle settings', () => {
     expect(
       nextCycleStart(new Date('2026-10-04T00:00:00.000Z'), 2).toISOString().slice(0, 10),
     ).toBe('2026-10-07');
+  });
+
+  it('accepts IANA timezones and rejects invalid values', () => {
+    expect(
+      getCycleSettingsValidationError({
+        enabled: true,
+        durationWeeks: 2,
+        startDayOfWeek: 1,
+        timeZone: 'Asia/Ho_Chi_Minh',
+        cooldownDays: 0,
+        upcomingCycleCount: 3,
+        autoAddActiveIssues: false,
+      }),
+    ).toBeUndefined();
+    expect(
+      getCycleSettingsValidationError({
+        enabled: true,
+        durationWeeks: 2,
+        startDayOfWeek: 1,
+        timeZone: 'Not/AZone',
+        cooldownDays: 0,
+        upcomingCycleCount: 3,
+        autoAddActiveIssues: false,
+      }),
+    ).toBe('Cycle timezone must be a valid IANA timezone');
+  });
+
+  it('uses the configured local calendar day across UTC date boundaries', () => {
+    const instant = new Date('2026-09-16T23:30:00.000Z');
+    expect(calendarDateInTimeZone(instant, 'Asia/Ho_Chi_Minh').toISOString()).toBe(
+      '2026-09-17T00:00:00.000Z',
+    );
+    expect(calendarDateInTimeZone(instant, 'America/Los_Angeles').toISOString()).toBe(
+      '2026-09-16T00:00:00.000Z',
+    );
   });
 });

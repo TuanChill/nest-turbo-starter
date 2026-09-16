@@ -11,6 +11,7 @@ import { deriveCycleProgress } from './cycle-progress';
 import { cycleIssueWhere } from './cycle-scope';
 import {
   addCalendarDays,
+  calendarDateInTimeZone,
   cycleEndDate,
   getCycleSettingsValidationError,
   nextCycleStart,
@@ -40,6 +41,7 @@ export class CyclesService {
       enabled: settings.enabled,
       durationWeeks: settings.durationWeeks,
       startDayOfWeek: settings.startDayOfWeek,
+      timeZone: settings.timeZone,
       cooldownDays: settings.cooldownDays,
       upcomingCycleCount: settings.upcomingCycleCount,
       autoAddActiveIssues: settings.autoAddActiveIssues,
@@ -60,8 +62,7 @@ export class CyclesService {
     const missing = Math.max(0, settings.upcomingCycleCount - scheduled.length);
     if (missing === 0) return;
 
-    const today = new Date();
-    const todayStart = nextStartOnWeekday(today, today.getUTCDay());
+    const todayStart = calendarDateInTimeZone(new Date(), settings.timeZone);
     const latest = cycles[0];
     let startDate = latest
       ? nextCycleStart(latest.endDate, settings.cooldownDays)
@@ -83,7 +84,8 @@ export class CyclesService {
       }
       const number = allocateCycleNumber(existingNumbers, undefined);
       const endDate = cycleEndDate(startDate, settings.durationWeeks);
-      const status = startDate <= today && endDate >= today ? 'current' : 'upcoming';
+      const status =
+        startDate <= todayStart && endDate >= todayStart ? 'current' : 'upcoming';
       this.em.persist(
         new Cycle({
           id: v7(),
@@ -119,8 +121,7 @@ export class CyclesService {
       { teamId },
       { orderBy: { startDate: 'ASC' } },
     );
-    const today = new Date();
-    const todayStart = nextStartOnWeekday(today, today.getUTCDay());
+    const todayStart = calendarDateInTimeZone(new Date(), settings.timeZone);
     const closingCycles = cycles.filter(
       (cycle) => cycle.endDate < todayStart && cycle.status !== 'completed',
     );
@@ -338,6 +339,7 @@ export class CyclesService {
       enabled: dto.enabled ?? settings.enabled,
       durationWeeks: dto.durationWeeks ?? settings.durationWeeks,
       startDayOfWeek: dto.startDayOfWeek ?? settings.startDayOfWeek,
+      timeZone: dto.timeZone ?? settings.timeZone,
       cooldownDays: dto.cooldownDays ?? settings.cooldownDays,
       upcomingCycleCount: dto.upcomingCycleCount ?? settings.upcomingCycleCount,
       autoAddActiveIssues: dto.autoAddActiveIssues ?? settings.autoAddActiveIssues,
@@ -349,8 +351,7 @@ export class CyclesService {
       const existingCycles = await this.em.find(Cycle, {
         teamId,
       });
-      const today = new Date();
-      const todayStart = nextStartOnWeekday(today, today.getUTCDay());
+      const todayStart = calendarDateInTimeZone(new Date(), next.timeZone);
       for (const cycle of existingCycles) {
         if (cycle.status === 'upcoming' || cycle.status === 'planned') {
           cycle.deletedAt = new Date();

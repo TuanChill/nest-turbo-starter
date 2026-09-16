@@ -101,6 +101,14 @@ export class UpdateCycleSettingsDto {
   @IsOptional()
   startDayOfWeek?: number;
 
+  @ApiPropertyOptional({
+    example: 'UTC',
+    description: 'IANA timezone used for cycle calendar days',
+  })
+  @IsString()
+  @IsOptional()
+  timeZone?: string;
+
   @ApiPropertyOptional({ minimum: 0, maximum: 30, default: 0 })
   @IsInt()
   @Min(0)

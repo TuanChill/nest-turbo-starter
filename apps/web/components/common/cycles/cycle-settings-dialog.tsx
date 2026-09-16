@@ -47,6 +47,7 @@ export function CycleSettingsDialog({
    const [enabled, setEnabled] = React.useState(false);
    const [durationWeeks, setDurationWeeks] = React.useState('2');
    const [startDayOfWeek, setStartDayOfWeek] = React.useState('1');
+   const [timeZone, setTimeZone] = React.useState('UTC');
    const [cooldownDays, setCooldownDays] = React.useState('0');
    const [upcomingCycleCount, setUpcomingCycleCount] = React.useState('3');
    const [autoAddActiveIssues, setAutoAddActiveIssues] = React.useState(false);
@@ -56,6 +57,7 @@ export function CycleSettingsDialog({
       setEnabled(settings.enabled);
       setDurationWeeks(String(settings.durationWeeks));
       setStartDayOfWeek(String(settings.startDayOfWeek));
+      setTimeZone(settings.timeZone);
       setCooldownDays(String(settings.cooldownDays));
       setUpcomingCycleCount(String(settings.upcomingCycleCount));
       setAutoAddActiveIssues(settings.autoAddActiveIssues);
@@ -70,6 +72,7 @@ export function CycleSettingsDialog({
                enabled,
                durationWeeks: Number(durationWeeks),
                startDayOfWeek: Number(startDayOfWeek),
+               timeZone,
                cooldownDays: Number(cooldownDays),
                upcomingCycleCount: Number(upcomingCycleCount),
                autoAddActiveIssues,
@@ -140,6 +143,19 @@ export function CycleSettingsDialog({
                                  ))}
                               </SelectContent>
                            </Select>
+                        </div>
+                        <div className="space-y-1.5 col-span-2">
+                           <Label htmlFor="cycle-time-zone">Cycle timezone</Label>
+                           <Input
+                              id="cycle-time-zone"
+                              value={timeZone}
+                              onChange={(event) => setTimeZone(event.target.value)}
+                              placeholder="UTC or Asia/Ho_Chi_Minh"
+                              aria-describedby="cycle-time-zone-help"
+                           />
+                           <p id="cycle-time-zone-help" className="text-xs text-muted-foreground">
+                              Calendar boundaries and automation use this IANA timezone.
+                           </p>
                         </div>
                         <div className="space-y-1.5">
                            <Label htmlFor="cycle-cooldown">Cooldown (days)</Label>

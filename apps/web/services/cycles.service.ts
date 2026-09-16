@@ -31,6 +31,7 @@ export interface CycleSettings {
    enabled: boolean;
    durationWeeks: number;
    startDayOfWeek: number;
+   timeZone: string;
    cooldownDays: number;
    upcomingCycleCount: number;
    autoAddActiveIssues: boolean;

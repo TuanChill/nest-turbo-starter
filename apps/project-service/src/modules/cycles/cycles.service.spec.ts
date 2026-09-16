@@ -177,6 +177,31 @@ describe('CyclesService settings', () => {
     expect(futureCycle.deletedAt).toBeInstanceOf(Date);
   });
 
+  it('reconciles cycle status using the configured team timezone', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-09-16T23:30:00.000Z'));
+    try {
+      const localDayCycle = new Cycle({
+        id: 'cycle-local-day',
+        teamId: 'team-a',
+        status: 'upcoming',
+        startDate: new Date('2026-09-17T00:00:00.000Z'),
+        endDate: new Date('2026-09-17T00:00:00.000Z'),
+      });
+      const settings = new CycleSettings({
+        teamId: 'team-a',
+        enabled: true,
+        timeZone: 'Asia/Ho_Chi_Minh',
+      });
+      const { service } = createService(settings, [localDayCycle]);
+
+      await service.getSettings('team-a', 'member-1');
+
+      expect(localDayCycle.status).toBe('current');
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it('hides settings for an inaccessible team', async () => {
     const { service, em } = createService();
 

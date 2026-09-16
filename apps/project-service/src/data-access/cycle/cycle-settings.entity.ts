@@ -15,6 +15,9 @@ export class CycleSettings {
   @Property({ type: 'integer', default: 1 })
   startDayOfWeek = 1;
 
+  @Property({ type: 'string', default: 'UTC' })
+  timeZone = 'UTC';
+
   @Property({ type: 'integer', default: 0 })
   cooldownDays = 0;
 

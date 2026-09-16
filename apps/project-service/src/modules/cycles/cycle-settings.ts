@@ -2,12 +2,25 @@ export interface CycleSettingsInput {
   enabled: boolean;
   durationWeeks: number;
   startDayOfWeek: number;
+  timeZone?: string;
   cooldownDays: number;
   upcomingCycleCount: number;
   autoAddActiveIssues: boolean;
 }
 
+export function isValidTimeZone(timeZone: string): boolean {
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone }).format();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function getCycleSettingsValidationError(input: CycleSettingsInput) {
+  if (input.timeZone !== undefined && !isValidTimeZone(input.timeZone)) {
+    return 'Cycle timezone must be a valid IANA timezone';
+  }
   if (
     !Number.isInteger(input.durationWeeks) ||
     input.durationWeeks < 1 ||
@@ -37,6 +50,24 @@ export function getCycleSettingsValidationError(input: CycleSettingsInput) {
     return 'Upcoming cycle count must be between 0 and 15';
   }
   return undefined;
+}
+
+/** Return the current calendar day represented as a UTC-midnight date label. */
+export function calendarDateInTimeZone(date: Date, timeZone = 'UTC'): Date {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const values = Object.fromEntries(
+    parts
+      .filter(
+        (part) => part.type === 'year' || part.type === 'month' || part.type === 'day',
+      )
+      .map((part) => [part.type, Number(part.value)]),
+  );
+  return new Date(Date.UTC(values.year, values.month - 1, values.day));
 }
 
 export function addCalendarDays(date: Date, days: number): Date {
