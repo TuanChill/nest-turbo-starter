@@ -7,13 +7,22 @@ import { useAuthStore } from '@/store/auth-store';
 import { useNotificationsStore } from '@/store/notifications-store';
 import { ROUTES } from '@/constants/routes';
 import { getActiveWorkspace, saveActiveWorkspace } from '@/lib/utils/workspace-persistence';
+import QueryErrorState from '@/components/common/query-error-state';
 
 export default function WorkspaceOrgLayout({ children }: { children: React.ReactNode }) {
    const router = useRouter();
    const params = useParams<{ orgId?: string }>();
    const currentOrgId = params?.orgId;
    const { isAuthenticated } = useAuthStore();
-   const { data: workspaces, isLoading, isFetching, isFetched } = useWorkspaces();
+   const {
+      data: workspaces,
+      isLoading,
+      isFetching,
+      isFetched,
+      isError: isWorkspacesError,
+      error: workspacesError,
+      refetch: refetchWorkspaces,
+   } = useWorkspaces();
    const { initNotifications, isInitialized: notificationsInitialized } = useNotificationsStore();
 
    const matchingWorkspace = workspaces?.find(
@@ -62,6 +71,16 @@ export default function WorkspaceOrgLayout({ children }: { children: React.React
    // Do not render workspace-scoped children until the authenticated workspace
    // has been resolved. This prevents child queries from firing against a
    // legacy/foreign orgId (for example /my-workspace) before the redirect runs.
+   if (isAuthenticated && isWorkspacesError) {
+      return (
+         <QueryErrorState
+            subject="workspaces"
+            error={workspacesError}
+            onRetry={refetchWorkspaces}
+         />
+      );
+   }
+
    if (isAuthenticated && (!isFetched || isLoading || !workspaces?.length || !matchingWorkspace)) {
       return null;
    }
