@@ -181,17 +181,36 @@ describe('IssueTemplatesService parent defaults', () => {
           name: 'Engineering template',
           scope: 'team',
           teamId: 'team-a',
-          config: { parentIssueId: 'ENG-1', milestone: 'Beta' },
+          config: { parentIssueId: 'ENG-1' },
         },
         'member-1',
       ),
     ).resolves.toEqual(
       expect.objectContaining({
         teamId: 'team-a',
-        config: { parentIssueId: 'ENG-1', milestone: 'Beta' },
+        config: { parentIssueId: 'ENG-1' },
       }),
     );
     expect(em.flush).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects a free-text milestone without a configured project', async () => {
+    const { service, em } = buildService('team-a');
+
+    await expect(
+      service.create(
+        {
+          workspaceId: 'workspace-1',
+          name: 'Engineering template',
+          scope: 'team',
+          teamId: 'team-a',
+          config: { milestone: 'Legacy free-text milestone' },
+        },
+        'member-1',
+      ),
+    ).rejects.toThrow('requires a configured project');
+    expect(em.persist).not.toHaveBeenCalled();
+    expect(em.flush).not.toHaveBeenCalled();
   });
 
   it('rejects a parent issue from another team', async () => {

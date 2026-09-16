@@ -177,6 +177,9 @@ export class IssueTemplatesService {
       });
       assertMutuallyExclusiveLabelSelection(availableLabels, groups);
     }
+    if (config.milestone && !config.projectId) {
+      throw new BadRequestException('A milestone default requires a configured project');
+    }
     if (config.projectId) {
       const project = await this.em.findOne(Project, { id: config.projectId });
       if (!project)
