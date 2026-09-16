@@ -22,9 +22,11 @@ import {
   Project,
   ProjectMilestone,
   Team,
+  TeamMember,
   Workspace,
   WorkspaceMember,
 } from '../../data-access';
+import { canManageTeamRole, canManageWorkspaceRole } from '../access-control';
 import { validateIssueEstimate } from '../issues/issue-estimates';
 import { assertMutuallyExclusiveLabelSelection } from '../labels/label-rules';
 import { isLabelAvailableForTeam } from '../labels/label-scope';
@@ -66,6 +68,41 @@ export class IssueTemplatesService {
     if (!accessible.includes(teamId))
       throw new NotFoundException(`Team ${teamId} not found`);
     return team;
+  }
+
+  private async assertTemplateManager(
+    workspaceId: string,
+    scope: 'workspace' | 'team',
+    teamId: string | undefined,
+    memberId: string,
+  ) {
+    const workspace = await this.resolveWorkspace(workspaceId);
+    const workspaceMembership = await this.em.findOne(WorkspaceMember, {
+      workspaceId,
+      memberId,
+    });
+    if (scope === 'workspace') {
+      if (
+        workspace.ownerId !== memberId &&
+        !canManageWorkspaceRole(workspaceMembership?.role)
+      ) {
+        throw new NotFoundException(`Workspace ${workspaceId} not found`);
+      }
+      return;
+    }
+    if (!teamId) throw new BadRequestException('teamId is required for a team template');
+    const [team, teamMembership] = await Promise.all([
+      this.em.findOne(Team, { id: teamId }),
+      this.em.findOne(TeamMember, { teamId, memberId }),
+    ]);
+    if (
+      !team ||
+      team.workspaceId !== workspaceId ||
+      (workspace.ownerId !== memberId &&
+        !canManageTeamRole(workspaceMembership?.role, teamMembership?.role))
+    ) {
+      throw new NotFoundException(`Team ${teamId} not found`);
+    }
   }
 
   private async validateConfig(
@@ -219,6 +256,7 @@ export class IssueTemplatesService {
     if (dto.scope === 'team' && !dto.teamId)
       throw new BadRequestException('teamId is required for a team template');
     if (dto.teamId) await this.assertTeamAccess(dto.teamId, workspace.id, memberId);
+    await this.assertTemplateManager(workspace.id, dto.scope, dto.teamId, memberId);
     const name = dto.name.trim();
     if (!name) throw new BadRequestException('Template name is required');
     const duplicate = await this.em.findOne(IssueTemplate, {
@@ -253,6 +291,12 @@ export class IssueTemplatesService {
     const effectiveTeamId = scope === 'team' ? teamId : undefined;
     if (scope === 'team' && !teamId)
       throw new BadRequestException('teamId is required for a team template');
+    await this.assertTemplateManager(
+      template.workspaceId,
+      scope,
+      effectiveTeamId,
+      memberId,
+    );
     const config = dto.config
       ? normalizeIssueTemplateConfig(dto.config)
       : template.config;
@@ -282,6 +326,12 @@ export class IssueTemplatesService {
 
   async duplicate(id: string, memberId: string) {
     const source = await this.findOne(id, memberId);
+    await this.assertTemplateManager(
+      source.workspaceId,
+      source.scope,
+      source.teamId,
+      memberId,
+    );
     await this.validateConfig(
       source.config,
       source.workspaceId,
@@ -304,6 +354,12 @@ export class IssueTemplatesService {
 
   async delete(id: string, memberId: string) {
     const template = await this.findOne(id, memberId);
+    await this.assertTemplateManager(
+      template.workspaceId,
+      template.scope,
+      template.teamId,
+      memberId,
+    );
     template.deletedAt = new Date();
     template.isDefault = false;
     await this.em.flush();

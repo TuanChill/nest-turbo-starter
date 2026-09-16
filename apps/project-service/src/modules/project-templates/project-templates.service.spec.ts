@@ -1,6 +1,12 @@
 import type { EntityManager } from '@mikro-orm/core';
 import { ProjectTemplatesService } from './project-templates.service';
-import { ProjectTemplate, Team, Workspace, WorkspaceMember } from '../../data-access';
+import {
+  ProjectTemplate,
+  Team,
+  TeamMember,
+  Workspace,
+  WorkspaceMember,
+} from '../../data-access';
 import type { ProjectTemplateConfig } from '../../data-access';
 
 jest.mock('@mikro-orm/core', () => ({
@@ -26,6 +32,7 @@ jest.mock('../../data-access', () => {
     }
   }
   class MockTeam {}
+  class MockTeamMember {}
   class MockWorkspace {}
   class MockWorkspaceMember {}
   class MockInitiative {}
@@ -39,6 +46,7 @@ jest.mock('../../data-access', () => {
     ProjectMember: MockProjectMember,
     ProjectTemplate: MockProjectTemplate,
     Team: MockTeam,
+    TeamMember: MockTeamMember,
     Workspace: MockWorkspace,
     WorkspaceMember: MockWorkspaceMember,
   };
@@ -53,6 +61,17 @@ describe('ProjectTemplatesService.instantiate', () => {
         { key: 'child', title: 'Child issue', parentKey: 'root' },
       ],
     },
+    access: {
+      memberId: string;
+      workspaceOwnerId: string;
+      workspaceRole?: string;
+      teamRole?: string;
+    } = {
+      memberId: 'member-1',
+      workspaceOwnerId: 'member-1',
+      workspaceRole: 'Owner',
+      teamRole: 'member',
+    },
   ) {
     let rolledBack = false;
     const template = new ProjectTemplate({
@@ -64,17 +83,33 @@ describe('ProjectTemplatesService.instantiate', () => {
       config,
     });
     const em = {
-      findOne: jest.fn(async (entity: unknown) => {
-        if (entity === ProjectTemplate) return template;
+      findOne: jest.fn(async (entity: unknown, where?: Record<string, unknown>) => {
+        if (entity === ProjectTemplate)
+          return where?.id === 'template-1' ? template : null;
         if (entity === Workspace)
-          return { id: 'workspace-1', slug: 'workspace', ownerId: 'member-1' };
-        if (entity === WorkspaceMember)
-          return { workspaceId: 'workspace-1', memberId: 'member-1' };
+          return {
+            id: 'workspace-1',
+            slug: 'workspace',
+            ownerId: access.workspaceOwnerId,
+          };
+        if (entity === WorkspaceMember) {
+          if (where?.memberId !== access.memberId) return null;
+          return {
+            workspaceId: 'workspace-1',
+            memberId: access.memberId,
+            role: access.workspaceRole,
+          };
+        }
+        if (entity === TeamMember) {
+          if (where?.memberId !== access.memberId) return null;
+          return { teamId: 'team-1', memberId: access.memberId, role: access.teamRole };
+        }
         if (entity === Team) return { id: 'team-1', workspaceId: 'workspace-1' };
         return null;
       }),
       find: jest.fn(async () => []),
       persist: jest.fn(),
+      flush: jest.fn(async () => undefined),
       transactional: jest.fn(async (callback: () => Promise<unknown>) => {
         try {
           return await callback();
@@ -104,6 +139,59 @@ describe('ProjectTemplatesService.instantiate', () => {
 
     return { service, em, projectsService, rolledBack: () => rolledBack };
   }
+
+  it('blocks a regular workspace member from creating a workspace template', async () => {
+    const { service, em } = buildService(
+      { create: jest.fn(), addRelation: jest.fn() },
+      undefined,
+      {
+        memberId: 'member-2',
+        workspaceOwnerId: 'owner-1',
+        workspaceRole: 'Member',
+        teamRole: 'member',
+      },
+    );
+
+    await expect(
+      service.create(
+        {
+          workspaceId: 'workspace-1',
+          name: 'Workspace template',
+          scope: 'workspace',
+          config: {},
+        },
+        'member-2',
+      ),
+    ).rejects.toThrow('Workspace workspace-1 not found');
+    expect(em.persist).not.toHaveBeenCalled();
+  });
+
+  it('allows a team lead to create a team template', async () => {
+    const { service, em } = buildService(
+      { create: jest.fn(), addRelation: jest.fn() },
+      undefined,
+      {
+        memberId: 'member-2',
+        workspaceOwnerId: 'owner-1',
+        workspaceRole: 'Member',
+        teamRole: 'lead',
+      },
+    );
+
+    await expect(
+      service.create(
+        {
+          workspaceId: 'workspace-1',
+          name: 'Team template',
+          scope: 'team',
+          teamId: 'team-1',
+          config: {},
+        },
+        'member-2',
+      ),
+    ).resolves.toEqual(expect.objectContaining({ teamId: 'team-1' }));
+    expect(em.flush).toHaveBeenCalledTimes(1);
+  });
 
   it('remaps parent references to newly created issue IDs', async () => {
     const issuesService = {
@@ -221,5 +309,25 @@ describe('ProjectTemplatesService.instantiate', () => {
       ),
     ).rejects.toThrow('Template contains invalid references');
     expect(issuesService.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects duplicate issue keys before cloning any records', async () => {
+    const issuesService = { create: jest.fn(), addRelation: jest.fn() };
+    const { service, em } = buildService(issuesService, {
+      issues: [
+        { key: 'duplicate', title: 'First issue' },
+        { key: 'duplicate', title: 'Second issue' },
+      ],
+    });
+
+    await expect(
+      service.instantiate(
+        'template-1',
+        { name: 'Invalid copy', teamId: 'team-1' },
+        'member-1',
+      ),
+    ).rejects.toThrow('duplicateIssueKey');
+    expect(issuesService.create).not.toHaveBeenCalled();
+    expect(em.transactional).not.toHaveBeenCalled();
   });
 });

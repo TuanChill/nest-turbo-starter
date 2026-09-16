@@ -17,6 +17,7 @@ import {
   ProjectMember,
   ProjectTemplate,
   Team,
+  TeamMember,
   Workspace,
   WorkspaceMember,
 } from '../../data-access';
@@ -24,6 +25,7 @@ import type {
   ProjectTemplateConfig,
   ProjectTemplateRelationType,
 } from '../../data-access';
+import { canManageTeamRole, canManageWorkspaceRole } from '../access-control';
 import { IssuesService } from '../issues/issues.service';
 import { assertMutuallyExclusiveLabelSelection } from '../labels/label-rules';
 import { ProjectsService } from '../projects/projects.service';
@@ -67,6 +69,41 @@ export class ProjectTemplatesService {
         'The selected team does not belong to this workspace',
       );
     return team;
+  }
+
+  private async assertTemplateManager(
+    workspaceId: string,
+    scope: 'workspace' | 'team',
+    teamId: string | undefined,
+    memberId: string,
+  ) {
+    const workspace = await this.resolveWorkspace(workspaceId);
+    const workspaceMembership = await this.em.findOne(WorkspaceMember, {
+      workspaceId,
+      memberId,
+    });
+    if (scope === 'workspace') {
+      if (
+        workspace.ownerId !== memberId &&
+        !canManageWorkspaceRole(workspaceMembership?.role)
+      ) {
+        throw new NotFoundException(`Workspace ${workspaceId} not found`);
+      }
+      return;
+    }
+    if (!teamId) throw new BadRequestException('teamId is required for a team template');
+    const [team, teamMembership] = await Promise.all([
+      this.em.findOne(Team, { id: teamId }),
+      this.em.findOne(TeamMember, { teamId, memberId }),
+    ]);
+    if (
+      !team ||
+      team.workspaceId !== workspaceId ||
+      (workspace.ownerId !== memberId &&
+        !canManageTeamRole(workspaceMembership?.role, teamMembership?.role))
+    ) {
+      throw new NotFoundException(`Team ${teamId} not found`);
+    }
   }
 
   private normalizeConfig(config?: ProjectTemplateConfig): ProjectTemplateConfig {
@@ -133,6 +170,7 @@ export class ProjectTemplatesService {
   async create(dto: CreateProjectTemplateDto, memberId: string) {
     const workspace = await this.assertWorkspaceAccess(dto.workspaceId, memberId);
     await this.validateScope(dto.scope, dto.teamId, workspace.id, memberId);
+    await this.assertTemplateManager(workspace.id, dto.scope, dto.teamId, memberId);
     const name = dto.name.trim();
     if (!name) throw new BadRequestException('Template name is required');
     const duplicate = await this.em.findOne(ProjectTemplate, {
@@ -162,6 +200,7 @@ export class ProjectTemplatesService {
     const scope = dto.scope ?? template.scope;
     const teamId = dto.teamId ?? template.teamId;
     await this.validateScope(scope, teamId, template.workspaceId, memberId);
+    await this.assertTemplateManager(template.workspaceId, scope, teamId, memberId);
     const name = dto.name?.trim() || template.name;
     const duplicate = await this.em.findOne(ProjectTemplate, {
       workspaceId: template.workspaceId,
@@ -187,6 +226,12 @@ export class ProjectTemplatesService {
 
   async duplicate(id: string, memberId: string) {
     const source = await this.findOne(id, memberId);
+    await this.assertTemplateManager(
+      source.workspaceId,
+      source.scope,
+      source.teamId,
+      memberId,
+    );
     const copy = new ProjectTemplate({
       workspaceId: source.workspaceId,
       name: `${source.name} copy`,
@@ -203,6 +248,12 @@ export class ProjectTemplatesService {
 
   async delete(id: string, memberId: string) {
     const template = await this.findOne(id, memberId);
+    await this.assertTemplateManager(
+      template.workspaceId,
+      template.scope,
+      template.teamId,
+      memberId,
+    );
     template.deletedAt = new Date();
     template.isDefault = false;
     await this.em.flush();
@@ -333,11 +384,21 @@ export class ProjectTemplatesService {
       }
     }
 
-    const milestoneKeys = new Set(
-      (config.milestones ?? []).map((milestone) => milestone.key),
-    );
-    const issueKeys = new Set((config.issues ?? []).map((issue) => issue.key));
+    const milestoneKeyList = (config.milestones ?? []).map((milestone) => milestone.key);
+    const issueKeyList = (config.issues ?? []).map((issue) => issue.key);
+    const milestoneKeys = new Set(milestoneKeyList);
+    const issueKeys = new Set(issueKeyList);
     const invalidReferences: string[] = [];
+    for (const key of milestoneKeyList.filter(
+      (candidate, index) => milestoneKeyList.indexOf(candidate) !== index,
+    )) {
+      invalidReferences.push(`${key}.duplicateMilestoneKey`);
+    }
+    for (const key of issueKeyList.filter(
+      (candidate, index) => issueKeyList.indexOf(candidate) !== index,
+    )) {
+      invalidReferences.push(`${key}.duplicateIssueKey`);
+    }
     for (const issue of config.issues ?? []) {
       if (
         issue.parentKey &&

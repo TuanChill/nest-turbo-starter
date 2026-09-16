@@ -6,6 +6,7 @@ import {
   Project,
   ProjectMilestone,
   Team,
+  TeamMember,
   Workspace,
   WorkspaceMember,
 } from '../../data-access';
@@ -28,6 +29,7 @@ jest.mock('../../data-access', () => {
   class MockProject {}
   class MockProjectMilestone {}
   class MockTeam {}
+  class MockTeamMember {}
   class MockWorkspace {}
   class MockWorkspaceMember {}
 
@@ -41,19 +43,51 @@ jest.mock('../../data-access', () => {
     Project: MockProject,
     ProjectMilestone: MockProjectMilestone,
     Team: MockTeam,
+    TeamMember: MockTeamMember,
     Workspace: MockWorkspace,
     WorkspaceMember: MockWorkspaceMember,
   };
 });
 
 describe('IssueTemplatesService parent defaults', () => {
-  function buildService(parentTeamId: string) {
+  function buildService(
+    parentTeamId: string,
+    access: {
+      memberId: string;
+      workspaceOwnerId: string;
+      workspaceRole?: string;
+      teamRole?: string;
+    } = {
+      memberId: 'member-1',
+      workspaceOwnerId: 'member-1',
+      workspaceRole: 'Owner',
+      teamRole: 'member',
+    },
+  ) {
     const em = {
-      findOne: jest.fn(async (entity: unknown) => {
+      findOne: jest.fn(async (entity: unknown, where?: Record<string, unknown>) => {
         if (entity === Workspace)
-          return { id: 'workspace-1', slug: 'workspace', ownerId: 'member-1' };
-        if (entity === WorkspaceMember)
-          return { workspaceId: 'workspace-1', memberId: 'member-1' };
+          return {
+            id: 'workspace-1',
+            slug: 'workspace',
+            ownerId: access.workspaceOwnerId,
+          };
+        if (entity === WorkspaceMember) {
+          if (where?.memberId !== access.memberId) return null;
+          return {
+            workspaceId: 'workspace-1',
+            memberId: access.memberId,
+            role: access.workspaceRole,
+          };
+        }
+        if (entity === TeamMember) {
+          if (where?.memberId !== access.memberId) return null;
+          return {
+            teamId: parentTeamId,
+            memberId: access.memberId,
+            role: access.teamRole,
+          };
+        }
         if (entity === Issue)
           return { id: 'issue-1', identifier: 'ENG-1', teamId: parentTeamId };
         if (entity === IssueTemplate) return null;
@@ -73,6 +107,51 @@ describe('IssueTemplatesService parent defaults', () => {
       service: new IssueTemplatesService(em, workspacesService as never),
     };
   }
+
+  it('blocks a regular workspace member from creating a workspace template', async () => {
+    const { service, em } = buildService('team-a', {
+      memberId: 'member-2',
+      workspaceOwnerId: 'owner-1',
+      workspaceRole: 'Member',
+      teamRole: 'member',
+    });
+
+    await expect(
+      service.create(
+        {
+          workspaceId: 'workspace-1',
+          name: 'Workspace template',
+          scope: 'workspace',
+          config: {},
+        },
+        'member-2',
+      ),
+    ).rejects.toThrow('Workspace workspace-1 not found');
+    expect(em.persist).not.toHaveBeenCalled();
+  });
+
+  it('allows a team lead to create a team template', async () => {
+    const { service, em } = buildService('team-a', {
+      memberId: 'member-2',
+      workspaceOwnerId: 'owner-1',
+      workspaceRole: 'Member',
+      teamRole: 'lead',
+    });
+
+    await expect(
+      service.create(
+        {
+          workspaceId: 'workspace-1',
+          name: 'Team template',
+          scope: 'team',
+          teamId: 'team-a',
+          config: {},
+        },
+        'member-2',
+      ),
+    ).resolves.toEqual(expect.objectContaining({ teamId: 'team-a' }));
+    expect(em.flush).toHaveBeenCalledTimes(1);
+  });
 
   it('rejects a workspace template with a parent issue default', async () => {
     const { service, em } = buildService('team-a');
