@@ -548,6 +548,36 @@ export class IssuesService {
     );
   }
 
+  async findArchived(memberId: string, teamId?: string) {
+    const accessibleTeamIds = await this.getAccessibleTeamIds(memberId);
+    if (accessibleTeamIds.length === 0) return [];
+    if (teamId && !accessibleTeamIds.includes(teamId)) return [];
+
+    const issues = await this.em.find(
+      Issue,
+      {
+        teamId: teamId ?? { $in: accessibleTeamIds },
+        deletedAt: { $ne: null },
+      },
+      {
+        filters: { softDelete: false },
+        orderBy: { deletedAt: 'DESC' },
+      },
+    );
+
+    return issues.map((issue) => ({
+      id: issue.id,
+      identifier: issue.identifier,
+      title: issue.title,
+      teamId: issue.teamId,
+      statusId: issue.statusId,
+      statusCategory: issue.statusCategory,
+      priorityId: issue.priorityId,
+      deletedAt: issue.deletedAt?.toISOString() ?? null,
+      createdAt: issue.createdAt?.toISOString() ?? null,
+    }));
+  }
+
   async findFacets(
     memberId: string,
     query?: {
@@ -1368,6 +1398,26 @@ export class IssuesService {
       await this.em.flush();
     }
     return { success: true };
+  }
+
+  async restore(identifierOrId: string, memberId: string) {
+    const issue = await this.em.findOne(
+      Issue,
+      { $or: [{ identifier: identifierOrId }, { id: identifierOrId }] },
+      { filters: { softDelete: false } },
+    );
+    if (!issue || !issue.deletedAt) {
+      throw new NotFoundException(`Deleted issue ${identifierOrId} not found`);
+    }
+
+    await this.assertTeamAccess(
+      memberId,
+      issue.teamId,
+      `Deleted issue ${identifierOrId} not found`,
+    );
+    issue.deletedAt = undefined;
+    await this.em.flush();
+    return this.findOne(issue.identifier, memberId);
   }
 
   async getSubscription(identifierOrId: string, memberId: string) {

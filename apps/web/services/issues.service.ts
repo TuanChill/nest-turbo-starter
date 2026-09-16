@@ -1,6 +1,7 @@
 import { apiClient } from './api-client';
 import type { Issue } from '@/mock-data/issues';
 import type { ContentBlock, IssueDetail } from '@/mock-data/issue-details';
+import type { ArchivedIssue } from '@/lib/api/issues';
 
 export interface IssueFilterParams {
    workspaceId?: string;
@@ -79,6 +80,12 @@ export const issuesService = {
       });
    },
 
+   async getArchivedIssues(teamId?: string): Promise<ArchivedIssue[]> {
+      return apiClient<ArchivedIssue[]>('/issues/archived', {
+         params: teamId ? { teamId } : undefined,
+      });
+   },
+
    async getIssueFacets(params?: IssueFacetParams): Promise<IssueFacetCounts> {
       return apiClient<IssueFacetCounts>('/issues/facets', {
          params: params as Record<string, string | string[] | undefined>,
@@ -120,6 +127,10 @@ export const issuesService = {
       return apiClient<{ success: boolean }>(`/issues/${identifier}`, {
          method: 'DELETE',
       });
+   },
+
+   async restoreIssue(identifier: string): Promise<Issue> {
+      return apiClient<Issue>(`/issues/${identifier}/restore`, { method: 'POST' });
    },
 
    async getSubscription(identifier: string): Promise<{ identifier: string; subscribed: boolean }> {

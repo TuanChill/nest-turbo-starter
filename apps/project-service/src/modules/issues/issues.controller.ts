@@ -89,6 +89,13 @@ export class IssuesController {
     });
   }
 
+  @ApiOperation({ summary: 'List recently deleted issues in accessible teams' })
+  @ApiQuery({ name: 'teamId', required: false })
+  @Get('archived')
+  findArchived(@User('id') memberId: string, @Query('teamId') teamId?: string) {
+    return this.issuesService.findArchived(memberId, teamId);
+  }
+
   @ApiOperation({ summary: 'Get issue by identifier or ID' })
   @Get(':identifier')
   findOne(
@@ -161,6 +168,12 @@ export class IssuesController {
   @Delete(':identifier')
   delete(@Param('identifier') identifier: string, @User('id') memberId: string) {
     return this.issuesService.delete(identifier, memberId);
+  }
+
+  @ApiOperation({ summary: 'Restore a recently deleted issue' })
+  @Post(':identifier/restore')
+  restore(@Param('identifier') identifier: string, @User('id') memberId: string) {
+    return this.issuesService.restore(identifier, memberId);
   }
 
   @ApiOperation({ summary: 'Add comment to issue' })

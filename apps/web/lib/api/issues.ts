@@ -15,6 +15,18 @@ export interface IssueFilterParams {
    search?: string;
 }
 
+export interface ArchivedIssue {
+   id: string;
+   identifier: string;
+   title: string;
+   teamId: string;
+   statusId: string;
+   statusCategory: string;
+   priorityId: string;
+   deletedAt: string | null;
+   createdAt: string | null;
+}
+
 export interface CreateIssuePayload {
    identifier?: string;
    title: string;
@@ -61,6 +73,12 @@ export async function fetchIssues(params?: IssueFilterParams): Promise<Issue[]> 
    });
 }
 
+export async function fetchArchivedIssues(teamId?: string): Promise<ArchivedIssue[]> {
+   return apiClient<ArchivedIssue[]>('/issues/archived', {
+      params: teamId ? { teamId } : undefined,
+   });
+}
+
 export async function fetchIssueById(identifier: string): Promise<Issue> {
    return apiClient<Issue>(`/issues/${identifier}`);
 }
@@ -96,6 +114,12 @@ export async function updateIssueRank(
 export async function deleteIssue(identifier: string): Promise<{ success: boolean }> {
    return apiClient<{ success: boolean }>(`/issues/${identifier}`, {
       method: 'DELETE',
+   });
+}
+
+export async function restoreIssue(identifier: string): Promise<Issue> {
+   return apiClient<Issue>(`/issues/${identifier}/restore`, {
+      method: 'POST',
    });
 }
 

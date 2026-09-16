@@ -96,9 +96,11 @@ export function NavTeams() {
                                     <LinkIcon className="size-4 mr-2" />
                                     <span>Copy link</span>
                                  </DropdownMenuItem>
-                                 <DropdownMenuItem>
-                                    <Archive className="size-4 mr-2" />
-                                    <span>Open archive</span>
+                                 <DropdownMenuItem asChild>
+                                    <Link href={ROUTES.TEAM.ARCHIVES(orgId, item.id)}>
+                                       <Archive className="size-4 mr-2" />
+                                       <span>Open archive</span>
+                                    </Link>
                                  </DropdownMenuItem>
                                  <DropdownMenuSeparator />
                                  <DropdownMenuItem>

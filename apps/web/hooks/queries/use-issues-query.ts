@@ -28,6 +28,14 @@ export function useIssues(params?: IssueFilterParams) {
    });
 }
 
+export function useArchivedIssues(teamId?: string) {
+   return useQuery({
+      queryKey: issueKeys.archived(teamId),
+      queryFn: () => issuesService.getArchivedIssues(teamId),
+      enabled: Boolean(teamId),
+   });
+}
+
 export function useIssueFacets(params?: IssueFacetParams) {
    const { orgId } = useParams<{ orgId?: string }>();
    const { data: workspaces = [], isFetched: workspacesFetched } = useWorkspaces();
@@ -127,6 +135,22 @@ export function useDeleteIssue() {
       },
       onError: (error: Error) => {
          toast.error(error.message || 'Failed to delete issue');
+      },
+   });
+}
+
+export function useRestoreIssue() {
+   const queryClient = useQueryClient();
+
+   return useMutation({
+      mutationFn: (identifier: string) => issuesService.restoreIssue(identifier),
+      onSuccess: (restored) => {
+         queryClient.invalidateQueries({ queryKey: issueKeys.all });
+         queryClient.invalidateQueries({ queryKey: issueKeys.detail(restored.identifier) });
+         toast.success(`Restored issue ${restored.identifier}`);
+      },
+      onError: (error: Error) => {
+         toast.error(error.message || 'Failed to restore issue');
       },
    });
 }

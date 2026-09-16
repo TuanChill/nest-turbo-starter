@@ -176,5 +176,13 @@ cloned_child_identifier="$(jq -er '.[] | select(.title == "Simulation child issu
 cloned_detail="$(api GET "/issues/$cloned_root_identifier/detail")"
 assert_json 'template clone remaps issue relation' "$cloned_detail" --arg cloned_child_identifier "$cloned_child_identifier" '.relations | any(.[]; .identifier == $cloned_child_identifier)'
 
+api DELETE "/issues/$root_identifier" >/dev/null
+archived_issues="$(api GET "/issues/archived?teamId=$TEAM_ID")"
+assert_json 'deleted issue appears in scoped archive' "$archived_issues" --arg root_identifier "$root_identifier" 'any(.[]; .identifier == $root_identifier and .deletedAt != null)'
+restored_issue="$(api POST "/issues/$root_identifier/restore")"
+assert_json 'deleted issue can be restored' "$restored_issue" --arg root_identifier "$root_identifier" '.identifier == $root_identifier'
+restored_detail="$(api GET "/issues/$root_identifier/detail")"
+assert_json 'restored issue is readable again' "$restored_detail" --arg root_identifier "$root_identifier" '.identifier == $root_identifier'
+
 echo "PASS authenticated user simulation"
 echo "workspace=$WORKSPACE_ID team=$TEAM_ID project=$project_id clonedProject=$cloned_project_id rootIssue=$root_identifier childIssue=$child_identifier initiative=$initiative_id cycle=$cycle_id issueTemplate=$issue_template_id"

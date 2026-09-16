@@ -12,6 +12,7 @@ export const issueKeys = {
    details: () => [...issueKeys.all, 'detail'] as const,
    detail: (id: string) => [...issueKeys.details(), id] as const,
    activity: (id: string) => [...issueKeys.detail(id), 'activity'] as const,
+   archived: (teamId?: string) => [...issueKeys.all, 'archived', teamId ?? 'all'] as const,
 };
 
 export const projectKeys = {
