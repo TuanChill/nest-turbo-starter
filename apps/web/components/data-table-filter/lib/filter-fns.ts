@@ -52,13 +52,18 @@ export function multiOptionFilterFn(inputData: string[], filterValue: FilterMode
 export function dateFilterFn<TData>(inputData: Date, filterValue: FilterModel<'date'>) {
    if (!filterValue || filterValue.values.length === 0) return true;
 
+   if (!(inputData instanceof Date) || Number.isNaN(inputData.getTime())) return false;
+
    if (
       dateFilterOperators[filterValue.operator].target === 'single' &&
       filterValue.values.length > 1
    )
       throw new Error('Singular operators require at most one filter value');
 
-   if (filterValue.operator in ['is between', 'is not between'] && filterValue.values.length !== 2)
+   if (
+      (filterValue.operator === 'is between' || filterValue.operator === 'is not between') &&
+      filterValue.values.length !== 2
+   )
       throw new Error('Plural operators require two filter values');
 
    const filterVals = filterValue.values;

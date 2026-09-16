@@ -2,8 +2,17 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { createColumnConfigHelper } from '@/components/data-table-filter/core/filters';
-import type { ColumnOption, FiltersState } from '@/components/data-table-filter/core/types';
-import { multiOptionFilterFn, optionFilterFn } from '@/components/data-table-filter/lib/filter-fns';
+import type {
+   ColumnOption,
+   FilterModel,
+   FiltersState,
+} from '@/components/data-table-filter/core/types';
+import {
+   dateFilterFn,
+   multiOptionFilterFn,
+   optionFilterFn,
+   textFilterFn,
+} from '@/components/data-table-filter/lib/filter-fns';
 import { cycleStatusLabel } from '@/lib/cycle-utils';
 import type { Cycle } from '@/services/cycles.service';
 import type { Issue } from '@/mock-data/issues';
@@ -15,9 +24,11 @@ import type { Member } from '@/services/members.service';
 import type { LabelItem } from '@/services/labels.service';
 import {
    BarChart3,
+   CalendarClock,
    CircleCheck,
    CircleDashed,
    CircleUserRound,
+   FileText,
    Folder,
    RefreshCcw,
    Tag,
@@ -125,6 +136,20 @@ export function buildIssueFilterColumns(
 ) {
    return [
       dtf
+         .text()
+         .id('title')
+         .accessor((issue: Issue) => issue.title)
+         .displayName('Title')
+         .icon(FileText)
+         .build(),
+      dtf
+         .text()
+         .id('identifier')
+         .accessor((issue: Issue) => issue.identifier)
+         .displayName('ID')
+         .icon(FileText)
+         .build(),
+      dtf
          .option()
          .id('status')
          .accessor((issue: Issue) => issue.status.id)
@@ -180,6 +205,20 @@ export function buildIssueFilterColumns(
          .icon(RefreshCcw)
          .options(buildCycleOptions(cycles))
          .build(),
+      dtf
+         .date()
+         .id('dueDate')
+         .accessor((issue: Issue) => new Date(issue.dueDate ?? 'invalid'))
+         .displayName('Due date')
+         .icon(CalendarClock)
+         .build(),
+      dtf
+         .date()
+         .id('createdAt')
+         .accessor((issue: Issue) => new Date(issue.createdAt))
+         .displayName('Created date')
+         .icon(CalendarClock)
+         .build(),
    ] as const;
 }
 
@@ -207,6 +246,10 @@ export function applyIssueFilters(issues: Issue[], filters: FiltersState): Issue
                return optionFilterFn(String(value ?? ''), filter) ?? true;
             case 'multiOption':
                return multiOptionFilterFn((value as string[]) ?? [], filter) ?? true;
+            case 'text':
+               return textFilterFn(String(value ?? ''), filter as FilterModel<'text'>) ?? true;
+            case 'date':
+               return dateFilterFn(value as Date, filter as FilterModel<'date'>) ?? true;
             default:
                return true;
          }
