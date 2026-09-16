@@ -1,5 +1,10 @@
 import { EntityManager } from '@mikro-orm/core';
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import {
   CreateLabelDto,
   CreateLabelGroupDto,
@@ -21,6 +26,19 @@ import {
 import { canManageTeamRole, canManageWorkspaceRole } from '../access-control';
 import { requireWorkspaceSelection } from '../workspaces/workspace-selection';
 import { WorkspacesService } from '../workspaces/workspaces.service';
+
+const RESERVED_LABEL_NAMES = new Set([
+  'assignee',
+  'cycle',
+  'effort',
+  'estimate',
+  'hours',
+  'priority',
+  'project',
+  'state',
+  'status',
+]);
+const MAX_LABELS_PER_GROUP = 250;
 
 @Injectable()
 export class LabelsService {
@@ -125,6 +143,31 @@ export class LabelsService {
     }
   }
 
+  private validateLabelName(name: string) {
+    if (!name) throw new BadRequestException('Label name cannot be empty');
+    if (RESERVED_LABEL_NAMES.has(name.toLocaleLowerCase())) {
+      throw new ConflictException(`Label name "${name}" is reserved`);
+    }
+  }
+
+  private async validateGroupCapacity(
+    groupId: string | undefined,
+    workspaceId: string,
+    excludedLabelId?: string,
+  ) {
+    if (!groupId) return;
+    const groupedLabels = await this.em.find(Label, {
+      workspaceId,
+      groupId,
+      ...(excludedLabelId ? { id: { $ne: excludedLabelId } } : {}),
+    });
+    if (groupedLabels.length >= MAX_LABELS_PER_GROUP) {
+      throw new ConflictException(
+        `A label group cannot contain more than ${MAX_LABELS_PER_GROUP} labels`,
+      );
+    }
+  }
+
   private async assertLabelManager(
     memberId: string,
     workspaceId: string,
@@ -174,6 +217,7 @@ export class LabelsService {
     const teamId = await this.validateTeamId(dto.teamId, workspaceId, memberId);
     await this.assertLabelManager(memberId, workspaceId, teamId);
     const name = dto.name.trim();
+    this.validateLabelName(name);
     const scope = dto.scope ?? 'both';
     const labels = await this.em.find(Label, { workspaceId });
     const duplicate = labels.some(
@@ -186,6 +230,7 @@ export class LabelsService {
     }
 
     await this.validateGroup(dto.groupId, workspaceId, scope);
+    await this.validateGroupCapacity(dto.groupId, workspaceId);
 
     const label = new Label({ ...dto, name, scope, workspaceId, teamId });
     this.em.persist(label);
@@ -204,6 +249,7 @@ export class LabelsService {
     await this.assertLabelManager(memberId, label.workspaceId, label.teamId);
 
     const name = dto.name?.trim() ?? label.name;
+    this.validateLabelName(name);
     const scope = dto.scope ?? label.scope;
     const nextTeamId = dto.teamId === null ? undefined : (dto.teamId ?? label.teamId);
     const teamId = await this.validateTeamId(nextTeamId, label.workspaceId, memberId);
@@ -223,9 +269,11 @@ export class LabelsService {
       throw new ConflictException(`Label "${name}" already exists in this scope`);
     }
 
-    await this.validateGroup(dto.groupId ?? label.groupId, label.workspaceId, scope);
+    const nextGroupId = dto.groupId ?? label.groupId;
+    await this.validateGroup(nextGroupId, label.workspaceId, scope);
+    await this.validateGroupCapacity(nextGroupId, label.workspaceId, id);
 
-    Object.assign(label, { ...dto, name, scope, teamId });
+    Object.assign(label, { ...dto, name, scope, teamId, groupId: nextGroupId });
     await this.em.flush();
     return label;
   }

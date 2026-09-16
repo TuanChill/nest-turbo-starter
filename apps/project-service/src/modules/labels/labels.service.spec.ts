@@ -1,7 +1,14 @@
 import type { EntityManager } from '@mikro-orm/core';
-import { NotFoundException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import { LabelsService } from './labels.service';
-import { Label, Team, TeamMember, Workspace, WorkspaceMember } from '../../data-access';
+import {
+  Label,
+  LabelGroup,
+  Team,
+  TeamMember,
+  Workspace,
+  WorkspaceMember,
+} from '../../data-access';
 
 jest.mock('@mikro-orm/core', () => ({
   EntityManager: class MockEntityManager {},
@@ -10,7 +17,7 @@ jest.mock('@mikro-orm/core', () => ({
 jest.mock('../../data-access', () => ({
   IssueLabel: class IssueLabel {},
   Label: class MockLabel {},
-  LabelGroup: class LabelGroup {},
+  LabelGroup: class MockLabelGroup {},
   ProjectLabel: class ProjectLabel {},
   Team: class MockTeam {},
   TeamMember: class MockTeamMember {},
@@ -134,5 +141,80 @@ describe('LabelsService team scope', () => {
     ).resolves.toBeDefined();
     expect(em.persist).toHaveBeenCalledTimes(1);
     expect(em.flush).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects Linear-reserved label names', async () => {
+    const em = {
+      findOne: jest.fn(async (entity: unknown) => {
+        if (entity === Workspace) return { id: 'workspace-a', ownerId: 'owner-1' };
+        if (entity === WorkspaceMember) {
+          return { workspaceId: 'workspace-a', role: 'Admin' };
+        }
+        return null;
+      }),
+      find: jest.fn().mockResolvedValue([]),
+      persist: jest.fn(),
+      flush: jest.fn(),
+    } as unknown as EntityManager;
+    const service = new LabelsService(em, {
+      getAccessibleWorkspaceIds: jest.fn().mockResolvedValue(['workspace-a']),
+      getAccessibleTeamIds: jest.fn().mockResolvedValue([]),
+    } as never);
+
+    await expect(
+      service.create(
+        {
+          id: 'status-label',
+          name: 'Status',
+          color: 'red',
+          workspaceId: 'workspace-a',
+        },
+        'admin-1',
+      ),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(em.persist).not.toHaveBeenCalled();
+  });
+
+  it('rejects adding a label to a full label group', async () => {
+    const groupId = '11111111-1111-4111-8111-111111111111';
+    const groupedLabels = Array.from({ length: 250 }, (_, index) => ({
+      id: `label-${index}`,
+      workspaceId: 'workspace-a',
+      groupId,
+    }));
+    const em = {
+      findOne: jest.fn(async (entity: unknown) => {
+        if (entity === Workspace) return { id: 'workspace-a', ownerId: 'owner-1' };
+        if (entity === WorkspaceMember) {
+          return { workspaceId: 'workspace-a', role: 'Admin' };
+        }
+        if (entity === LabelGroup) return { id: groupId, workspaceId: 'workspace-a' };
+        return null;
+      }),
+      find: jest.fn(async (entity: unknown, where?: Record<string, unknown>) => {
+        if (entity === Label && where?.groupId === groupId) return groupedLabels;
+        return [];
+      }),
+      persist: jest.fn(),
+      flush: jest.fn(),
+    } as unknown as EntityManager;
+    const service = new LabelsService(em, {
+      getAccessibleWorkspaceIds: jest.fn().mockResolvedValue(['workspace-a']),
+      getAccessibleTeamIds: jest.fn().mockResolvedValue([]),
+    } as never);
+
+    await expect(
+      service.create(
+        {
+          id: 'label-251',
+          name: 'Another label',
+          color: 'red',
+          workspaceId: 'workspace-a',
+          groupId,
+        },
+        'admin-1',
+      ),
+    ).rejects.toThrow('cannot contain more than 250 labels');
+    expect(em.persist).not.toHaveBeenCalled();
   });
 });
