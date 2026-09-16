@@ -168,7 +168,7 @@ export function CycleSettingsDialog({
                         <div>
                            <Label htmlFor="auto-add-active">Auto-add active issues</Label>
                            <p className="text-xs text-muted-foreground">
-                              Add started and completed issues without a cycle to the appropriate
+                              Add started or completed issues without a cycle to the appropriate
                               cycle.
                            </p>
                         </div>
