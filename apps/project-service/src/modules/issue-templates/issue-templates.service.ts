@@ -6,7 +6,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { CreateIssueTemplateDto, UpdateIssueTemplateDto } from './dto/issue-template.dto';
-import { normalizeIssueTemplateConfig } from './issue-template-config';
+import {
+  issueTemplateReferencesSameTeam,
+  normalizeIssueTemplateConfig,
+} from './issue-template-config';
 import {
   Cycle,
   IssueTemplate,
@@ -66,6 +69,8 @@ export class IssueTemplatesService {
     teamId: string | undefined,
     memberId: string,
   ) {
+    let projectTeamId: string | undefined;
+    let cycleTeamId: string | undefined;
     if (teamId) await this.assertTeamAccess(teamId, workspaceId, memberId);
     if (config.assigneeId) {
       const [assignee, workspaceMembership] = await Promise.all([
@@ -104,6 +109,7 @@ export class IssueTemplatesService {
       if (!project)
         throw new BadRequestException('The template project no longer exists');
       await this.assertTeamAccess(project.teamId, workspaceId, memberId);
+      projectTeamId = project.teamId;
       if (teamId && project.teamId !== teamId) {
         throw new BadRequestException('The template project belongs to another team');
       }
@@ -112,9 +118,15 @@ export class IssueTemplatesService {
       const cycle = await this.em.findOne(Cycle, { id: config.cycleId });
       if (!cycle) throw new BadRequestException('The template cycle no longer exists');
       await this.assertTeamAccess(cycle.teamId, workspaceId, memberId);
+      cycleTeamId = cycle.teamId;
       if (teamId && cycle.teamId !== teamId) {
         throw new BadRequestException('The template cycle belongs to another team');
       }
+    }
+    if (!issueTemplateReferencesSameTeam(projectTeamId, cycleTeamId)) {
+      throw new BadRequestException(
+        'The template project and cycle must belong to the same team',
+      );
     }
   }
 
@@ -221,6 +233,7 @@ export class IssueTemplatesService {
 
   async duplicate(id: string, memberId: string) {
     const source = await this.findOne(id, memberId);
+    await this.validateConfig(source.config, source.workspaceId, source.teamId, memberId);
     const copy = new IssueTemplate({
       workspaceId: source.workspaceId,
       name: `${source.name} copy`,

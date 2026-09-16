@@ -1,4 +1,7 @@
-import { normalizeIssueTemplateConfig } from './issue-template-config';
+import {
+  issueTemplateReferencesSameTeam,
+  normalizeIssueTemplateConfig,
+} from './issue-template-config';
 
 describe('normalizeIssueTemplateConfig', () => {
   it('trims titles and removes duplicate label ids', () => {
@@ -37,5 +40,41 @@ describe('normalizeIssueTemplateConfig', () => {
       cycleId: undefined,
       dueDate: undefined,
     });
+  });
+
+  it('preserves all persisted issue property defaults', () => {
+    const config = normalizeIssueTemplateConfig({
+      title: 'Bug',
+      description: '**Details**',
+      descriptionBlocks: [{ type: 'paragraph', text: 'Details' }],
+      statusId: 'in-progress',
+      statusCategory: 'started',
+      priorityId: 'high',
+      assigneeId: 'member-1',
+      labelIds: ['bug'],
+      projectId: 'project-1',
+      cycleId: 'cycle-1',
+      dueDate: '2026-09-30',
+    });
+
+    expect(config).toMatchObject({
+      title: 'Bug',
+      description: '**Details**',
+      descriptionBlocks: [{ type: 'paragraph', text: 'Details' }],
+      statusId: 'in-progress',
+      statusCategory: 'started',
+      priorityId: 'high',
+      assigneeId: 'member-1',
+      labelIds: ['bug'],
+      projectId: 'project-1',
+      cycleId: 'cycle-1',
+      dueDate: '2026-09-30',
+    });
+  });
+
+  it('rejects project and cycle defaults from different teams', () => {
+    expect(issueTemplateReferencesSameTeam('team-a', 'team-b')).toBe(false);
+    expect(issueTemplateReferencesSameTeam('team-a', 'team-a')).toBe(true);
+    expect(issueTemplateReferencesSameTeam(undefined, 'team-a')).toBe(true);
   });
 });

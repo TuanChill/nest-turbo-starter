@@ -20,3 +20,10 @@ export function normalizeIssueTemplateConfig(
     dueDate: source.dueDate,
   };
 }
+
+export function issueTemplateReferencesSameTeam(
+  projectTeamId?: string,
+  cycleTeamId?: string,
+): boolean {
+  return !projectTeamId || !cycleTeamId || projectTeamId === cycleTeamId;
+}

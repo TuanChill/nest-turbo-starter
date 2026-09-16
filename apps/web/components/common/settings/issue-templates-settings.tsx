@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { LinearEditor } from '@/components/common/editor/linear-editor';
 import {
    Select,
    SelectContent,
@@ -28,31 +29,17 @@ import {
 import { useLabels } from '@/hooks/queries/use-labels-query';
 import { useMembers } from '@/hooks/queries/use-members-query';
 import { useTeams } from '@/hooks/queries/use-teams-query';
+import { useProjects } from '@/hooks/queries/use-projects-query';
+import { useCycles } from '@/hooks/queries/use-cycles-query';
+import { priorities } from '@/lib/priority-catalog';
+import { status } from '@/lib/workflow-status';
+import type { Project } from '@/services/projects.service';
+import type { Cycle } from '@/services/cycles.service';
 import type { CreateIssueTemplatePayload, IssueTemplate } from '@/services/issue-templates.service';
 import { useParams } from 'next/navigation';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 
-const statuses = [
-   ['triage', 'Triage'],
-   ['to-do', 'Todo'],
-   ['in-progress', 'In Progress'],
-   ['done', 'Done'],
-];
-const priorities = [
-   ['no-priority', 'No priority'],
-   ['urgent', 'Urgent'],
-   ['high', 'High'],
-   ['medium', 'Medium'],
-   ['low', 'Low'],
-];
-const categoryFor = (id: string) =>
-   id === 'done'
-      ? 'completed'
-      : id === 'triage'
-        ? 'triage'
-        : id === 'in-progress'
-          ? 'started'
-          : 'unstarted';
+const categoryFor = (id: string) => status.find((item) => item.id === id)?.category ?? 'unstarted';
 
 type EditorProps = {
    open: boolean;
@@ -61,6 +48,8 @@ type EditorProps = {
    teams: Array<{ id: string; name: string }>;
    members: Array<{ id: string; name: string }>;
    labels: Array<{ id: string; name: string; color: string }>;
+   projects: Project[];
+   cycles: Cycle[];
    onClose: (open: boolean) => void;
    onCreate: (payload: CreateIssueTemplatePayload) => Promise<void>;
    onUpdate: (id: string, payload: Partial<CreateIssueTemplatePayload>) => Promise<void>;
@@ -73,6 +62,8 @@ function TemplateEditor({
    teams,
    members,
    labels,
+   projects,
+   cycles,
    onClose,
    onCreate,
    onUpdate,
@@ -87,6 +78,9 @@ function TemplateEditor({
    const [priorityId, setPriorityId] = useState('no-priority');
    const [assigneeId, setAssigneeId] = useState('none');
    const [labelIds, setLabelIds] = useState<string[]>([]);
+   const [projectId, setProjectId] = useState('none');
+   const [cycleId, setCycleId] = useState('none');
+   const [dueDate, setDueDate] = useState('');
    const [isDefault, setIsDefault] = useState(false);
 
    useEffect(() => {
@@ -102,8 +96,14 @@ function TemplateEditor({
       setPriorityId(config.priorityId ?? 'no-priority');
       setAssigneeId(config.assigneeId ?? 'none');
       setLabelIds(config.labelIds ?? []);
+      setProjectId(config.projectId ?? 'none');
+      setCycleId(config.cycleId ?? 'none');
+      setDueDate(config.dueDate ?? '');
       setIsDefault(template?.isDefault ?? false);
-   }, [open, template, teams]);
+   }, [open, template]);
+
+   const availableProjects = projects.filter((project) => !teamId || project.teamId === teamId);
+   const availableCycles = cycles.filter((cycle) => !teamId || cycle.teamId === teamId);
 
    const toggleLabel = (id: string) =>
       setLabelIds((current) =>
@@ -126,6 +126,9 @@ function TemplateEditor({
             priorityId,
             assigneeId: assigneeId === 'none' ? undefined : assigneeId,
             labelIds,
+            projectId: projectId === 'none' ? undefined : projectId,
+            cycleId: cycleId === 'none' ? undefined : cycleId,
+            dueDate: dueDate || undefined,
          },
       } satisfies CreateIssueTemplatePayload;
       if (template) await onUpdate(template.id, payload);
@@ -160,7 +163,10 @@ function TemplateEditor({
                   <div className="grid grid-cols-2 gap-3">
                      <Select
                         value={scope}
-                        onValueChange={(value: 'workspace' | 'team') => setScope(value)}
+                        onValueChange={(value: 'workspace' | 'team') => {
+                           setScope(value);
+                           if (value === 'workspace') setTeamId('');
+                        }}
                      >
                         <SelectTrigger>
                            <SelectValue />
@@ -171,7 +177,26 @@ function TemplateEditor({
                         </SelectContent>
                      </Select>
                      {scope === 'team' && (
-                        <Select value={teamId} onValueChange={setTeamId}>
+                        <Select
+                           value={teamId}
+                           onValueChange={(value) => {
+                              setTeamId(value);
+                              if (
+                                 projectId !== 'none' &&
+                                 !projects.some(
+                                    (item) => item.id === projectId && item.teamId === value
+                                 )
+                              )
+                                 setProjectId('none');
+                              if (
+                                 cycleId !== 'none' &&
+                                 !cycles.some(
+                                    (item) => item.id === cycleId && item.teamId === value
+                                 )
+                              )
+                                 setCycleId('none');
+                           }}
+                        >
                            <SelectTrigger>
                               <SelectValue placeholder="Team" />
                            </SelectTrigger>
@@ -190,20 +215,23 @@ function TemplateEditor({
                      value={title}
                      onChange={(event) => setTitle(event.target.value)}
                   />
-                  <Textarea
-                     placeholder="Default issue description"
-                     value={issueDescription}
-                     onChange={(event) => setIssueDescription(event.target.value)}
-                  />
+                  <div className="rounded-md border px-3">
+                     <LinearEditor
+                        value={issueDescription}
+                        onChange={setIssueDescription}
+                        placeholder="Default issue description or type '/' for commands..."
+                        minHeight="min-h-[100px]"
+                     />
+                  </div>
                   <div className="grid grid-cols-3 gap-3">
                      <Select value={statusId} onValueChange={setStatusId}>
                         <SelectTrigger>
                            <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                           {statuses.map(([id, label]) => (
-                              <SelectItem key={id} value={id}>
-                                 {label}
+                           {status.map((item) => (
+                              <SelectItem key={item.id} value={item.id}>
+                                 {item.name}
                               </SelectItem>
                            ))}
                         </SelectContent>
@@ -213,9 +241,9 @@ function TemplateEditor({
                            <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                           {priorities.map(([id, label]) => (
-                              <SelectItem key={id} value={id}>
-                                 {label}
+                           {priorities.map((item) => (
+                              <SelectItem key={item.id} value={item.id}>
+                                 {item.name}
                               </SelectItem>
                            ))}
                         </SelectContent>
@@ -233,6 +261,50 @@ function TemplateEditor({
                            ))}
                         </SelectContent>
                      </Select>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                     <Select
+                        value={projectId}
+                        onValueChange={(value) => {
+                           setProjectId(value);
+                           if (value !== 'none') {
+                              const project = projects.find((item) => item.id === value);
+                              if (project && teamId && project.teamId !== teamId)
+                                 setTeamId(project.teamId);
+                           }
+                        }}
+                     >
+                        <SelectTrigger>
+                           <SelectValue placeholder="Project" />
+                        </SelectTrigger>
+                        <SelectContent>
+                           <SelectItem value="none">No project</SelectItem>
+                           {availableProjects.map((project) => (
+                              <SelectItem key={project.id} value={project.id}>
+                                 {project.name}
+                              </SelectItem>
+                           ))}
+                        </SelectContent>
+                     </Select>
+                     <Select value={cycleId} onValueChange={setCycleId}>
+                        <SelectTrigger>
+                           <SelectValue placeholder="Cycle" />
+                        </SelectTrigger>
+                        <SelectContent>
+                           <SelectItem value="none">No cycle</SelectItem>
+                           {availableCycles.map((cycle) => (
+                              <SelectItem key={cycle.id} value={cycle.id}>
+                                 {cycle.name}
+                              </SelectItem>
+                           ))}
+                        </SelectContent>
+                     </Select>
+                     <Input
+                        type="date"
+                        aria-label="Default due date"
+                        value={dueDate}
+                        onChange={(event) => setDueDate(event.target.value)}
+                     />
                   </div>
                   <div>
                      <p className="text-sm font-medium mb-2">Default labels</p>
@@ -281,6 +353,8 @@ export default function IssueTemplatesSettings() {
    const { data: teams = [] } = useTeams();
    const { data: members = [] } = useMembers();
    const { data: labels = [] } = useLabels('issue');
+   const { data: projects = [] } = useProjects(undefined, orgId);
+   const { data: cycles = [] } = useCycles();
    const create = useCreateIssueTemplate();
    const update = useUpdateIssueTemplate();
    const duplicate = useDuplicateIssueTemplate();
@@ -402,6 +476,8 @@ export default function IssueTemplatesSettings() {
             teams={teams}
             members={members}
             labels={labels}
+            projects={projects}
+            cycles={cycles}
             onCreate={async (payload) => {
                await create.mutateAsync(payload);
                setOpen(false);

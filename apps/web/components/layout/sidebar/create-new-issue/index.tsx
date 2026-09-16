@@ -9,6 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { useTeams } from '@/hooks/queries/use-teams-query';
 import { useIssueTemplates } from '@/hooks/queries/use-issue-templates-query';
 import { useMembers } from '@/hooks/queries/use-members-query';
+import { useLabels } from '@/hooks/queries/use-labels-query';
 import { Label } from '@/components/ui/label';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { Issue } from '@/mock-data/issues';
@@ -57,6 +58,7 @@ export function CreateNewIssue() {
    const { data: projects = [] } = useProjects();
    const { data: teams = [] } = useTeams();
    const { data: members = [] } = useMembers();
+   const { data: labels = [] } = useLabels('issue');
    const { data: workspaces = [] } = useWorkspaces();
    const queryClient = useQueryClient();
    const pathname = usePathname();
@@ -141,8 +143,9 @@ export function CreateNewIssue() {
          status: templateStatus || current.status,
          priority: templatePriority || current.priority,
          assignee: (() => {
+            if (!config.assigneeId) return current.assignee;
             const templateAssignee = members.find((member) => member.id === config.assigneeId);
-            if (!templateAssignee) return current.assignee;
+            if (!templateAssignee) return null;
             const normalizedStatus: User['status'] = ['online', 'away'].includes(
                templateAssignee.status
             )
@@ -167,8 +170,13 @@ export function CreateNewIssue() {
          })(),
          cycleId: config.cycleId ?? current.cycleId,
          project: config.projectId
-            ? projects.find((project) => project.id === config.projectId) || current.project
+            ? projects.find((project) => project.id === config.projectId)
             : current.project,
+         dueDate: config.dueDate ?? current.dueDate,
+         labels:
+            config.labelIds !== undefined
+               ? labels.filter((label) => config.labelIds?.includes(label.id))
+               : current.labels,
       }));
    };
 
@@ -197,6 +205,7 @@ export function CreateNewIssue() {
             projectId: addIssueForm.project?.id || activeProject?.id,
             cycleId: addIssueForm.cycleId,
             labelIds: addIssueForm.labels?.map((l) => l.id),
+            dueDate: addIssueForm.dueDate,
             rank: addIssueForm.rank,
          });
 
