@@ -10,6 +10,7 @@ import type {
 import {
    dateFilterFn,
    multiOptionFilterFn,
+   numberFilterFn,
    optionFilterFn,
    textFilterFn,
 } from '@/components/data-table-filter/lib/filter-fns';
@@ -25,6 +26,7 @@ import type { LabelItem } from '@/services/labels.service';
 import {
    BarChart3,
    CalendarClock,
+   Calculator,
    CircleCheck,
    CircleDashed,
    CircleUserRound,
@@ -189,6 +191,14 @@ export function buildIssueFilterColumns(
          .options(priorityOptions)
          .build(),
       dtf
+         .number()
+         .id('estimate')
+         .accessor((issue: Issue) => issue.estimate ?? Number.NaN)
+         .displayName('Estimate')
+         .icon(Calculator)
+         .min(0)
+         .build(),
+      dtf
          .multiOption()
          .id('labels')
          .accessor((issue: Issue) => issue.labels.map((label) => label.id))
@@ -255,6 +265,9 @@ export function applyIssueFilters(issues: Issue[], filters: FiltersState): Issue
                return multiOptionFilterFn((value as string[]) ?? [], filter) ?? true;
             case 'text':
                return textFilterFn(String(value ?? ''), filter as FilterModel<'text'>) ?? true;
+            case 'number':
+               if (!Number.isFinite(value as number)) return false;
+               return numberFilterFn(value as number, filter as FilterModel<'number'>) ?? true;
             case 'date':
                return dateFilterFn(value as Date, filter as FilterModel<'date'>) ?? true;
             default:
