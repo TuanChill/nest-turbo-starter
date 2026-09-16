@@ -64,7 +64,8 @@ export default function IssueLabelsSettings() {
    const [labelTeamFilter, setLabelTeamFilter] = useState('all');
    const { data: labels = [] } = useLabels(
       'issue',
-      labelTeamFilter === 'all' ? undefined : labelTeamFilter
+      labelTeamFilter === 'all' ? undefined : labelTeamFilter,
+      true
    );
    const createLabel = useCreateLabel();
    const createLabelGroup = useCreateLabelGroup();
@@ -219,13 +220,20 @@ export default function IssueLabelsSettings() {
                            {groups.find((group) => group.id === label.groupId)?.name}
                         </div>
                      )}
-                  <div className="flex items-center px-2 py-2.5 text-sm border-b border-muted-foreground/5 hover:bg-sidebar/50">
+                  <div
+                     className={`flex items-center px-2 py-2.5 text-sm border-b border-muted-foreground/5 hover:bg-sidebar/50 ${label.archivedAt ? 'opacity-60' : ''}`}
+                  >
                      <div className="flex-1 min-w-0 flex items-center gap-2.5">
                         <span
                            className="size-2.5 rounded-full shrink-0"
                            style={{ backgroundColor: label.color }}
                         />
                         <span className="truncate">{label.name}</span>
+                        {label.archivedAt && (
+                           <span className="text-[11px] text-muted-foreground shrink-0">
+                              Archived
+                           </span>
+                        )}
                         <span className="text-[11px] text-muted-foreground shrink-0">
                            {label.teamId
                               ? (teams.find((team) => team.id === label.teamId)?.name ??
@@ -259,6 +267,20 @@ export default function IssueLabelsSettings() {
                            }}
                         >
                            Edit
+                        </Button>
+                        <Button
+                           type="button"
+                           size="xs"
+                           variant="ghost"
+                           disabled={updateLabel.isPending}
+                           onClick={() =>
+                              updateLabel.mutate({
+                                 id: label.id,
+                                 payload: { archived: !label.archivedAt },
+                              })
+                           }
+                        >
+                           {label.archivedAt ? 'Restore' : 'Archive'}
                         </Button>
                         <Button
                            type="button"

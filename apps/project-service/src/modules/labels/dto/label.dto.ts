@@ -53,6 +53,11 @@ export class CreateLabelDto {
 }
 
 export class UpdateLabelDto {
+  @ApiPropertyOptional({ description: 'Archive or restore the label' })
+  @IsBoolean()
+  @IsOptional()
+  archived?: boolean;
+
   @ApiPropertyOptional({ example: 'ENG2', nullable: true })
   @IsString()
   @IsOptional()

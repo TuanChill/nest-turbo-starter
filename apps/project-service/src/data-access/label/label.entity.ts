@@ -8,6 +8,7 @@ export type LabelScope = 'issue' | 'project' | 'both';
 @Index({ properties: ['workspaceId'] })
 @Index({ properties: ['workspaceId', 'teamId'] })
 @Index({ properties: ['groupId'] })
+@Index({ properties: ['archivedAt'] })
 export class Label {
   [EntityRepositoryType]?: LabelRepository;
 
@@ -42,6 +43,10 @@ export class Label {
 
   @Property({ type: 'string', default: 'both' })
   scope: LabelScope = 'both';
+
+  /** Archived labels remain on existing issues/projects but cannot be newly applied. */
+  @Property({ type: 'timestamp with time zone', nullable: true })
+  archivedAt?: Date;
 
   constructor(partial?: Partial<Label>) {
     if (partial) {

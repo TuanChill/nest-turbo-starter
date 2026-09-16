@@ -348,6 +348,7 @@ export class ProjectTemplatesService {
       const labels = await this.em.find(Label, {
         id: { $in: labelIds },
         workspaceId,
+        archivedAt: null,
       });
       const labelsById = new Map(labels.map((label) => [label.id, label]));
       const invalidProjectLabels = projectLabelIds.filter(

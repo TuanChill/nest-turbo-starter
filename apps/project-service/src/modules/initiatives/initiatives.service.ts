@@ -253,6 +253,7 @@ export class InitiativesService {
       id: { $in: uniqueIds },
       workspaceId,
       scope: { $in: ['project', 'both'] },
+      archivedAt: null,
     });
     const found = new Set(labels.map((label) => label.id));
     const missing = uniqueIds.filter((id) => !found.has(id));

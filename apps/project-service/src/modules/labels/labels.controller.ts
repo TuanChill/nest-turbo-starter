@@ -21,8 +21,15 @@ export class LabelsController {
     @Query('scope') scope?: 'issue' | 'project',
     @Query('workspaceId') workspaceId?: string,
     @Query('teamId') teamId?: string,
+    @Query('includeArchived') includeArchived?: string,
   ) {
-    return this.labelsService.findAll(memberId, scope, workspaceId, teamId);
+    return this.labelsService.findAll(
+      memberId,
+      scope,
+      workspaceId,
+      teamId,
+      includeArchived === 'true',
+    );
   }
 
   @ApiOperation({ summary: 'Get all label groups' })

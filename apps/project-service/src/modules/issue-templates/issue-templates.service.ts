@@ -165,6 +165,7 @@ export class IssueTemplatesService {
       const labels = await this.em.find(Label, {
         id: { $in: config.labelIds },
         scope: { $in: ['issue', 'both'] },
+        archivedAt: null,
         workspaceId,
         $or: [{ teamId: null }, { teamId }],
       });

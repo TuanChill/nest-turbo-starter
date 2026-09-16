@@ -92,11 +92,13 @@ export class LabelsService {
     scope?: Exclude<LabelScope, 'both'>,
     requestedWorkspaceId?: string,
     requestedTeamId?: string,
+    includeArchived = false,
   ) {
     const workspaceIds = requestedWorkspaceId
       ? [await this.resolveWorkspaceId(memberId, requestedWorkspaceId)]
       : await this.getAccessibleWorkspaceIds(memberId);
     const where: any = { workspaceId: { $in: workspaceIds } };
+    if (!includeArchived) where.archivedAt = null;
     if (scope) where.scope = { $in: [scope, 'both'] };
     if (requestedTeamId) {
       const accessibleTeamIds =
@@ -249,7 +251,7 @@ export class LabelsService {
     await this.assertLabelManager(memberId, label.workspaceId, label.teamId);
 
     const name = dto.name?.trim() ?? label.name;
-    this.validateLabelName(name);
+    if (dto.name !== undefined) this.validateLabelName(name);
     const scope = dto.scope ?? label.scope;
     const nextTeamId = dto.teamId === null ? undefined : (dto.teamId ?? label.teamId);
     const teamId = await this.validateTeamId(nextTeamId, label.workspaceId, memberId);
@@ -273,7 +275,11 @@ export class LabelsService {
     await this.validateGroup(nextGroupId, label.workspaceId, scope);
     await this.validateGroupCapacity(nextGroupId, label.workspaceId, id);
 
-    Object.assign(label, { ...dto, name, scope, teamId, groupId: nextGroupId });
+    const { archived, ...labelPatch } = dto;
+    Object.assign(label, { ...labelPatch, name, scope, teamId, groupId: nextGroupId });
+    if (archived !== undefined) {
+      label.archivedAt = archived ? new Date() : undefined;
+    }
     await this.em.flush();
     return label;
   }

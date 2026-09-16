@@ -48,6 +48,7 @@ describe('LabelsService team scope', () => {
 
     expect(em.find).toHaveBeenCalledWith(Label, {
       workspaceId: { $in: ['workspace-a'] },
+      archivedAt: null,
       scope: { $in: ['issue', 'both'] },
       $or: [{ teamId: null }, { teamId: 'team-a' }],
     });
@@ -216,5 +217,39 @@ describe('LabelsService team scope', () => {
       ),
     ).rejects.toThrow('cannot contain more than 250 labels');
     expect(em.persist).not.toHaveBeenCalled();
+  });
+
+  it('archives and restores a label without removing existing references', async () => {
+    const label = {
+      id: 'bug',
+      name: 'Bug',
+      workspaceId: 'workspace-a',
+      scope: 'issue',
+      teamId: undefined,
+      groupId: undefined,
+      archivedAt: undefined as Date | undefined,
+    };
+    const em = {
+      findOne: jest.fn(async (entity: unknown) => {
+        if (entity === Label) return label;
+        if (entity === Workspace) return { id: 'workspace-a', ownerId: 'owner-1' };
+        if (entity === WorkspaceMember) {
+          return { workspaceId: 'workspace-a', role: 'Admin' };
+        }
+        return null;
+      }),
+      find: jest.fn().mockResolvedValue([]),
+      flush: jest.fn(),
+    } as unknown as EntityManager;
+    const service = new LabelsService(em, {
+      getAccessibleWorkspaceIds: jest.fn().mockResolvedValue(['workspace-a']),
+      getAccessibleTeamIds: jest.fn().mockResolvedValue([]),
+    } as never);
+
+    await service.update('bug', { archived: true }, 'admin-1');
+    expect(label.archivedAt).toBeInstanceOf(Date);
+
+    await service.update('bug', { archived: false }, 'admin-1');
+    expect(label.archivedAt).toBeUndefined();
   });
 });

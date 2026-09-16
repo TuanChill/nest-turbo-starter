@@ -10,6 +10,8 @@ export interface LabelItem {
    scope?: 'issue' | 'project' | 'both';
    teamId?: string | null;
    groupId?: string;
+   archivedAt?: string;
+   archived?: boolean;
 }
 
 export interface LabelGroup {
@@ -56,10 +58,16 @@ export const labelsService = {
    async getLabels(
       scope: 'issue' | 'project' = 'issue',
       workspaceId?: string,
-      teamId?: string
+      teamId?: string,
+      includeArchived = false
    ): Promise<LabelItem[]> {
       return apiClient<LabelItem[]>('/circle/api/labels', {
-         params: { scope, workspaceId, teamId },
+         params: {
+            scope,
+            workspaceId,
+            teamId,
+            includeArchived: includeArchived ? 'true' : undefined,
+         },
       });
    },
 

@@ -177,6 +177,7 @@ export class ProjectsService {
     const labels = await this.em.find(Label, {
       id: { $in: uniqueLabelIds },
       scope: { $in: ['project', 'both'] },
+      archivedAt: null,
       ...(team?.workspaceId ? { workspaceId: team.workspaceId } : {}),
       $or: [{ teamId: null }, { teamId }],
     });
