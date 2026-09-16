@@ -98,16 +98,34 @@ import {
    usePostProjectUpdate,
 } from '@/hooks/queries/use-projects-query';
 import { useIssues } from '@/hooks/queries/use-issues-query';
+import QueryErrorState from '@/components/common/query-error-state';
 
 /** Project "Activity" tab: update composer + monthly timeline. */
 export default function ProjectActivity({ projectId }: ProjectActivityProps) {
    const { orgId } = useParams<{ orgId: string }>();
-   const { data: project, isLoading } = useProject(projectId);
-   const { data: detail, isLoading: detailLoading } = useProjectDetail(projectId, Boolean(project));
+   const {
+      data: project,
+      isLoading,
+      isError: isProjectError,
+      error: projectError,
+      refetch: refetchProject,
+   } = useProject(projectId);
+   const {
+      data: detail,
+      isLoading: detailLoading,
+      isError: isDetailError,
+      error: detailError,
+      refetch: refetchDetail,
+   } = useProjectDetail(projectId, Boolean(project));
    const { user: currentUser } = useAuthStore();
    const postUpdateMutation = usePostProjectUpdate();
 
-   const { data: allIssues = [] } = useIssues();
+   const {
+      data: allIssues = [],
+      isError: isIssuesError,
+      error: issuesError,
+      refetch: refetchIssues,
+   } = useIssues();
    const issues = useMemo(
       () => allIssues.filter((issue) => issue.project?.id === project?.id),
       [allIssues, project?.id]
@@ -136,6 +154,22 @@ export default function ProjectActivity({ projectId }: ProjectActivityProps) {
                  100
            )
          : 0;
+
+   if (isProjectError) {
+      return <QueryErrorState subject="project" error={projectError} onRetry={refetchProject} />;
+   }
+
+   if (isDetailError) {
+      return (
+         <QueryErrorState subject="project activity" error={detailError} onRetry={refetchDetail} />
+      );
+   }
+
+   if (isIssuesError) {
+      return (
+         <QueryErrorState subject="project issues" error={issuesError} onRetry={refetchIssues} />
+      );
+   }
 
    if (isLoading) {
       return <ProjectActivitySkeleton />;

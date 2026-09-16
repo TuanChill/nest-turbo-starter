@@ -16,6 +16,7 @@ import { useMemo } from 'react';
 import { scopeMyIssues, useMyIssuesTab } from './use-my-issues';
 
 import { useIssues } from '@/hooks/queries/use-issues-query';
+import QueryErrorState from '@/components/common/query-error-state';
 
 /**
  * "My issues" body — the exact same machinery as the team issue views
@@ -27,7 +28,7 @@ export default function MyIssues() {
    const { isSearchOpen, searchQuery } = useSearchStore();
    const { viewType } = useViewStore();
    const { filters } = useFilterStore();
-   const { data: serverIssues = [] } = useIssues();
+   const { data: serverIssues = [], isError, error, refetch } = useIssues();
    const currentUserId = useAuthStore((state) => state.user?.id ?? null);
    const { openPanel } = useRightPanelStore();
 
@@ -43,6 +44,10 @@ export default function MyIssues() {
       () => applyIssueFilters(scopedIssues, filters),
       [scopedIssues, filters]
    );
+
+   if (isError) {
+      return <QueryErrorState subject="your issues" error={error} onRetry={refetch} />;
+   }
 
    if (isSearching) {
       return (

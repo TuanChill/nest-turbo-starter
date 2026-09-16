@@ -21,6 +21,7 @@ import { LinearEditor } from '@/components/common/editor/linear-editor';
 import { contentBlocksToMarkdown } from '@/lib/content-blocks-to-markdown';
 import { markdownToContentBlocks } from '@/lib/markdown-to-content-blocks';
 import { ProjectResourcesEditor } from './project-resources-editor';
+import QueryErrorState from '@/components/common/query-error-state';
 
 interface ProjectOverviewProps {
    projectId: string;
@@ -59,9 +60,26 @@ import { useIssues } from '@/hooks/queries/use-issues-query';
 /** Project "Overview" tab: description column + properties side panel. */
 export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
    const { orgId } = useParams<{ orgId: string }>();
-   const { data: project, isLoading } = useProject(projectId);
-   const { data: detail, isLoading: detailLoading } = useProjectDetail(projectId, Boolean(project));
-   const { data: allIssues = [] } = useIssues();
+   const {
+      data: project,
+      isLoading,
+      isError: isProjectError,
+      error: projectError,
+      refetch: refetchProject,
+   } = useProject(projectId);
+   const {
+      data: detail,
+      isLoading: detailLoading,
+      isError: isDetailError,
+      error: detailError,
+      refetch: refetchDetail,
+   } = useProjectDetail(projectId, Boolean(project));
+   const {
+      data: allIssues = [],
+      isError: isIssuesError,
+      error: issuesError,
+      refetch: refetchIssues,
+   } = useIssues();
    const issues = useMemo(
       () => allIssues.filter((issue) => issue.project?.id === project?.id),
       [allIssues, project?.id]
@@ -152,6 +170,22 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
          } as unknown as Partial<Project>,
       });
    };
+
+   if (isProjectError) {
+      return <QueryErrorState subject="project" error={projectError} onRetry={refetchProject} />;
+   }
+
+   if (isDetailError) {
+      return (
+         <QueryErrorState subject="project details" error={detailError} onRetry={refetchDetail} />
+      );
+   }
+
+   if (isIssuesError) {
+      return (
+         <QueryErrorState subject="project issues" error={issuesError} onRetry={refetchIssues} />
+      );
+   }
 
    if (isLoading) {
       return <ProjectOverviewSkeleton />;
