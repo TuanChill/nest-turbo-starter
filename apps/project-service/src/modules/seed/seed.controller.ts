@@ -16,7 +16,8 @@ export class SeedController {
   @Public()
   @Post()
   seed() {
-    if (this.configService.get<string>('appCommon.nodeEnv') === 'production') {
+    const nodeEnv = this.configService.get<string>('appCommon.nodeEnv');
+    if (nodeEnv !== 'local' && nodeEnv !== 'development') {
       throw new NotFoundException();
     }
 
