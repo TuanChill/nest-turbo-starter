@@ -7,7 +7,7 @@ jest.mock('@mikro-orm/core', () => ({
 }));
 
 jest.mock('../../data-access', () => ({
-  ProjectMilestone: class ProjectMilestone {
+  ProjectMilestone: class MockProjectMilestone {
     projectId?: string;
     name?: string;
 

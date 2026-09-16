@@ -1,6 +1,6 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { UploadsService } from './uploads.service';
-import { FileAttachment, Issue, Project, Team } from '../../data-access';
+import { FileAttachment, Issue, Project, ProjectTeam, Team } from '../../data-access';
 
 jest.mock('../../data-access', () => {
   class EntityDouble {
@@ -15,6 +15,7 @@ jest.mock('../../data-access', () => {
     Issue: class FakeIssue extends EntityDouble {},
     Project: class FakeProject extends EntityDouble {},
     Team: class FakeTeam extends EntityDouble {},
+    ProjectTeam: class FakeProjectTeam extends EntityDouble {},
   };
 });
 
@@ -71,6 +72,7 @@ describe('UploadsService', () => {
   it('rejects a project outside the member accessible teams', async () => {
     s3Service.isConfigured.mockReturnValue(true);
     workspacesService.getAccessibleTeamIds.mockResolvedValue(['team-a']);
+    em.find.mockResolvedValue([]);
     em.findOne.mockImplementation(async (entity: unknown) =>
       entity === Project ? new Project({ id: 'project-b', teamId: 'team-b' }) : null,
     );
@@ -92,6 +94,117 @@ describe('UploadsService', () => {
       ),
     ).rejects.toThrow(NotFoundException);
     expect(s3Service.getPresignedUploadUrl).not.toHaveBeenCalled();
+  });
+
+  it('accepts a project through an accessible secondary team', async () => {
+    workspacesService.getAccessibleTeamIds.mockResolvedValue(['team-b']);
+    em.findOne.mockImplementation(async (entity: unknown) => {
+      if (entity === Project) return new Project({ id: 'project-1', teamId: 'team-a' });
+      if (entity === Team) return new Team({ id: 'team-b', workspaceId: 'ws-a' });
+      return null;
+    });
+    em.find.mockImplementation(async (entity: unknown) => {
+      if (entity === ProjectTeam)
+        return [new ProjectTeam({ projectId: 'project-1', teamId: 'team-b' })];
+      if (entity === Team)
+        return [
+          new Team({ id: 'team-a', workspaceId: 'ws-a' }),
+          new Team({ id: 'team-b', workspaceId: 'ws-a' }),
+        ];
+      return [];
+    });
+    s3Service.getPresignedUploadUrl.mockResolvedValue({
+      uploadUrl: 'https://storage.test/signed',
+      fileUrl: 'https://storage.test/project-file',
+      fileKey: 'workspaces/ws-a/attachments/project-file.txt',
+    });
+    const service = new UploadsService(
+      em as any,
+      workspacesService as any,
+      s3Service as any,
+    );
+
+    await service.createPresignedUpload(
+      {
+        fileName: 'project-file.txt',
+        contentType: 'text/plain',
+        fileSize: 10,
+        projectId: 'project-1',
+      },
+      'member-1',
+    );
+
+    expect((em.persist.mock.calls[0][0] as FileAttachment).teamId).toBe('team-b');
+  });
+
+  it('allows project attachment access through any accessible project team', async () => {
+    workspacesService.getAccessibleTeamIds.mockResolvedValue(['team-b']);
+    em.findOne.mockResolvedValue(new Project({ id: 'project-1', teamId: 'team-a' }));
+    em.find.mockImplementation(async (entity: unknown) => {
+      if (entity === ProjectTeam)
+        return [new ProjectTeam({ projectId: 'project-1', teamId: 'team-b' })];
+      if (entity === Team)
+        return [
+          new Team({ id: 'team-a', workspaceId: 'ws-a' }),
+          new Team({ id: 'team-b', workspaceId: 'ws-a' }),
+        ];
+      return [];
+    });
+    const service = new UploadsService(
+      em as any,
+      workspacesService as any,
+      s3Service as any,
+    );
+    const attachment = new FileAttachment({
+      id: 'attachment-1',
+      workspaceId: 'ws-a',
+      projectId: 'project-1',
+      teamId: 'team-a',
+    });
+
+    await expect(
+      (service as any).assertAttachmentAccess('member-1', attachment),
+    ).resolves.toBeUndefined();
+  });
+
+  it('lists all completed project attachments across the project teams', async () => {
+    workspacesService.getAccessibleTeamIds.mockResolvedValue(['team-b']);
+    em.findOne.mockImplementation(async (entity: unknown) => {
+      if (entity === Project) return new Project({ id: 'project-1', teamId: 'team-a' });
+      if (entity === Team) return new Team({ id: 'team-b', workspaceId: 'ws-a' });
+      return null;
+    });
+    const projectAttachment = new FileAttachment({
+      id: 'attachment-1',
+      projectId: 'project-1',
+      teamId: 'team-a',
+      status: 'completed',
+    });
+    em.find.mockImplementation(async (entity: unknown) => {
+      if (entity === ProjectTeam)
+        return [new ProjectTeam({ projectId: 'project-1', teamId: 'team-b' })];
+      if (entity === Team)
+        return [
+          new Team({ id: 'team-a', workspaceId: 'ws-a' }),
+          new Team({ id: 'team-b', workspaceId: 'ws-a' }),
+        ];
+      if (entity === FileAttachment) return [projectAttachment];
+      return [];
+    });
+    const service = new UploadsService(
+      em as any,
+      workspacesService as any,
+      s3Service as any,
+    );
+
+    await expect(service.findAll('member-1', undefined, 'project-1')).resolves.toEqual([
+      expect.objectContaining({ id: 'attachment-1' }),
+    ]);
+    expect(em.find).toHaveBeenCalledWith(FileAttachment, {
+      workspaceId: 'ws-a',
+      status: 'completed',
+      projectId: 'project-1',
+    });
   });
 
   it('persists a pending issue upload with the workspace-scoped object key', async () => {

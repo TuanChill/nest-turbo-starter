@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { v7 } from 'uuid';
 import { CreateUploadDto } from './dto/upload.dto';
-import { FileAttachment, Issue, Project, Team } from '../../data-access';
+import { FileAttachment, Issue, Project, ProjectTeam, Team } from '../../data-access';
 import { WorkspacesService } from '../workspaces/workspaces.service';
 
 type UploadTarget = {
@@ -59,10 +59,23 @@ export class UploadsService {
       target.issueIdentifier = issue.identifier;
     } else {
       const project = await this.em.findOne(Project, { id: projectId });
-      if (!project || !accessibleTeamIds.includes(project.teamId)) {
+      if (!project) {
         throw new NotFoundException(`Project ${projectId} not found`);
       }
-      teamId = project.teamId;
+      const projectTeamLinks = await this.em.find(ProjectTeam, { projectId: project.id });
+      const projectTeamIds = [
+        ...new Set([project.teamId, ...projectTeamLinks.map((link) => link.teamId)]),
+      ];
+      const projectTeams = await this.em.find(Team, { id: { $in: projectTeamIds } });
+      const workspaceIds = new Set(projectTeams.map((team) => team.workspaceId));
+      if (
+        projectTeams.length !== projectTeamIds.length ||
+        workspaceIds.size !== 1 ||
+        !projectTeamIds.some((id) => accessibleTeamIds.includes(id))
+      ) {
+        throw new NotFoundException(`Project ${projectId} not found`);
+      }
+      teamId = projectTeamIds.find((id) => accessibleTeamIds.includes(id))!;
       target.projectId = project.id;
     }
 
@@ -78,6 +91,25 @@ export class UploadsService {
 
   private async assertAttachmentAccess(memberId: string, attachment: FileAttachment) {
     const accessibleTeamIds = await this.workspacesService.getAccessibleTeamIds(memberId);
+    if (attachment.projectId) {
+      const project = await this.em.findOne(Project, { id: attachment.projectId });
+      if (!project) throw new NotFoundException(`Upload ${attachment.id} not found`);
+      const links = await this.em.find(ProjectTeam, { projectId: project.id });
+      const projectTeamIds = [
+        ...new Set([project.teamId, ...links.map((link) => link.teamId)]),
+      ];
+      const projectTeams = await this.em.find(Team, { id: { $in: projectTeamIds } });
+      const workspaceIds = new Set(projectTeams.map((team) => team.workspaceId));
+      if (
+        projectTeams.length !== projectTeamIds.length ||
+        workspaceIds.size !== 1 ||
+        !workspaceIds.has(attachment.workspaceId) ||
+        !projectTeamIds.some((teamId) => accessibleTeamIds.includes(teamId))
+      ) {
+        throw new NotFoundException(`Upload ${attachment.id} not found`);
+      }
+      return;
+    }
     if (!accessibleTeamIds.includes(attachment.teamId)) {
       throw new NotFoundException(`Upload ${attachment.id} not found`);
     }
@@ -172,10 +204,12 @@ export class UploadsService {
     const target = await this.resolveTarget(memberId, issueIdentifier, projectId);
     const where: Record<string, unknown> = {
       workspaceId: target.workspaceId,
-      teamId: target.teamId,
       status: 'completed',
     };
-    if (target.issueIdentifier) where.issueIdentifier = target.issueIdentifier;
+    if (target.issueIdentifier) {
+      where.issueIdentifier = target.issueIdentifier;
+      where.teamId = target.teamId;
+    }
     if (target.projectId) where.projectId = target.projectId;
 
     const attachments = await this.em.find(FileAttachment, where);
