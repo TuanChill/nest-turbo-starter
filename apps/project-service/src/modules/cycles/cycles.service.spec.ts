@@ -1,7 +1,7 @@
 import type { EntityManager } from '@mikro-orm/core';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { CyclesService } from './cycles.service';
-import { Cycle, CycleSettings } from '../../data-access';
+import { Cycle, CycleSettings, Issue } from '../../data-access';
 
 jest.mock('@mikro-orm/core', () => ({
   EntityManager: class MockEntityManager {},
@@ -27,7 +27,11 @@ jest.mock('../../data-access', () => ({
       Object.assign(this, partial);
     }
   },
-  Issue: class MockIssue {},
+  Issue: class MockIssue {
+    constructor(partial?: Record<string, unknown>) {
+      Object.assign(this, partial);
+    }
+  },
 }));
 
 jest.mock('../workspaces/workspaces.service', () => ({
@@ -35,10 +39,14 @@ jest.mock('../workspaces/workspaces.service', () => ({
 }));
 
 describe('CyclesService settings', () => {
-  function createService(initialSettings?: InstanceType<typeof CycleSettings>) {
+  function createService(
+    initialSettings?: InstanceType<typeof CycleSettings>,
+    initialCycles?: Cycle[],
+    initialIssues: Issue[] = [],
+  ) {
     let settings = initialSettings;
     const persisted: unknown[] = [];
-    const upcoming = [
+    const defaultCycles = [
       {
         id: 'existing-upcoming',
         teamId: 'team-a',
@@ -46,13 +54,26 @@ describe('CyclesService settings', () => {
         deletedAt: undefined,
       },
     ];
+    const cycleRows = initialCycles ?? (initialSettings?.enabled ? defaultCycles : []);
     const em = {
       findOne: jest.fn(async (entity: unknown) => {
         if (entity === CycleSettings) return settings ?? null;
         return null;
       }),
-      find: jest.fn(async (entity: unknown) => {
-        if (entity === Cycle && initialSettings?.enabled) return upcoming;
+      find: jest.fn(async (entity: unknown, where?: Record<string, unknown>) => {
+        if (entity === Cycle) return cycleRows;
+        if (entity === Issue) {
+          return initialIssues.filter((issue) => {
+            if (where?.teamId && issue.teamId !== where.teamId) return false;
+            if (where?.cycleId && issue.cycleId !== where.cycleId) return false;
+            const categoryFilter = where?.statusCategory as
+              | { $in?: string[] }
+              | undefined;
+            return (
+              !categoryFilter?.$in || categoryFilter.$in.includes(issue.statusCategory)
+            );
+          });
+        }
         return [];
       }),
       persist: jest.fn((value: unknown) => {
@@ -69,7 +90,7 @@ describe('CyclesService settings', () => {
       service: new CyclesService(em, workspacesService as never),
       em,
       persisted,
-      upcoming,
+      upcoming: cycleRows,
     };
   }
 
@@ -128,6 +149,34 @@ describe('CyclesService settings', () => {
     expect(upcoming[0].deletedAt).toBeInstanceOf(Date);
   });
 
+  it('completes the current cycle while removing future cycles when disabled', async () => {
+    const today = new Date();
+    const todayStart = new Date(
+      Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()),
+    );
+    const currentCycle = new Cycle({
+      id: 'cycle-current',
+      teamId: 'team-a',
+      status: 'current',
+      startDate: new Date(todayStart.getTime() - 2 * 86400000),
+      endDate: new Date(todayStart.getTime() + 5 * 86400000),
+    });
+    const futureCycle = new Cycle({
+      id: 'cycle-future',
+      teamId: 'team-a',
+      status: 'upcoming',
+      startDate: new Date(todayStart.getTime() + 6 * 86400000),
+      endDate: new Date(todayStart.getTime() + 12 * 86400000),
+    });
+    const current = new CycleSettings({ teamId: 'team-a', enabled: true });
+    const { service } = createService(current, [currentCycle, futureCycle]);
+
+    await service.updateSettings('team-a', { enabled: false }, 'member-1');
+
+    expect(currentCycle.status).toBe('completed');
+    expect(futureCycle.deletedAt).toBeInstanceOf(Date);
+  });
+
   it('hides settings for an inaccessible team', async () => {
     const { service, em } = createService();
 
@@ -135,5 +184,114 @@ describe('CyclesService settings', () => {
       NotFoundException,
     );
     expect(em.findOne).not.toHaveBeenCalled();
+  });
+
+  it('rolls unfinished issues forward and auto-adds active issues to the current cycle', async () => {
+    const today = new Date();
+    const todayStart = new Date(
+      Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()),
+    );
+    const previous = new Cycle({
+      id: 'cycle-previous',
+      teamId: 'team-a',
+      status: 'current',
+      startDate: new Date(todayStart.getTime() - 14 * 86400000),
+      endDate: new Date(todayStart.getTime() - 8 * 86400000),
+    });
+    const current = new Cycle({
+      id: 'cycle-current',
+      teamId: 'team-a',
+      status: 'upcoming',
+      startDate: new Date(todayStart.getTime() - 7 * 86400000),
+      endDate: new Date(todayStart.getTime() + 6 * 86400000),
+    });
+    const next = new Cycle({
+      id: 'cycle-next',
+      teamId: 'team-a',
+      status: 'upcoming',
+      startDate: new Date(todayStart.getTime() + 7 * 86400000),
+      endDate: new Date(todayStart.getTime() + 13 * 86400000),
+    });
+    const unfinished = new Issue({
+      teamId: 'team-a',
+      cycleId: previous.id,
+      statusCategory: 'started',
+    });
+    const activeStarted = new Issue({
+      teamId: 'team-a',
+      cycleId: '',
+      statusCategory: 'started',
+    });
+    const activeCompleted = new Issue({
+      teamId: 'team-a',
+      cycleId: '',
+      statusCategory: 'completed',
+    });
+    const settings = new CycleSettings({
+      teamId: 'team-a',
+      enabled: true,
+      upcomingCycleCount: 1,
+      autoAddActiveIssues: true,
+    });
+    const { service } = createService(
+      settings,
+      [previous, current, next],
+      [unfinished, activeStarted, activeCompleted],
+    );
+
+    await service.getSettings('team-a', 'member-1');
+
+    expect(previous.status).toBe('completed');
+    expect(current.status).toBe('current');
+    expect(unfinished.cycleId).toBe(current.id);
+    expect(activeStarted.cycleId).toBe(current.id);
+    expect(activeCompleted.cycleId).toBe(current.id);
+  });
+
+  it('attributes active issues to the previous and next cycles during cooldown', async () => {
+    const today = new Date();
+    const todayStart = new Date(
+      Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()),
+    );
+    const previous = new Cycle({
+      id: 'cycle-previous',
+      teamId: 'team-a',
+      status: 'completed',
+      startDate: new Date(todayStart.getTime() - 14 * 86400000),
+      endDate: new Date(todayStart.getTime() - 1 * 86400000),
+    });
+    const next = new Cycle({
+      id: 'cycle-next',
+      teamId: 'team-a',
+      status: 'upcoming',
+      startDate: new Date(todayStart.getTime() + 2 * 86400000),
+      endDate: new Date(todayStart.getTime() + 8 * 86400000),
+    });
+    const activeStarted = new Issue({
+      teamId: 'team-a',
+      cycleId: '',
+      statusCategory: 'started',
+    });
+    const activeCompleted = new Issue({
+      teamId: 'team-a',
+      cycleId: '',
+      statusCategory: 'completed',
+    });
+    const settings = new CycleSettings({
+      teamId: 'team-a',
+      enabled: true,
+      upcomingCycleCount: 1,
+      autoAddActiveIssues: true,
+    });
+    const { service } = createService(
+      settings,
+      [previous, next],
+      [activeStarted, activeCompleted],
+    );
+
+    await service.getSettings('team-a', 'member-1');
+
+    expect(activeStarted.cycleId).toBe(next.id);
+    expect(activeCompleted.cycleId).toBe(previous.id);
   });
 });

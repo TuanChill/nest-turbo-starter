@@ -110,6 +110,87 @@ export class CyclesService {
     await this.em.flush();
   }
 
+  private async syncCycleAutomation(teamId: string, settings: CycleSettings) {
+    if (!settings.enabled) return;
+
+    await this.ensureUpcomingCycles(teamId, settings);
+    const cycles = await this.em.find(
+      Cycle,
+      { teamId },
+      { orderBy: { startDate: 'ASC' } },
+    );
+    const today = new Date();
+    const todayStart = nextStartOnWeekday(today, today.getUTCDay());
+    const closingCycles = cycles.filter(
+      (cycle) => cycle.endDate < todayStart && cycle.status !== 'completed',
+    );
+    const currentCycle = cycles.find(
+      (cycle) => cycle.startDate <= todayStart && cycle.endDate >= todayStart,
+    );
+    const nextCycle = cycles.find((cycle) => cycle.startDate > todayStart);
+    const completedCycles = cycles.filter(
+      (cycle) => cycle.endDate < todayStart && cycle.status === 'completed',
+    );
+    const previousCycle = completedCycles[completedCycles.length - 1];
+    let changed = false;
+
+    for (const cycle of cycles) {
+      if (cycle.endDate < todayStart && cycle.status !== 'completed') {
+        cycle.status = 'completed';
+        changed = true;
+      } else if (currentCycle?.id === cycle.id && cycle.status !== 'current') {
+        cycle.status = 'current';
+        changed = true;
+      } else if (
+        cycle.startDate > todayStart &&
+        cycle.status !== 'upcoming' &&
+        cycle.status !== 'planned'
+      ) {
+        cycle.status = 'upcoming';
+        changed = true;
+      }
+    }
+
+    const rolloverTarget = currentCycle ?? nextCycle;
+    if (rolloverTarget) {
+      const unfinishedByCycle = await Promise.all(
+        closingCycles.map((closingCycle) =>
+          this.em.find(Issue, {
+            teamId,
+            cycleId: closingCycle.id,
+            statusCategory: { $in: ['unstarted', 'started'] },
+          }),
+        ),
+      );
+      for (const unfinished of unfinishedByCycle.flat()) {
+        if (unfinished.cycleId !== rolloverTarget.id) {
+          unfinished.cycleId = rolloverTarget.id;
+          changed = true;
+        }
+      }
+    }
+
+    if (settings.autoAddActiveIssues) {
+      const activeIssues = await this.em.find(Issue, {
+        teamId,
+        cycleId: '',
+        statusCategory: { $in: ['started', 'completed'] },
+      });
+      for (const issue of activeIssues) {
+        const target =
+          issue.statusCategory === 'completed'
+            ? (currentCycle ?? previousCycle)
+            : (currentCycle ?? nextCycle);
+        if (target && issue.cycleId !== target.id) {
+          issue.cycleId = target.id;
+          changed = true;
+        }
+      }
+    }
+
+    if (changed) await this.em.flush();
+  }
+
   private async recordSnapshot(
     cycle: Cycle,
     progress: ReturnType<typeof deriveCycleProgress>,
@@ -215,7 +296,7 @@ export class CyclesService {
     if (teamId) {
       if (!accessibleTeamIds.includes(teamId)) return [];
       const settings = await this.em.findOne(CycleSettings, { teamId });
-      if (settings) await this.ensureUpcomingCycles(teamId, settings);
+      if (settings) await this.syncCycleAutomation(teamId, settings);
       where.teamId = teamId;
     } else {
       const settings = await this.em.find(CycleSettings, {
@@ -223,7 +304,7 @@ export class CyclesService {
       });
       await Promise.all(
         settings.map((teamSettings) =>
-          this.ensureUpcomingCycles(teamSettings.teamId, teamSettings),
+          this.syncCycleAutomation(teamSettings.teamId, teamSettings),
         ),
       );
     }
@@ -243,7 +324,7 @@ export class CyclesService {
       this.em.persist(settings);
       await this.em.flush();
     }
-    if (settings.enabled) await this.ensureUpcomingCycles(teamId, settings);
+    if (settings.enabled) await this.syncCycleAutomation(teamId, settings);
     return this.serializeSettings(settings);
   }
 
@@ -265,16 +346,23 @@ export class CyclesService {
     if (validationError) throw new BadRequestException(validationError);
 
     if (settings.enabled && !next.enabled) {
-      const upcoming = await this.em.find(Cycle, {
+      const existingCycles = await this.em.find(Cycle, {
         teamId,
-        status: 'upcoming',
       });
-      for (const cycle of upcoming) cycle.deletedAt = new Date();
+      const today = new Date();
+      const todayStart = nextStartOnWeekday(today, today.getUTCDay());
+      for (const cycle of existingCycles) {
+        if (cycle.status === 'upcoming' || cycle.status === 'planned') {
+          cycle.deletedAt = new Date();
+        } else if (cycle.startDate <= todayStart && cycle.endDate >= todayStart) {
+          cycle.status = 'completed';
+        }
+      }
     }
     Object.assign(settings, next);
     if (isNew) this.em.persist(settings);
     await this.em.flush();
-    if (settings.enabled) await this.ensureUpcomingCycles(teamId, settings);
+    if (settings.enabled) await this.syncCycleAutomation(teamId, settings);
     return this.serializeSettings(settings);
   }
 
