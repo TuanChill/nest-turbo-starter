@@ -80,6 +80,22 @@ export function useUpdateCycle() {
    });
 }
 
+export function useStartCycleToday() {
+   const queryClient = useQueryClient();
+
+   return useMutation({
+      mutationFn: (id: string) => cyclesService.startCycleToday(id),
+      onSuccess: (cycle) => {
+         queryClient.invalidateQueries({ queryKey: cycleKeys.lists() });
+         queryClient.invalidateQueries({ queryKey: cycleKeys.detail(cycle.id) });
+         toast.success(`${cycle.name} started today`);
+      },
+      onError: (error: Error) => {
+         toast.error(error.message || 'Failed to start cycle today');
+      },
+   });
+}
+
 export function useDeleteCycle() {
    const queryClient = useQueryClient();
 

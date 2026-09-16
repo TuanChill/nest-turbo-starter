@@ -47,6 +47,10 @@ export default function Cycles({ teamId }: { teamId?: string }) {
       );
    }
 
+   const nextUpcomingCycle = cycles
+      .filter((cycle) => cycle.status === 'upcoming' || cycle.status === 'planned')
+      .sort((a, b) => a.startDate.localeCompare(b.startDate))[0];
+
    return (
       <div className="w-full py-4">
          {cycles.map((cycle) => (
@@ -75,7 +79,7 @@ export default function Cycles({ teamId }: { teamId?: string }) {
 
                   {/* Cycle row + expanded chart for the current cycle */}
                   <div className="flex-1 min-w-0 border-b border-border/60">
-                     <CycleLine cycle={cycle} />
+                     <CycleLine cycle={cycle} canStartToday={cycle.id === nextUpcomingCycle?.id} />
 
                      {cycle.status === 'current' && (
                         <div className="flex flex-col lg:flex-row items-stretch gap-8 px-6 pb-6 pt-2">

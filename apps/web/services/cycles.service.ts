@@ -84,6 +84,12 @@ export const cyclesService = {
       });
    },
 
+   async startCycleToday(id: string): Promise<Cycle> {
+      return apiClient<Cycle>(`/circle/api/cycles/${id}/start-today`, {
+         method: 'POST',
+      });
+   },
+
    async deleteCycle(id: string): Promise<{ success: boolean }> {
       return apiClient<{ success: boolean }>(`/circle/api/cycles/${id}`, {
          method: 'DELETE',

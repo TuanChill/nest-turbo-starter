@@ -455,6 +455,89 @@ export class CyclesService {
     return this.serializeSettings(settings);
   }
 
+  async startToday(id: string, memberId: string) {
+    const cycle = await this.em.findOne(Cycle, { id });
+    if (!cycle) throw new NotFoundException(`Cycle ${id} not found`);
+
+    await this.assertTeamAccess(cycle.teamId, memberId);
+    if (cycle.status !== 'upcoming' && cycle.status !== 'planned') {
+      throw new BadRequestException('Only an upcoming cycle can be started today');
+    }
+
+    const settings = await this.em.findOne(CycleSettings, { teamId: cycle.teamId });
+    if (!settings?.enabled) {
+      throw new BadRequestException('Cycles are not enabled for this team');
+    }
+
+    const todayStart = calendarDateInTimeZone(new Date(), settings.timeZone);
+    const originalStart = new Date(cycle.startDate);
+    const originalEnd = new Date(cycle.endDate);
+    const originalDurationDays = Math.max(
+      1,
+      Math.round((originalEnd.getTime() - originalStart.getTime()) / 86_400_000) + 1,
+    );
+
+    const teamCycles = (
+      await this.em.find(
+        Cycle,
+        { teamId: cycle.teamId },
+        { orderBy: { startDate: 'ASC' } },
+      )
+    ).filter((candidate) => candidate.id !== cycle.id);
+    const nextScheduled = [cycle, ...teamCycles]
+      .filter(
+        (candidate) => candidate.status === 'upcoming' || candidate.status === 'planned',
+      )
+      .sort((a, b) => a.startDate.getTime() - b.startDate.getTime())[0];
+    if (nextScheduled?.id !== cycle.id) {
+      throw new BadRequestException('Only the next scheduled cycle can be started today');
+    }
+    const currentCycle = teamCycles.find(
+      (candidate) =>
+        candidate.status === 'current' ||
+        (candidate.startDate <= todayStart && candidate.endDate >= todayStart),
+    );
+
+    if (currentCycle) {
+      currentCycle.endDate = addCalendarDays(todayStart, -1);
+      currentCycle.status = 'completed';
+      const openIssues = await this.em.find(Issue, {
+        teamId: cycle.teamId,
+        cycleId: currentCycle.id,
+        statusCategory: { $in: ['unstarted', 'started'] },
+      });
+      for (const issue of openIssues) issue.cycleId = cycle.id;
+    }
+
+    cycle.startDate = todayStart;
+    // Preserve manually adjusted durations as calendar days.
+    cycle.endDate = addCalendarDays(todayStart, originalDurationDays - 1);
+    cycle.status = 'current';
+
+    const futureCycles = teamCycles
+      .filter(
+        (candidate) => candidate.status === 'upcoming' || candidate.status === 'planned',
+      )
+      .sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
+    let previousEnd = cycle.endDate;
+    for (const future of futureCycles) {
+      if (future.id === cycle.id) continue;
+      const durationDays = Math.max(
+        1,
+        Math.round((future.endDate.getTime() - future.startDate.getTime()) / 86_400_000) +
+          1,
+      );
+      future.startDate = addCalendarDays(previousEnd, settings.cooldownDays + 1);
+      future.endDate = addCalendarDays(future.startDate, durationDays - 1);
+      future.status = 'upcoming';
+      previousEnd = future.endDate;
+    }
+
+    await this.em.flush();
+    await this.syncCycleAutomation(cycle.teamId, settings);
+    return this.findOne(cycle.id, memberId);
+  }
+
   async findOne(id: string, memberId?: string) {
     const cycle = await this.em.findOne(Cycle, { id });
     if (!cycle) throw new NotFoundException(`Cycle ${id} not found`);

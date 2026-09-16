@@ -38,6 +38,12 @@ export class CyclesController {
     return this.cyclesService.findOne(id, memberId);
   }
 
+  @ApiOperation({ summary: 'Start an upcoming cycle today' })
+  @Post(':id/start-today')
+  startToday(@Param('id') id: string, @User('id') memberId: string) {
+    return this.cyclesService.startToday(id, memberId);
+  }
+
   @ApiOperation({ summary: 'Get persisted historical cycle progress' })
   @Get(':id/history')
   history(@Param('id') id: string, @User('id') memberId: string) {

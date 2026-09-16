@@ -56,8 +56,11 @@ describe('CyclesService settings', () => {
     ];
     const cycleRows = initialCycles ?? (initialSettings?.enabled ? defaultCycles : []);
     const em = {
-      findOne: jest.fn(async (entity: unknown) => {
+      findOne: jest.fn(async (entity: unknown, where?: { id?: string }) => {
         if (entity === CycleSettings) return settings ?? null;
+        if (entity === Cycle) {
+          return cycleRows.find((cycle) => cycle.id === where?.id) ?? null;
+        }
         return null;
       }),
       find: jest.fn(async (entity: unknown, where?: Record<string, unknown>) => {
@@ -318,5 +321,81 @@ describe('CyclesService settings', () => {
 
     expect(activeStarted.cycleId).toBe(next.id);
     expect(activeCompleted.cycleId).toBe(previous.id);
+  });
+
+  it('starts the next cycle today, rolls open work, and preserves future cadence', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-09-16T12:00:00.000Z'));
+    try {
+      const current = new Cycle({
+        id: 'cycle-current',
+        teamId: 'team-a',
+        status: 'current',
+        startDate: new Date('2026-09-07T00:00:00.000Z'),
+        endDate: new Date('2026-09-20T00:00:00.000Z'),
+      });
+      const next = new Cycle({
+        id: 'cycle-next',
+        teamId: 'team-a',
+        status: 'upcoming',
+        startDate: new Date('2026-09-21T00:00:00.000Z'),
+        endDate: new Date('2026-10-04T00:00:00.000Z'),
+      });
+      const future = new Cycle({
+        id: 'cycle-future',
+        teamId: 'team-a',
+        status: 'upcoming',
+        startDate: new Date('2026-10-05T00:00:00.000Z'),
+        endDate: new Date('2026-10-18T00:00:00.000Z'),
+      });
+      const openIssue = new Issue({
+        teamId: 'team-a',
+        cycleId: current.id,
+        statusCategory: 'started',
+      });
+      const completedIssue = new Issue({
+        teamId: 'team-a',
+        cycleId: current.id,
+        statusCategory: 'completed',
+      });
+      const settings = new CycleSettings({
+        teamId: 'team-a',
+        enabled: true,
+        cooldownDays: 0,
+      });
+      const { service } = createService(
+        settings,
+        [current, next, future],
+        [openIssue, completedIssue],
+      );
+
+      await service.startToday(next.id, 'member-1');
+
+      expect(current.status).toBe('completed');
+      expect(next.status).toBe('current');
+      expect(next.startDate).toEqual(new Date('2026-09-16T00:00:00.000Z'));
+      expect(next.endDate).toEqual(new Date('2026-09-29T00:00:00.000Z'));
+      expect(future.startDate).toEqual(new Date('2026-09-30T00:00:00.000Z'));
+      expect(future.endDate).toEqual(new Date('2026-10-13T00:00:00.000Z'));
+      expect(openIssue.cycleId).toBe(next.id);
+      expect(completedIssue.cycleId).toBe(current.id);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('rejects starting a cycle that is already current or completed', async () => {
+    const current = new Cycle({
+      id: 'cycle-current',
+      teamId: 'team-a',
+      status: 'current',
+      startDate: new Date('2026-09-01T00:00:00.000Z'),
+      endDate: new Date('2026-09-14T00:00:00.000Z'),
+    });
+    const settings = new CycleSettings({ teamId: 'team-a', enabled: true });
+    const { service } = createService(settings, [current]);
+
+    await expect(service.startToday(current.id, 'member-1')).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 });
