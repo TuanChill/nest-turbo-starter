@@ -9,8 +9,15 @@ import {
 } from './cycle-history';
 import { deriveCycleProgress } from './cycle-progress';
 import { cycleIssueWhere } from './cycle-scope';
-import { CreateCycleDto, UpdateCycleDto } from './dto/cycle.dto';
-import { Cycle, CycleHistory, Issue } from '../../data-access';
+import {
+  addCalendarDays,
+  cycleEndDate,
+  getCycleSettingsValidationError,
+  nextCycleStart,
+  nextStartOnWeekday,
+} from './cycle-settings';
+import { CreateCycleDto, UpdateCycleDto, UpdateCycleSettingsDto } from './dto/cycle.dto';
+import { Cycle, CycleHistory, CycleSettings, Issue } from '../../data-access';
 import { WorkspacesService } from '../workspaces/workspaces.service';
 
 @Injectable()
@@ -19,6 +26,89 @@ export class CyclesService {
     private readonly em: EntityManager,
     private readonly workspacesService: WorkspacesService,
   ) {}
+
+  private async assertTeamAccess(teamId: string, memberId: string) {
+    const accessibleTeamIds = await this.workspacesService.getAccessibleTeamIds(memberId);
+    if (!accessibleTeamIds.includes(teamId)) {
+      throw new NotFoundException(`Team ${teamId} not found`);
+    }
+  }
+
+  private serializeSettings(settings: CycleSettings) {
+    return {
+      teamId: settings.teamId,
+      enabled: settings.enabled,
+      durationWeeks: settings.durationWeeks,
+      startDayOfWeek: settings.startDayOfWeek,
+      cooldownDays: settings.cooldownDays,
+      upcomingCycleCount: settings.upcomingCycleCount,
+      autoAddActiveIssues: settings.autoAddActiveIssues,
+    };
+  }
+
+  private async ensureUpcomingCycles(teamId: string, settings: CycleSettings) {
+    if (!settings.enabled) return;
+
+    const cycles = await this.em.find(
+      Cycle,
+      { teamId },
+      { orderBy: { endDate: 'DESC' } },
+    );
+    const scheduled = cycles.filter(
+      (cycle) => cycle.status === 'upcoming' || cycle.status === 'planned',
+    );
+    const missing = Math.max(0, settings.upcomingCycleCount - scheduled.length);
+    if (missing === 0) return;
+
+    const today = new Date();
+    const todayStart = nextStartOnWeekday(today, today.getUTCDay());
+    const latest = cycles[0];
+    let startDate = latest
+      ? nextCycleStart(latest.endDate, settings.cooldownDays)
+      : nextStartOnWeekday(todayStart, settings.startDayOfWeek);
+    if (startDate < todayStart) {
+      startDate = nextStartOnWeekday(todayStart, settings.startDayOfWeek);
+    }
+    const existingDates = new Set(
+      cycles.map((cycle) => cycle.startDate.toISOString().slice(0, 10)),
+    );
+    const existingNumbers = cycles.map((cycle) => cycle.number || 0);
+
+    for (let index = 0; index < missing; index += 1) {
+      while (existingDates.has(startDate.toISOString().slice(0, 10))) {
+        startDate = addCalendarDays(
+          startDate,
+          settings.durationWeeks * 7 + settings.cooldownDays,
+        );
+      }
+      const number = allocateCycleNumber(existingNumbers, undefined);
+      const endDate = cycleEndDate(startDate, settings.durationWeeks);
+      const status = startDate <= today && endDate >= today ? 'current' : 'upcoming';
+      this.em.persist(
+        new Cycle({
+          id: v7(),
+          number,
+          name: `Cycle ${number}`,
+          teamId,
+          status,
+          startDate,
+          endDate,
+          capacity: 0,
+          scope: 0,
+          scopeDelta: 0,
+          started: 0,
+          completed: 0,
+        }),
+      );
+      existingDates.add(startDate.toISOString().slice(0, 10));
+      existingNumbers.push(number);
+      startDate = addCalendarDays(
+        startDate,
+        settings.durationWeeks * 7 + settings.cooldownDays,
+      );
+    }
+    await this.em.flush();
+  }
 
   private async recordSnapshot(
     cycle: Cycle,
@@ -124,7 +214,18 @@ export class CyclesService {
     const where: any = { teamId: { $in: accessibleTeamIds } };
     if (teamId) {
       if (!accessibleTeamIds.includes(teamId)) return [];
+      const settings = await this.em.findOne(CycleSettings, { teamId });
+      if (settings) await this.ensureUpcomingCycles(teamId, settings);
       where.teamId = teamId;
+    } else {
+      const settings = await this.em.find(CycleSettings, {
+        teamId: { $in: accessibleTeamIds },
+      });
+      await Promise.all(
+        settings.map((teamSettings) =>
+          this.ensureUpcomingCycles(teamSettings.teamId, teamSettings),
+        ),
+      );
     }
 
     const cycles = await this.em.find(Cycle, where, {
@@ -132,6 +233,49 @@ export class CyclesService {
     });
 
     return Promise.all(cycles.map((c) => this.enrichCycle(c)));
+  }
+
+  async getSettings(teamId: string, memberId: string) {
+    await this.assertTeamAccess(teamId, memberId);
+    let settings = await this.em.findOne(CycleSettings, { teamId });
+    if (!settings) {
+      settings = new CycleSettings({ teamId });
+      this.em.persist(settings);
+      await this.em.flush();
+    }
+    if (settings.enabled) await this.ensureUpcomingCycles(teamId, settings);
+    return this.serializeSettings(settings);
+  }
+
+  async updateSettings(teamId: string, dto: UpdateCycleSettingsDto, memberId: string) {
+    await this.assertTeamAccess(teamId, memberId);
+    let settings = await this.em.findOne(CycleSettings, { teamId });
+    const isNew = !settings;
+    if (!settings) settings = new CycleSettings({ teamId });
+
+    const next = {
+      enabled: dto.enabled ?? settings.enabled,
+      durationWeeks: dto.durationWeeks ?? settings.durationWeeks,
+      startDayOfWeek: dto.startDayOfWeek ?? settings.startDayOfWeek,
+      cooldownDays: dto.cooldownDays ?? settings.cooldownDays,
+      upcomingCycleCount: dto.upcomingCycleCount ?? settings.upcomingCycleCount,
+      autoAddActiveIssues: dto.autoAddActiveIssues ?? settings.autoAddActiveIssues,
+    };
+    const validationError = getCycleSettingsValidationError(next);
+    if (validationError) throw new BadRequestException(validationError);
+
+    if (settings.enabled && !next.enabled) {
+      const upcoming = await this.em.find(Cycle, {
+        teamId,
+        status: 'upcoming',
+      });
+      for (const cycle of upcoming) cycle.deletedAt = new Date();
+    }
+    Object.assign(settings, next);
+    if (isNew) this.em.persist(settings);
+    await this.em.flush();
+    if (settings.enabled) await this.ensureUpcomingCycles(teamId, settings);
+    return this.serializeSettings(settings);
   }
 
   async findOne(id: string, memberId?: string) {

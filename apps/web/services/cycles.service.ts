@@ -26,6 +26,16 @@ export interface Cycle {
    burnup?: CycleBurnupPoint[];
 }
 
+export interface CycleSettings {
+   teamId: string;
+   enabled: boolean;
+   durationWeeks: number;
+   startDayOfWeek: number;
+   cooldownDays: number;
+   upcomingCycleCount: number;
+   autoAddActiveIssues: boolean;
+}
+
 export const cyclesService = {
    async getCycles(teamId?: string): Promise<Cycle[]> {
       const query = teamId ? `?teamId=${encodeURIComponent(teamId)}` : '';
@@ -38,6 +48,25 @@ export const cyclesService = {
 
    async getCycleHistory(id: string): Promise<CycleBurnupPoint[]> {
       return apiClient<CycleBurnupPoint[]>(`/circle/api/cycles/${id}/history`);
+   },
+
+   async getCycleSettings(teamId: string): Promise<CycleSettings> {
+      return apiClient<CycleSettings>(
+         `/circle/api/cycles/settings?teamId=${encodeURIComponent(teamId)}`
+      );
+   },
+
+   async updateCycleSettings(
+      teamId: string,
+      payload: Partial<Omit<CycleSettings, 'teamId'>>
+   ): Promise<CycleSettings> {
+      return apiClient<CycleSettings>(
+         `/circle/api/cycles/settings?teamId=${encodeURIComponent(teamId)}`,
+         {
+            method: 'PATCH',
+            body: JSON.stringify(payload),
+         }
+      );
    },
 
    async createCycle(payload: Partial<Cycle>): Promise<Cycle> {

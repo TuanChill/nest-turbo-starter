@@ -2,7 +2,7 @@ import { User } from '@app/common';
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { CyclesService } from './cycles.service';
-import { CreateCycleDto, UpdateCycleDto } from './dto/cycle.dto';
+import { CreateCycleDto, UpdateCycleDto, UpdateCycleSettingsDto } from './dto/cycle.dto';
 
 @ApiTags('Cycles')
 @Controller('cycles')
@@ -14,6 +14,22 @@ export class CyclesController {
   @Get()
   findAll(@User('id') memberId: string, @Query('teamId') teamId?: string) {
     return this.cyclesService.findAll(memberId, teamId);
+  }
+
+  @ApiOperation({ summary: 'Get persisted team cycle settings' })
+  @Get('settings')
+  settings(@Query('teamId') teamId: string, @User('id') memberId: string) {
+    return this.cyclesService.getSettings(teamId, memberId);
+  }
+
+  @ApiOperation({ summary: 'Update team cycle settings' })
+  @Patch('settings')
+  updateSettings(
+    @Query('teamId') teamId: string,
+    @Body() dto: UpdateCycleSettingsDto,
+    @User('id') memberId: string,
+  ) {
+    return this.cyclesService.updateSettings(teamId, dto, memberId);
   }
 
   @ApiOperation({ summary: 'Get cycle by ID' })

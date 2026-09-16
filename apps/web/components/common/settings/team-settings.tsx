@@ -41,6 +41,7 @@ import {
    Loader2,
    Trash2,
    AlertTriangle,
+   SlidersHorizontal,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
@@ -81,6 +82,7 @@ import {
 import { Team } from '@/services/teams.service';
 import { useCycles } from '@/hooks/queries/use-cycles-query';
 import { useLabels } from '@/hooks/queries/use-labels-query';
+import { CycleSettingsDialog } from '@/components/common/cycles/cycle-settings-dialog';
 
 export default function TeamSettings({ teamId }: TeamSettingsProps) {
    const { orgId } = useParams<{ orgId: string }>();
@@ -102,6 +104,7 @@ export default function TeamSettings({ teamId }: TeamSettingsProps) {
    const [leaveOpen, setLeaveOpen] = React.useState(false);
    const [retireOpen, setRetireOpen] = React.useState(false);
    const [deleteOpen, setDeleteOpen] = React.useState(false);
+   const [cycleSettingsOpen, setCycleSettingsOpen] = React.useState(false);
 
    // General form state
    const [name, setName] = React.useState(team?.name || '');
@@ -316,6 +319,13 @@ export default function TeamSettings({ teamId }: TeamSettingsProps) {
                            chevron
                         />
                      </Link>
+                     <SettingsRow
+                        icon={<SlidersHorizontal className="size-4" />}
+                        title="Cycle settings"
+                        description="Configure cadence, cooldown, and upcoming cycles"
+                        chevron
+                        onClick={() => setCycleSettingsOpen(true)}
+                     />
                   </SettingsCard>
                </SettingsSection>
 
@@ -479,6 +489,12 @@ export default function TeamSettings({ teamId }: TeamSettingsProps) {
                </DialogFooter>
             </DialogContent>
          </Dialog>
+
+         <CycleSettingsDialog
+            teamId={team.id}
+            open={cycleSettingsOpen}
+            onOpenChange={setCycleSettingsOpen}
+         />
 
          {/* Leave Team Alert Dialog */}
          <AlertDialog open={leaveOpen} onOpenChange={setLeaveOpen}>

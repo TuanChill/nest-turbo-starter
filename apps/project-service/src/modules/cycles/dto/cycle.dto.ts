@@ -1,5 +1,14 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+import {
+  IsBoolean,
+  IsEnum,
+  IsInt,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+} from 'class-validator';
+import { Max, Min } from 'class-validator';
 
 export class CreateCycleDto {
   @ApiPropertyOptional({ example: '24' })
@@ -22,7 +31,10 @@ export class CreateCycleDto {
   @IsNotEmpty()
   teamId: string;
 
-  @ApiProperty({ enum: ['planned', 'upcoming', 'current', 'completed'], default: 'planned' })
+  @ApiProperty({
+    enum: ['planned', 'upcoming', 'current', 'completed'],
+    default: 'planned',
+  })
   @IsEnum(['planned', 'upcoming', 'current', 'completed'])
   status: 'planned' | 'upcoming' | 'current' | 'completed';
 
@@ -67,4 +79,44 @@ export class UpdateCycleDto {
   @IsNumber()
   @IsOptional()
   capacity?: number;
+}
+
+export class UpdateCycleSettingsDto {
+  @ApiPropertyOptional({ default: false })
+  @IsBoolean()
+  @IsOptional()
+  enabled?: boolean;
+
+  @ApiPropertyOptional({ minimum: 1, maximum: 8, default: 2 })
+  @IsInt()
+  @Min(1)
+  @Max(8)
+  @IsOptional()
+  durationWeeks?: number;
+
+  @ApiPropertyOptional({ minimum: 0, maximum: 6, default: 1 })
+  @IsInt()
+  @Min(0)
+  @Max(6)
+  @IsOptional()
+  startDayOfWeek?: number;
+
+  @ApiPropertyOptional({ minimum: 0, maximum: 30, default: 0 })
+  @IsInt()
+  @Min(0)
+  @Max(30)
+  @IsOptional()
+  cooldownDays?: number;
+
+  @ApiPropertyOptional({ minimum: 0, maximum: 15, default: 3 })
+  @IsInt()
+  @Min(0)
+  @Max(15)
+  @IsOptional()
+  upcomingCycleCount?: number;
+
+  @ApiPropertyOptional({ default: false })
+  @IsBoolean()
+  @IsOptional()
+  autoAddActiveIssues?: boolean;
 }

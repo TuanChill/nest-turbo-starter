@@ -1,5 +1,6 @@
 import { FileAttachment } from './attachment/file-attachment.entity';
 import { CycleHistory } from './cycle/cycle-history.entity';
+import { CycleSettings } from './cycle/cycle-settings.entity';
 import { Cycle } from './cycle/cycle.entity';
 import { DocumentFolder, TeamDocument } from './document/document.entity';
 import { InitiativeActivity } from './initiative/initiative-activity.entity';
@@ -64,6 +65,7 @@ export const ALL_ENTITIES = [
   ProjectSubscription,
   Cycle,
   CycleHistory,
+  CycleSettings,
   FileAttachment,
   Issue,
   IssueSubscription,

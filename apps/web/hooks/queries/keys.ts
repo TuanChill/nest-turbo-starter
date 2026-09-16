@@ -87,6 +87,7 @@ export const cycleKeys = {
    list: (teamId?: string) => [...cycleKeys.lists(), { teamId }] as const,
    details: () => [...cycleKeys.all, 'detail'] as const,
    detail: (id: string) => [...cycleKeys.details(), id] as const,
+   settings: (teamId: string) => [...cycleKeys.all, 'settings', teamId] as const,
 };
 
 export const labelKeys = {

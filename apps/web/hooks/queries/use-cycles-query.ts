@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { cyclesService, Cycle } from '@/services/cycles.service';
+import { cyclesService, Cycle, CycleSettings } from '@/services/cycles.service';
 import { cycleKeys } from './keys';
 import { toast } from 'sonner';
 
@@ -15,6 +15,37 @@ export function useCycle(id: string, enabled = true) {
       queryKey: cycleKeys.detail(id),
       queryFn: () => cyclesService.getCycleById(id),
       enabled: Boolean(id) && enabled,
+   });
+}
+
+export function useCycleSettings(teamId: string, enabled = true) {
+   return useQuery({
+      queryKey: cycleKeys.settings(teamId),
+      queryFn: () => cyclesService.getCycleSettings(teamId),
+      enabled: Boolean(teamId) && enabled,
+   });
+}
+
+export function useUpdateCycleSettings() {
+   const queryClient = useQueryClient();
+
+   return useMutation({
+      mutationFn: ({
+         teamId,
+         payload,
+      }: {
+         teamId: string;
+         payload: Partial<Omit<CycleSettings, 'teamId'>>;
+      }) => cyclesService.updateCycleSettings(teamId, payload),
+      onSuccess: (_data, { teamId }) => {
+         queryClient.invalidateQueries({ queryKey: cycleKeys.settings(teamId) });
+         queryClient.invalidateQueries({ queryKey: cycleKeys.list(teamId) });
+         queryClient.invalidateQueries({ queryKey: cycleKeys.lists() });
+         toast.success('Cycle settings updated');
+      },
+      onError: (error: Error) => {
+         toast.error(error.message || 'Failed to update cycle settings');
+      },
    });
 }
 
