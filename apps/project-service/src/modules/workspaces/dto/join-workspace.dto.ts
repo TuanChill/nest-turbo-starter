@@ -16,12 +16,4 @@ export class JoinWorkspaceDto {
   @IsString()
   @IsOptional()
   inviteCode?: string;
-
-  @ApiPropertyOptional({
-    description: 'Workspace slug (e.g. circle-workspace)',
-    example: 'circle-workspace',
-  })
-  @IsString()
-  @IsOptional()
-  slug?: string;
 }

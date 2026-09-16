@@ -119,29 +119,21 @@ export function CreateOrJoinWorkspaceDialog({
       e.preventDefault();
       const query = joinQuery.trim();
       if (!query) {
-         toast.error('Please enter an invite code or workspace URL');
+         toast.error('Please enter an invite code');
          return;
       }
 
-      // If it starts with CIR-, it's likely an inviteCode, otherwise could be slug or full URL
-      let inviteCode: string | undefined = undefined;
-      let slugParam: string | undefined = undefined;
-
-      if (query.toUpperCase().startsWith('CIR-')) {
-         inviteCode = query.toUpperCase();
-      } else if (query.includes('/')) {
-         // extracted slug from URL
-         const parts = query.split('/').filter(Boolean);
-         slugParam = parts[parts.length - 1];
-      } else {
-         inviteCode = query.toUpperCase();
-         slugParam = slugify(query);
+      // Accept the code itself or a copied URL whose final path segment is the code.
+      const candidate = query.split('/').filter(Boolean).at(-1)?.split('?')[0] ?? query;
+      const inviteCode = candidate.toUpperCase();
+      if (!inviteCode.startsWith('CIR-')) {
+         toast.error('Please enter a valid workspace invite code');
+         return;
       }
 
       joinMutation.mutate(
          {
             inviteCode,
-            slug: slugParam,
          },
          {
             onSuccess: (joinedWorkspace) => {
@@ -324,7 +316,7 @@ export function CreateOrJoinWorkspaceDialog({
                      <div className="p-3.5 rounded-lg border border-border/60 bg-muted/20 text-xs text-muted-foreground space-y-1">
                         <p className="font-medium text-foreground">Have an invite code?</p>
                         <p>
-                           Enter the workspace invite code (e.g.{' '}
+                           Enter the workspace invite code from your administrator (e.g.{' '}
                            <code className="text-foreground font-mono bg-muted px-1 rounded">
                               CIR-4GADZR
                            </code>
@@ -334,13 +326,13 @@ export function CreateOrJoinWorkspaceDialog({
 
                      <div className="space-y-1.5">
                         <Label htmlFor="ws-code" className="text-xs font-medium">
-                           Invite Code or Workspace URL
+                           Workspace Invite Code
                         </Label>
                         <Input
                            id="ws-code"
                            value={joinQuery}
                            onChange={(e) => setJoinQuery(e.target.value)}
-                           placeholder="e.g. CIR-WELCOME or acme-corp"
+                           placeholder="e.g. CIR-WELCOME"
                            className="h-9 text-sm bg-background/50"
                            autoFocus
                            required

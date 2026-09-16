@@ -32,7 +32,9 @@ export class WorkspacesController {
     return this.workspacesService.create(dto, memberId);
   }
 
-  @ApiOperation({ summary: 'Join an existing workspace by invite code or slug' })
+  @ApiOperation({
+    summary: 'Join an existing workspace by invitation token or invite code',
+  })
   @Post('join')
   join(@Body() dto: JoinWorkspaceDto, @User('id') memberId: string): Promise<any> {
     return this.workspacesService.join(dto, memberId);

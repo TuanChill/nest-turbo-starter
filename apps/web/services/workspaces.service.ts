@@ -24,7 +24,6 @@ export interface CreateWorkspacePayload {
 
 export interface JoinWorkspacePayload {
    inviteCode?: string;
-   slug?: string;
    invitationToken?: string;
 }
 

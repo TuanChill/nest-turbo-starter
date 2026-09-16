@@ -42,6 +42,18 @@ jest.mock('../../data-access', () => {
 });
 
 describe('WorkspacesService invitations', () => {
+  it('does not allow joining a workspace by slug without an invitation or invite code', async () => {
+    const em = {
+      findOne: jest.fn(),
+    } as unknown as EntityManager;
+    const service = new WorkspacesService(em);
+
+    await expect(service.join({ slug: 'acme' } as never, 'member-1')).rejects.toThrow(
+      'invitation token or workspace invite code',
+    );
+    expect(em.findOne).not.toHaveBeenCalled();
+  });
+
   it('accepts a matching invitation and applies its scoped team membership', async () => {
     const workspace = {
       id: 'workspace-1',

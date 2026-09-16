@@ -28,7 +28,6 @@ type SignupFormValues = z.infer<typeof signupSchema>;
 function SignUpForm() {
    const router = useRouter();
    const searchParams = useSearchParams();
-   const inviteOrgSlug = searchParams.get('org');
    const inviteEmail = searchParams.get('email') || '';
    const invitationToken = searchParams.get('invite');
    const { signUp, isLoading } = useAuthStore();
@@ -56,16 +55,6 @@ function SignUpForm() {
             const workspace = await joinWorkspaceMutation.mutateAsync({ invitationToken });
             router.push(ROUTES.WORKSPACE.MY_ISSUES(workspace.slug));
             return;
-         }
-
-         if (inviteOrgSlug) {
-            try {
-               const workspace = await joinWorkspaceMutation.mutateAsync({ slug: inviteOrgSlug });
-               router.push(ROUTES.WORKSPACE.MY_ISSUES(workspace.slug));
-               return;
-            } catch {
-               // Invite link invalid/expired — fall back to normal onboarding below.
-            }
          }
 
          toast.success("Account created! Let's set up your workspace.");

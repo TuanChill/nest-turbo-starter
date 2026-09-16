@@ -303,28 +303,20 @@ export class WorkspacesService {
     }
 
     const inviteCode = dto.inviteCode?.trim().toUpperCase();
-    const slug = dto.slug ? this.slugify(dto.slug) : undefined;
 
-    if (!invitation && !inviteCode && !slug) {
+    if (!invitation && !inviteCode) {
       throw new BadRequestException(
-        'Please provide an invitation token, invite code, or workspace URL/slug',
+        'Please provide an invitation token or workspace invite code',
       );
     }
 
     if (!workspace) {
-      const conditions: any[] = [];
-      if (inviteCode) {
-        conditions.push({ inviteCode });
-      }
-      if (slug) {
-        conditions.push({ slug });
-      }
-      workspace = await this.em.findOne(Workspace, { $or: conditions });
+      workspace = await this.em.findOne(Workspace, { inviteCode });
     }
 
     if (!workspace) {
       throw new NotFoundException(
-        'Workspace not found. Please check your invite code or slug.',
+        'Workspace not found. Please check your invitation or invite code.',
       );
     }
 

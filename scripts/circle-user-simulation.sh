@@ -94,6 +94,13 @@ else
   assert_json 'team is readable' "$team" '.id != null'
 fi
 
+if api POST /workspaces/join "$(jq -nc --arg slug "$WORKSPACE_ID" '{slug:$slug}')" >/dev/null 2>&1; then
+  echo 'Workspace slug join was not rejected' >&2
+  exit 1
+else
+  echo 'PASS workspace slug cannot grant membership without an invite'
+fi
+
 team_members="$(api GET "/teams/$TEAM_ID/members")"
 assignee_id="$(jq -er '.[0].id' <<<"$team_members")"
 
