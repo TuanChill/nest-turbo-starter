@@ -20,6 +20,9 @@ describe('SesMailerService', () => {
         to: 'invitee@example.com',
         name: 'Invitee',
         role: 'Member',
+        orgName: 'Acme',
+        orgSlug: 'acme',
+        inviterName: 'Owner',
       }),
     ).resolves.toBe(false);
   });

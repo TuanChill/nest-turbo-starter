@@ -5,9 +5,9 @@ export interface SendInviteEmailOptions {
   to: string;
   name: string;
   role: string;
-  orgName?: string;
-  orgSlug?: string;
-  inviterName?: string;
+  orgName: string;
+  orgSlug: string;
+  inviterName: string;
 }
 
 @Injectable()
@@ -55,10 +55,16 @@ export class SesMailerService {
   }
 
   async sendMemberInviteEmail(options: SendInviteEmailOptions): Promise<boolean> {
-    const org = options.orgName || 'Circle Workspace';
-    const inviter = options.inviterName || 'Workspace Admin';
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
-    const orgSlug = options.orgSlug || org.toLowerCase().replace(/\s+/g, '-');
+    const org = options.orgName.trim();
+    const orgSlug = options.orgSlug.trim();
+    const inviter = options.inviterName.trim();
+    const frontendUrl = process.env.FRONTEND_URL?.trim();
+    if (!org || !orgSlug || !inviter || !frontendUrl) {
+      this.logger.error(
+        'Invitation email was not sent because workspace, inviter, or frontend context is missing',
+      );
+      return false;
+    }
     const joinUrl = `${frontendUrl}/signup?org=${encodeURIComponent(orgSlug)}&email=${encodeURIComponent(options.to)}`;
 
     const htmlContent = `

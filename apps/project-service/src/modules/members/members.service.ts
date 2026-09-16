@@ -185,13 +185,15 @@ export class MembersService {
             id: resolvedWorkspaceId,
           })
         : null;
+      const inviter = await this.em.findOne(Member, { id: actorId });
       this.sesMailerService
         .sendMemberInviteEmail({
           to: member.email,
           name: member.name,
           role: member.role,
-          orgName: workspace?.name,
-          orgSlug: workspace?.slug,
+          orgName: workspace?.name ?? '',
+          orgSlug: workspace?.slug ?? '',
+          inviterName: inviter?.name ?? '',
         })
         .catch((err) => console.error('Failed to send invite email:', err));
     }

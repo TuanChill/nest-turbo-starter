@@ -1,5 +1,10 @@
 import { EntityManager } from '@mikro-orm/core';
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
 import { OnboardingCompleteDto } from './dto/onboarding.dto';
 import {
@@ -56,23 +61,9 @@ export class OnboardingService {
     });
 
     if (!member) {
-      const email =
-        currentMemberEmail ||
-        (currentMemberId.includes('@')
-          ? currentMemberId
-          : `${currentMemberId}@circle.internal`);
-      member = new Member({
-        id: currentMemberId.includes('@')
-          ? currentMemberId.split('@')[0]
-          : currentMemberId,
-        name: dto.workspaceName || 'Circle Member',
-        email,
-        role: 'Admin',
-        status: 'online',
-        timezone: 'UTC',
-        joinedDate: new Date(),
-      });
-      this.em.persist(member);
+      throw new NotFoundException(
+        'Authenticated member was not found; refusing to create a synthetic account',
+      );
     }
 
     // 1. Prepare unique Workspace Slug
