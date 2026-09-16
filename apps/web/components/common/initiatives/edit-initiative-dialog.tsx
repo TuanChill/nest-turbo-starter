@@ -16,6 +16,7 @@ import { useMembers } from '@/hooks/queries/use-members-query';
 import { useProjects } from '@/hooks/queries/use-projects-query';
 import { useLabels } from '@/hooks/queries/use-labels-query';
 import { useUpdateInitiative } from '@/hooks/queries/use-initiatives-query';
+import QueryErrorState from '@/components/common/query-error-state';
 import type { Initiative, InitiativeStatus } from '@/services/initiatives.service';
 import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
@@ -41,9 +42,13 @@ export function EditInitiativeDialog({
    onOpenChange: (open: boolean) => void;
 }) {
    const updateInitiative = useUpdateInitiative();
-   const { data: members = [] } = useMembers();
-   const { data: projects = [] } = useProjects();
-   const { data: labels = [] } = useLabels('project');
+   const membersQuery = useMembers();
+   const projectsQuery = useProjects();
+   const labelsQuery = useLabels('project');
+   const { data: members = [] } = membersQuery;
+   const { data: projects = [] } = projectsQuery;
+   const { data: labels = [] } = labelsQuery;
+   const optionError = [membersQuery, projectsQuery, labelsQuery].find((query) => query.isError);
    const [name, setName] = useState(initiative.name);
    const [description, setDescription] = useState(initiative.description ?? '');
    const [status, setStatus] = useState<InitiativeStatus>(initiative.status);
@@ -82,6 +87,7 @@ export function EditInitiativeDialog({
 
    const submit = async (event: React.FormEvent) => {
       event.preventDefault();
+      if (optionError) return;
       const trimmedName = name.trim();
       if (!trimmedName) return;
       await updateInitiative.mutateAsync({
@@ -111,6 +117,14 @@ export function EditInitiativeDialog({
                   <DialogDescription>
                      Update initiative properties and its live project, label, and resource links.
                   </DialogDescription>
+                  {optionError && (
+                     <QueryErrorState
+                        subject="initiative options"
+                        error={optionError.error}
+                        onRetry={() => void optionError.refetch()}
+                        compact
+                     />
+                  )}
                </DialogHeader>
                <div className="space-y-4 py-4">
                   <div className="space-y-1.5">
@@ -264,7 +278,10 @@ export function EditInitiativeDialog({
                   <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
                      Cancel
                   </Button>
-                  <Button type="submit" disabled={updateInitiative.isPending || !name.trim()}>
+                  <Button
+                     type="submit"
+                     disabled={updateInitiative.isPending || !name.trim() || Boolean(optionError)}
+                  >
                      {updateInitiative.isPending ? 'Saving...' : 'Save changes'}
                   </Button>
                </DialogFooter>

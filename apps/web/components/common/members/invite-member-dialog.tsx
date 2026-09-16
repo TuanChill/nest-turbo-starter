@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/select';
 import { useCreateMember } from '@/hooks/queries/use-members-query';
 import { useTeams } from '@/hooks/queries/use-teams-query';
+import QueryErrorState from '@/components/common/query-error-state';
 import { Check, Loader2, Plus, Search, UserPlus, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -44,7 +45,9 @@ export function InviteMemberDialog({
    const setOpen = isControlled ? setControlledOpen! : setInternalOpen;
 
    const createMemberMutation = useCreateMember();
-   const { data: teams = [] } = useTeams();
+   const teamsQuery = useTeams();
+   const { data: teams = [] } = teamsQuery;
+   const optionError = teamsQuery.isError ? teamsQuery : undefined;
    const { orgId } = useParams<{ orgId?: string }>();
 
    const [email, setEmail] = React.useState('');
@@ -74,6 +77,7 @@ export function InviteMemberDialog({
 
    const handleSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
+      if (optionError) return;
       const trimmedEmail = email.trim();
       if (!trimmedEmail) {
          toast.error('Please enter an email address');
@@ -157,6 +161,14 @@ export function InviteMemberDialog({
                </DialogHeader>
 
                <div className="p-5 space-y-4">
+                  {optionError && (
+                     <QueryErrorState
+                        subject="workspace teams"
+                        error={optionError.error}
+                        onRetry={() => void optionError.refetch()}
+                        compact
+                     />
+                  )}
                   {/* Email field */}
                   <div className="space-y-1.5">
                      <Label htmlFor="invite-email" className="text-xs font-medium">
@@ -317,7 +329,7 @@ export function InviteMemberDialog({
                      <Button
                         type="submit"
                         size="sm"
-                        disabled={isSubmitting || !email.trim()}
+                        disabled={isSubmitting || !email.trim() || Boolean(optionError)}
                         className="h-8 text-xs gap-1.5"
                      >
                         {isSubmitting ? (

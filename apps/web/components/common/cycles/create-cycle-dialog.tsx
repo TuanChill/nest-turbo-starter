@@ -21,6 +21,7 @@ import {
    SelectValue,
 } from '@/components/ui/select';
 import { useCreateCycle, useCycles } from '@/hooks/queries/use-cycles-query';
+import QueryErrorState from '@/components/common/query-error-state';
 import type { CycleStatus } from '@/services/cycles.service';
 import { Loader2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
@@ -56,7 +57,8 @@ export function CreateCycleDialog({
    const open = isControlled ? controlledOpen : internalOpen;
    const setOpen = isControlled ? setControlledOpen! : setInternalOpen;
 
-   const { data: cycles = [] } = useCycles(teamId);
+   const cyclesQuery = useCycles(teamId);
+   const { data: cycles = [] } = cyclesQuery;
    const createCycleMutation = useCreateCycle();
 
    const nextNumber = React.useMemo(
@@ -72,6 +74,7 @@ export function CreateCycleDialog({
 
    const handleSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
+      if (cyclesQuery.isError) return;
       if (!startDate || !endDate) {
          toast.error('Please select start and end dates');
          return;
@@ -125,6 +128,14 @@ export function CreateCycleDialog({
                   <DialogDescription className="text-xs text-muted-foreground mt-0.5">
                      Cycles are fixed time boxes for shipping a set of issues.
                   </DialogDescription>
+                  {cyclesQuery.isError && (
+                     <QueryErrorState
+                        subject="team cycles"
+                        error={cyclesQuery.error}
+                        onRetry={() => void cyclesQuery.refetch()}
+                        compact
+                     />
+                  )}
                </DialogHeader>
 
                <div className="p-5 space-y-4">
@@ -205,7 +216,7 @@ export function CreateCycleDialog({
                      variant="ghost"
                      size="sm"
                      onClick={() => setOpen(false)}
-                     disabled={isSubmitting}
+                     disabled={isSubmitting || cyclesQuery.isError}
                      className="h-8 text-xs"
                   >
                      Cancel

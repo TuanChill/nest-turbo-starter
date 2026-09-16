@@ -11,6 +11,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useProjects } from '@/hooks/queries/use-projects-query';
 import { useUpdateInitiative } from '@/hooks/queries/use-initiatives-query';
+import QueryErrorState from '@/components/common/query-error-state';
 import { renderProjectIcon } from '@/lib/project-utils';
 import { Plus } from 'lucide-react';
 import { useState } from 'react';
@@ -26,7 +27,8 @@ export function AddProjectToInitiativePopover({
    linkedProjectIds,
 }: AddProjectToInitiativePopoverProps) {
    const [open, setOpen] = useState(false);
-   const { data: allProjects = [] } = useProjects();
+   const projectsQuery = useProjects();
+   const { data: allProjects = [] } = projectsQuery;
    const { mutate: updateInitiative } = useUpdateInitiative();
 
    const availableProjects = allProjects.filter(
@@ -49,28 +51,37 @@ export function AddProjectToInitiativePopover({
             </button>
          </PopoverTrigger>
          <PopoverContent className="w-64 p-0" align="end">
-            <Command>
-               <CommandInput placeholder="Add project..." />
-               <CommandList>
-                  <CommandEmpty>No project found.</CommandEmpty>
-                  <CommandGroup>
-                     {availableProjects.map((project) => (
-                        <CommandItem
-                           key={project.id}
-                           value={project.name}
-                           onSelect={() => handleSelect(project.id)}
-                           className="flex items-center gap-2"
-                        >
-                           {renderProjectIcon(
-                              project.icon,
-                              'size-4 text-muted-foreground shrink-0'
-                           )}
-                           <span className="truncate">{project.name}</span>
-                        </CommandItem>
-                     ))}
-                  </CommandGroup>
-               </CommandList>
-            </Command>
+            {projectsQuery.isError ? (
+               <QueryErrorState
+                  subject="initiative projects"
+                  error={projectsQuery.error}
+                  onRetry={() => void projectsQuery.refetch()}
+                  compact
+               />
+            ) : (
+               <Command>
+                  <CommandInput placeholder="Add project..." />
+                  <CommandList>
+                     <CommandEmpty>No project found.</CommandEmpty>
+                     <CommandGroup>
+                        {availableProjects.map((project) => (
+                           <CommandItem
+                              key={project.id}
+                              value={project.name}
+                              onSelect={() => handleSelect(project.id)}
+                              className="flex items-center gap-2"
+                           >
+                              {renderProjectIcon(
+                                 project.icon,
+                                 'size-4 text-muted-foreground shrink-0'
+                              )}
+                              <span className="truncate">{project.name}</span>
+                           </CommandItem>
+                        ))}
+                     </CommandGroup>
+                  </CommandList>
+               </Command>
+            )}
          </PopoverContent>
       </Popover>
    );
