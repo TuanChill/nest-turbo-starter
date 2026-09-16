@@ -247,35 +247,24 @@ export class MembersService {
     await this.findOne(id, actorId);
 
     if (dto.role) {
-      const accessibleWorkspaceIds =
-        await this.workspacesService.getAccessibleWorkspaceIds(actorId);
-      const targetMemberships = await this.em.find(WorkspaceMember, { memberId: id });
-      const sharedWorkspaceIds = targetMemberships
-        .map((membership) => membership.workspaceId)
-        .filter((workspaceId) => accessibleWorkspaceIds.includes(workspaceId));
-      const canChangeRole = (
-        await Promise.all(
-          sharedWorkspaceIds.map(async (workspaceId) => {
-            const [workspace, membership] = await Promise.all([
-              this.em.findOne(Workspace, { id: workspaceId }),
-              this.em.findOne(WorkspaceMember, { workspaceId, memberId: actorId }),
-            ]);
-            return Boolean(
-              workspace &&
-                membership &&
-                (canManageWorkspaceRole(membership.role) ||
-                  workspace.ownerId === actorId),
-            );
-          }),
-        )
-      ).some(Boolean);
-      if (!canChangeRole) throw new NotFoundException(`Member ${id} not found`);
+      if (!dto.workspaceId) {
+        throw new BadRequestException(
+          'workspaceId is required when changing a member role',
+        );
+      }
+      const workspaceId = await this.resolveWorkspaceId(actorId, dto.workspaceId);
+      await this.assertWorkspaceManager(actorId, workspaceId);
+      const targetMembership = await this.em.findOne(WorkspaceMember, {
+        workspaceId,
+        memberId: id,
+      });
+      if (!targetMembership) throw new NotFoundException(`Member ${id} not found`);
+      targetMembership.role = dto.role;
     }
 
     if (dto.name) member.name = dto.name;
     if (dto.avatarUrl !== undefined) member.avatarUrl = dto.avatarUrl;
     if (dto.status) member.status = dto.status;
-    if (dto.role) member.role = dto.role;
     if (dto.timezone) member.timezone = dto.timezone;
 
     await this.em.flush();

@@ -65,10 +65,15 @@ export class UpdateMemberDto {
   @IsOptional()
   status?: 'online' | 'offline' | 'away';
 
-  @ApiPropertyOptional({ enum: ['Member', 'Admin', 'Guest', 'Application'] })
-  @IsEnum(['Member', 'Admin', 'Guest', 'Application'])
+  @ApiPropertyOptional({ enum: ['Member', 'Admin', 'Guest'] })
+  @IsEnum(['Member', 'Admin', 'Guest'])
   @IsOptional()
-  role?: 'Member' | 'Admin' | 'Guest' | 'Application';
+  role?: 'Member' | 'Admin' | 'Guest';
+
+  @ApiPropertyOptional({ description: 'Workspace whose membership role is changed' })
+  @IsString()
+  @IsOptional()
+  workspaceId?: string;
 
   @ApiPropertyOptional()
   @IsString()
