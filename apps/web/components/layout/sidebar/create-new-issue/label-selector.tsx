@@ -25,6 +25,7 @@ interface LabelSelectorProps {
    /** Linear allows creating a project label directly from the label menu. */
    allowCreate?: boolean;
    scope?: 'issue' | 'project';
+   teamId?: string;
 }
 
 export function LabelSelector({
@@ -33,6 +34,7 @@ export function LabelSelector({
    showCounts = true,
    allowCreate = false,
    scope = 'issue',
+   teamId,
 }: LabelSelectorProps) {
    const id = useId();
    const [open, setOpen] = useState<boolean>(false);
@@ -40,7 +42,7 @@ export function LabelSelector({
    const [isCreating, setIsCreating] = useState(false);
 
    const { filterByLabel } = useIssuesStore();
-   const { data: labels = [] } = useLabels(scope);
+   const { data: labels = [] } = useLabels(scope, teamId);
    const createLabelMutation = useCreateLabel();
 
    // Never fall back to mock IDs here: an empty API response is a valid

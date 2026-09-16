@@ -309,6 +309,7 @@ export function CreateNewIssue() {
                   />
                   <LabelSelector
                      selectedLabels={addIssueForm.labels}
+                     teamId={activeTeamId}
                      onChange={(newLabels) =>
                         setAddIssueForm({ ...addIssueForm, labels: newLabels })
                      }

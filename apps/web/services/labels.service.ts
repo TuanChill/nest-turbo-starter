@@ -8,6 +8,7 @@ export interface LabelItem {
    description?: string;
    createdAt?: string;
    scope?: 'issue' | 'project' | 'both';
+   teamId?: string;
    groupId?: string;
 }
 
@@ -54,9 +55,12 @@ export const labelsService = {
 
    async getLabels(
       scope: 'issue' | 'project' = 'issue',
-      workspaceId?: string
+      workspaceId?: string,
+      teamId?: string
    ): Promise<LabelItem[]> {
-      return apiClient<LabelItem[]>('/circle/api/labels', { params: { scope, workspaceId } });
+      return apiClient<LabelItem[]>('/circle/api/labels', {
+         params: { scope, workspaceId, teamId },
+      });
    },
 
    async createLabel(payload: Partial<LabelItem>): Promise<LabelItem> {

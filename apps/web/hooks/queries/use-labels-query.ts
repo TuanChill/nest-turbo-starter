@@ -5,15 +5,15 @@ import { toast } from 'sonner';
 import { useParams } from 'next/navigation';
 import { useWorkspaces } from './use-workspaces-query';
 
-export function useLabels(scope: 'issue' | 'project' = 'issue') {
+export function useLabels(scope: 'issue' | 'project' = 'issue', teamId?: string) {
    const { orgId } = useParams<{ orgId?: string }>();
    const { data: workspaces = [], isFetched: workspacesFetched } = useWorkspaces();
    const workspaceId = workspaces.find(
       (workspace) => workspace.slug === orgId || workspace.id === orgId
    )?.id;
    return useQuery({
-      queryKey: labelKeys.list(scope, workspaceId),
-      queryFn: () => labelsService.getLabels(scope, workspaceId),
+      queryKey: labelKeys.list(scope, workspaceId, teamId),
+      queryFn: () => labelsService.getLabels(scope, workspaceId, teamId),
       enabled: workspacesFetched && Boolean(workspaceId),
    });
 }

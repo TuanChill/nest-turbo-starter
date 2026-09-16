@@ -23,6 +23,7 @@ import {
   WorkspaceMember,
 } from '../../data-access';
 import { assertMutuallyExclusiveLabelSelection } from '../labels/label-rules';
+import { isLabelAvailableForTeam } from '../labels/label-scope';
 import { WorkspacesService } from '../workspaces/workspaces.service';
 
 @Injectable()
@@ -91,18 +92,24 @@ export class IssueTemplatesService {
         id: { $in: config.labelIds },
         scope: { $in: ['issue', 'both'] },
         workspaceId,
+        $or: [{ teamId: null }, { teamId }],
       });
-      const existing = new Set(labels.map((label) => label.id));
+      const availableLabels = labels.filter((label) =>
+        isLabelAvailableForTeam(label.teamId, teamId),
+      );
+      const existing = new Set(availableLabels.map((label) => label.id));
       const missing = config.labelIds.filter((id) => !existing.has(id));
       if (missing.length) {
         throw new BadRequestException(`Unknown issue label(s): ${missing.join(', ')}`);
       }
-      const groupIds = [...new Set(labels.map((label) => label.groupId).filter(Boolean))];
+      const groupIds = [
+        ...new Set(availableLabels.map((label) => label.groupId).filter(Boolean)),
+      ];
       const groups = await this.em.find(LabelGroup, {
         id: { $in: groupIds },
         workspaceId,
       });
-      assertMutuallyExclusiveLabelSelection(labels, groups);
+      assertMutuallyExclusiveLabelSelection(availableLabels, groups);
     }
     if (config.projectId) {
       const project = await this.em.findOne(Project, { id: config.projectId });
@@ -181,7 +188,8 @@ export class IssueTemplatesService {
     });
     if (duplicate) throw new ConflictException(`Template "${name}" already exists`);
     const config = normalizeIssueTemplateConfig(dto.config);
-    await this.validateConfig(config, workspace.id, dto.teamId, memberId);
+    const templateTeamId = dto.scope === 'team' ? dto.teamId : undefined;
+    await this.validateConfig(config, workspace.id, templateTeamId, memberId);
     if (dto.isDefault && dto.teamId) await this.clearDefault(workspace.id, dto.teamId);
     const template = new IssueTemplate({
       workspaceId: workspace.id,
@@ -202,12 +210,13 @@ export class IssueTemplatesService {
     const template = await this.findOne(id, memberId);
     const scope = dto.scope ?? template.scope;
     const teamId = dto.teamId ?? template.teamId;
+    const effectiveTeamId = scope === 'team' ? teamId : undefined;
     if (scope === 'team' && !teamId)
       throw new BadRequestException('teamId is required for a team template');
     const config = dto.config
       ? normalizeIssueTemplateConfig(dto.config)
       : template.config;
-    await this.validateConfig(config, template.workspaceId, teamId, memberId);
+    await this.validateConfig(config, template.workspaceId, effectiveTeamId, memberId);
     const name = dto.name?.trim() || template.name;
     const duplicate = await this.em.findOne(IssueTemplate, {
       workspaceId: template.workspaceId,
@@ -216,8 +225,8 @@ export class IssueTemplatesService {
       deletedAt: null,
     });
     if (duplicate) throw new ConflictException(`Template "${name}" already exists`);
-    if (dto.isDefault && teamId)
-      await this.clearDefault(template.workspaceId, teamId, id);
+    if (dto.isDefault && effectiveTeamId)
+      await this.clearDefault(template.workspaceId, effectiveTeamId, id);
     Object.assign(template, {
       name,
       description:
@@ -233,7 +242,12 @@ export class IssueTemplatesService {
 
   async duplicate(id: string, memberId: string) {
     const source = await this.findOne(id, memberId);
-    await this.validateConfig(source.config, source.workspaceId, source.teamId, memberId);
+    await this.validateConfig(
+      source.config,
+      source.workspaceId,
+      source.scope === 'team' ? source.teamId : undefined,
+      memberId,
+    );
     const copy = new IssueTemplate({
       workspaceId: source.workspaceId,
       name: `${source.name} copy`,

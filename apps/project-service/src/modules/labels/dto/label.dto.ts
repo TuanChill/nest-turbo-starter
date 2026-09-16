@@ -16,6 +16,11 @@ export class CreateLabelDto {
   @IsString()
   @IsOptional()
   workspaceId?: string;
+
+  @ApiPropertyOptional({ example: 'ENG2', nullable: true })
+  @IsString()
+  @IsOptional()
+  teamId?: string;
   @ApiProperty({ example: 'ui' })
   @IsString()
   @IsNotEmpty()
@@ -48,6 +53,10 @@ export class CreateLabelDto {
 }
 
 export class UpdateLabelDto {
+  @ApiPropertyOptional({ example: 'ENG2', nullable: true })
+  @IsString()
+  @IsOptional()
+  teamId?: string | null;
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()

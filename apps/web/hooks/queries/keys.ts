@@ -92,8 +92,8 @@ export const cycleKeys = {
 export const labelKeys = {
    all: ['labels'] as const,
    lists: () => [...labelKeys.all, 'list'] as const,
-   list: (scope: 'issue' | 'project' = 'issue', workspaceId?: string) =>
-      [...labelKeys.lists(), { scope, workspaceId }] as const,
+   list: (scope: 'issue' | 'project' = 'issue', workspaceId?: string, teamId?: string) =>
+      [...labelKeys.lists(), { scope, workspaceId, teamId }] as const,
 };
 
 export const reviewKeys = {

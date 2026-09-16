@@ -6,6 +6,7 @@ export type LabelScope = 'issue' | 'project' | 'both';
 
 @Entity({ tableName: 'labels', repository: () => LabelRepository })
 @Index({ properties: ['workspaceId'] })
+@Index({ properties: ['workspaceId', 'teamId'] })
 @Index({ properties: ['groupId'] })
 export class Label {
   [EntityRepositoryType]?: LabelRepository;
@@ -21,6 +22,10 @@ export class Label {
 
   @Property({ type: 'string' })
   workspaceId: string;
+
+  /** Null means a workspace label; otherwise the label is only valid for that team. */
+  @Property({ type: 'string', nullable: true })
+  teamId?: string;
 
   @Property({ type: 'text', nullable: true })
   description?: string;

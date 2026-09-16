@@ -13,6 +13,7 @@ import {
   LabelGroupScope,
   LabelScope,
   ProjectLabel,
+  Team,
   Workspace,
 } from '../../data-access';
 import { requireWorkspaceSelection } from '../workspaces/workspace-selection';
@@ -47,16 +48,51 @@ export class LabelsService {
     return requireWorkspaceSelection(accessibleWorkspaceIds);
   }
 
+  private async validateTeamId(
+    teamId: string | undefined,
+    workspaceId: string,
+    memberId: string,
+  ) {
+    if (!teamId) return undefined;
+    const accessibleTeamIds = await this.workspacesService.getAccessibleTeamIds(memberId);
+    const team = await this.em.findOne(Team, { id: teamId });
+    if (
+      !team ||
+      team.workspaceId !== workspaceId ||
+      !accessibleTeamIds.includes(teamId)
+    ) {
+      throw new NotFoundException(`Team ${teamId} not found`);
+    }
+    return teamId;
+  }
+
   async findAll(
     memberId: string,
     scope?: Exclude<LabelScope, 'both'>,
     requestedWorkspaceId?: string,
+    requestedTeamId?: string,
   ) {
     const workspaceIds = requestedWorkspaceId
       ? [await this.resolveWorkspaceId(memberId, requestedWorkspaceId)]
       : await this.getAccessibleWorkspaceIds(memberId);
     const where: any = { workspaceId: { $in: workspaceIds } };
     if (scope) where.scope = { $in: [scope, 'both'] };
+    if (requestedTeamId) {
+      const accessibleTeamIds =
+        await this.workspacesService.getAccessibleTeamIds(memberId);
+      if (!accessibleTeamIds.includes(requestedTeamId)) {
+        throw new NotFoundException(`Team ${requestedTeamId} not found`);
+      }
+      const targetTeam = await this.em.findOne(Team, { id: requestedTeamId });
+      if (
+        !targetTeam ||
+        !targetTeam.workspaceId ||
+        !workspaceIds.includes(targetTeam.workspaceId)
+      ) {
+        throw new NotFoundException(`Team ${requestedTeamId} not found`);
+      }
+      where.$or = [{ teamId: null }, { teamId: requestedTeamId }];
+    }
     return this.em.find(Label, where);
   }
 
@@ -98,6 +134,7 @@ export class LabelsService {
 
   async create(dto: CreateLabelDto, memberId: string) {
     const workspaceId = await this.resolveWorkspaceId(memberId, dto.workspaceId);
+    const teamId = await this.validateTeamId(dto.teamId, workspaceId, memberId);
     const name = dto.name.trim();
     const scope = dto.scope ?? 'both';
     const labels = await this.em.find(Label, { workspaceId });
@@ -112,7 +149,7 @@ export class LabelsService {
 
     await this.validateGroup(dto.groupId, workspaceId, scope);
 
-    const label = new Label({ ...dto, name, scope, workspaceId });
+    const label = new Label({ ...dto, name, scope, workspaceId, teamId });
     this.em.persist(label);
     await this.em.flush();
     return label;
@@ -128,6 +165,11 @@ export class LabelsService {
 
     const name = dto.name?.trim() ?? label.name;
     const scope = dto.scope ?? label.scope;
+    const teamId = await this.validateTeamId(
+      dto.teamId === null ? undefined : (dto.teamId ?? label.teamId),
+      label.workspaceId,
+      memberId,
+    );
     const labels = await this.em.find(Label, {
       id: { $ne: id },
       workspaceId: label.workspaceId,
@@ -143,7 +185,7 @@ export class LabelsService {
 
     await this.validateGroup(dto.groupId ?? label.groupId, label.workspaceId, scope);
 
-    Object.assign(label, { ...dto, name, scope });
+    Object.assign(label, { ...dto, name, scope, teamId });
     await this.em.flush();
     return label;
   }

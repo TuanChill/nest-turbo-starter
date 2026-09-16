@@ -35,6 +35,7 @@ import {
   WorkspaceMember,
 } from '../../data-access';
 import { assertMutuallyExclusiveLabelSelection } from '../labels/label-rules';
+import { isLabelAvailableForTeam } from '../labels/label-scope';
 import { WorkspacesService } from '../workspaces/workspaces.service';
 
 const ALL_STATUSES: Record<
@@ -131,17 +132,23 @@ export class IssuesService {
       id: { $in: uniqueLabelIds },
       scope: { $in: ['issue', 'both'] },
       ...(team?.workspaceId ? { workspaceId: team.workspaceId } : {}),
+      $or: [{ teamId: null }, { teamId }],
     });
-    const existingIds = new Set(labels.map((label) => label.id));
+    const availableLabels = labels.filter((label) =>
+      isLabelAvailableForTeam(label.teamId, teamId),
+    );
+    const existingIds = new Set(availableLabels.map((label) => label.id));
     const missingIds = uniqueLabelIds.filter((labelId) => !existingIds.has(labelId));
     if (missingIds.length > 0) {
       throw new BadRequestException(`Unknown issue label(s): ${missingIds.join(', ')}`);
     }
-    const groupedLabelIds = new Set(labels.map((label) => label.groupId).filter(Boolean));
+    const groupedLabelIds = new Set(
+      availableLabels.map((label) => label.groupId).filter(Boolean),
+    );
     const exclusiveGroups = await this.em.find(LabelGroup, {
       id: { $in: [...groupedLabelIds] },
     });
-    assertMutuallyExclusiveLabelSelection(labels, exclusiveGroups);
+    assertMutuallyExclusiveLabelSelection(availableLabels, exclusiveGroups);
     return uniqueLabelIds;
   }
 
