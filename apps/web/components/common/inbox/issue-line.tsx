@@ -6,6 +6,14 @@ import { cn } from '@/lib/utils';
 import { motion } from 'motion/react';
 import { renderStatusIcon } from '@/lib/status-utils';
 import { getNotificationIcon } from '@/lib/notification-utils';
+import { Button } from '@/components/ui/button';
+import {
+   DropdownMenu,
+   DropdownMenuContent,
+   DropdownMenuItem,
+   DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Clock3, MoreHorizontal } from 'lucide-react';
 
 interface IssueLineProps {
    notification: InboxItem;
@@ -14,6 +22,14 @@ interface IssueLineProps {
    onClick?: () => void;
    showId?: boolean;
    showStatusIcon?: boolean;
+   onSnooze?: (until: string | null) => void;
+}
+
+function tomorrowAtNine() {
+   const date = new Date();
+   date.setDate(date.getDate() + 1);
+   date.setHours(9, 0, 0, 0);
+   return date.toISOString();
 }
 
 export default function IssueLine({
@@ -23,6 +39,7 @@ export default function IssueLine({
    onClick,
    showId = true,
    showStatusIcon = true,
+   onSnooze,
 }: IssueLineProps) {
    const actor = notification.user;
 
@@ -87,6 +104,46 @@ export default function IssueLine({
 
                   {showStatusIcon && (
                      <div className="shrink-0">{renderStatusIcon(notification.status.id)}</div>
+                  )}
+                  {onSnooze && (
+                     <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                           <Button
+                              variant="ghost"
+                              size="icon"
+                              aria-label="Notification actions"
+                              onClick={(event) => event.stopPropagation()}
+                           >
+                              <MoreHorizontal className="size-4" />
+                           </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                           align="end"
+                           onClick={(event) => event.stopPropagation()}
+                        >
+                           {notification.snoozedUntil ? (
+                              <DropdownMenuItem onClick={() => onSnooze(null)}>
+                                 <Clock3 className="size-4 mr-2" />
+                                 Unsnooze
+                              </DropdownMenuItem>
+                           ) : (
+                              <>
+                                 <DropdownMenuItem
+                                    onClick={() =>
+                                       onSnooze(new Date(Date.now() + 60 * 60 * 1000).toISOString())
+                                    }
+                                 >
+                                    <Clock3 className="size-4 mr-2" />
+                                    Snooze for 1 hour
+                                 </DropdownMenuItem>
+                                 <DropdownMenuItem onClick={() => onSnooze(tomorrowAtNine())}>
+                                    <Clock3 className="size-4 mr-2" />
+                                    Snooze until tomorrow
+                                 </DropdownMenuItem>
+                              </>
+                           )}
+                        </DropdownMenuContent>
+                     </DropdownMenu>
                   )}
                </div>
 

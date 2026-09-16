@@ -24,6 +24,7 @@ export interface InboxItem extends Issue {
    timestamp: string;
    /** Server timestamp used for stable ordering; timestamp is display-only. */
    notificationCreatedAt?: string;
+   snoozedUntil?: string | null;
    read: boolean;
 }
 

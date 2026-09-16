@@ -7,6 +7,7 @@ import {
    fetchInbox as apiFetchInbox,
    markAllNotificationsAsRead as apiMarkAllNotificationsAsRead,
    markNotificationAsRead as apiMarkNotificationAsRead,
+   snoozeNotification as apiSnoozeNotification,
 } from '@/lib/api/inbox';
 import { create } from 'zustand';
 
@@ -19,11 +20,12 @@ interface NotificationsState {
    error: string | null;
 
    // Actions
-   initNotifications: () => Promise<void>;
+   initNotifications: (includeSnoozed?: boolean) => Promise<void>;
    setSelectedNotification: (notification: InboxItem | undefined) => void;
    markAsRead: (id: string) => Promise<void>;
    markAllAsRead: () => Promise<void>;
    markAsUnread: (id: string) => Promise<void>;
+   snoozeNotification: (id: string, until: string | null) => Promise<void>;
    deleteNotification: (id: string) => Promise<void>;
    deleteAllNotifications: () => Promise<void>;
    deleteReadNotifications: () => Promise<void>;
@@ -48,10 +50,10 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
    isInitialized: false,
    error: null,
 
-   initNotifications: async () => {
+   initNotifications: async (includeSnoozed = false) => {
       try {
          set({ isLoading: true, error: null });
-         const fetched = await apiFetchInbox();
+         const fetched = await apiFetchInbox(includeSnoozed);
          set({
             notifications: fetched ?? [],
             isInitialized: true,
@@ -149,6 +151,32 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
       }
    },
 
+   snoozeNotification: async (id: string, until: string | null) => {
+      const previous = get().notifications;
+      const previousSelected = get().selectedNotification;
+      set((state) => ({
+         notifications: state.notifications.map((notification) =>
+            notification.id === id ? { ...notification, snoozedUntil: until } : notification
+         ),
+         selectedNotification:
+            state.selectedNotification?.id === id
+               ? { ...state.selectedNotification, snoozedUntil: until }
+               : state.selectedNotification,
+         error: null,
+      }));
+
+      try {
+         await apiSnoozeNotification(id, until);
+      } catch (err) {
+         set({
+            notifications: previous,
+            selectedNotification: previousSelected,
+            error: err instanceof Error ? err.message : 'Could not snooze notification',
+         });
+         throw err;
+      }
+   },
+
    deleteNotification: async (id: string) => {
       const previous = get().notifications;
       const previousSelected = get().selectedNotification;
@@ -220,7 +248,9 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
 
    // Filters
    getUnreadNotifications: () => {
-      return get().notifications.filter((notification) => !notification.read);
+      return get().notifications.filter(
+         (notification) => !notification.read && !isSnoozed(notification)
+      );
    },
 
    getReadNotifications: () => {
@@ -241,6 +271,12 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
    },
 
    getUnreadCount: () => {
-      return get().notifications.filter((notification) => !notification.read).length;
+      return get().notifications.filter(
+         (notification) => !notification.read && !isSnoozed(notification)
+      ).length;
    },
 }));
+
+function isSnoozed(notification: InboxItem) {
+   return Boolean(notification.snoozedUntil && Date.parse(notification.snoozedUntil) > Date.now());
+}

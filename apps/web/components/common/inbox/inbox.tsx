@@ -53,6 +53,7 @@ export default function Inbox() {
       deleteAllNotifications,
       deleteReadNotifications,
       deleteCompletedIssueNotifications,
+      snoozeNotification,
       isLoading,
       isInitialized,
       error,
@@ -65,12 +66,20 @@ export default function Inbox() {
    const [ordering, setOrdering] = useState('newest');
    const [showId, setShowId] = useState(true);
    const [showStatusIcon, setShowStatusIcon] = useState(true);
+   const [showSnoozed, setShowSnoozed] = useState(false);
    const [pendingDelete, setPendingDelete] = useState<'all' | 'read' | 'completed' | null>(null);
+   const now = Date.now();
 
    // Filter and sort notifications based on settings
    const filteredNotifications = notifications
       .filter((notification) => {
          if (!showRead && notification.read) return false;
+         if (
+            !showSnoozed &&
+            notification.snoozedUntil &&
+            Date.parse(notification.snoozedUntil) > now
+         )
+            return false;
          return true;
       })
       .sort((a, b) => {
@@ -174,6 +183,19 @@ export default function Inbox() {
                            />
                         </div>
                         <div className="flex items-center justify-between">
+                           <Label htmlFor="show-snoozed" className="text-sm">
+                              Show snoozed
+                           </Label>
+                           <Switch
+                              id="show-snoozed"
+                              checked={showSnoozed}
+                              onCheckedChange={(checked) => {
+                                 setShowSnoozed(checked);
+                                 void initNotifications(checked);
+                              }}
+                           />
+                        </div>
+                        <div className="flex items-center justify-between">
                            <Label htmlFor="show-unread-first" className="text-sm">
                               Show unread first
                            </Label>
@@ -245,6 +267,13 @@ export default function Inbox() {
                      onClick={() => setSelectedNotification(notification)}
                      showId={showId}
                      showStatusIcon={showStatusIcon}
+                     onSnooze={(until) => {
+                        void snoozeNotification(notification.id, until).catch((err) => {
+                           toast.error(
+                              err instanceof Error ? err.message : 'Could not snooze notification'
+                           );
+                        });
+                     }}
                   />
                ))
             )}

@@ -1,9 +1,10 @@
 import { User } from '@app/common';
-import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   CreateNotificationDto,
   MarkReadDto,
+  SnoozeNotificationDto,
   UpdateNotificationPreferencesDto,
 } from './dto/inbox.dto';
 import { InboxService } from './inbox.service';
@@ -15,8 +16,8 @@ export class InboxController {
 
   @ApiOperation({ summary: 'Get all notifications / inbox items' })
   @Get()
-  findAll(@User('id') userId: string) {
-    return this.inboxService.findAll(userId);
+  findAll(@User('id') userId: string, @Query('includeSnoozed') includeSnoozed?: string) {
+    return this.inboxService.findAll(userId, includeSnoozed === 'true');
   }
 
   @ApiOperation({ summary: 'Get persisted notification preferences' })
@@ -42,6 +43,16 @@ export class InboxController {
     @Body() dto: MarkReadDto,
   ) {
     return this.inboxService.markAsRead(userId, id, dto);
+  }
+
+  @ApiOperation({ summary: 'Snooze or unsnooze one notification' })
+  @Patch(':id/snooze')
+  snooze(
+    @User('id') userId: string,
+    @Param('id') id: string,
+    @Body() dto: SnoozeNotificationDto,
+  ) {
+    return this.inboxService.snooze(userId, id, dto);
   }
 
   @ApiOperation({ summary: 'Mark all notifications as read' })

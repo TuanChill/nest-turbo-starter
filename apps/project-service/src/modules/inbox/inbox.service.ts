@@ -4,6 +4,7 @@ import { v7 } from 'uuid';
 import {
   CreateNotificationDto,
   MarkReadDto,
+  SnoozeNotificationDto,
   UpdateNotificationPreferencesDto,
 } from './dto/inbox.dto';
 import {
@@ -119,15 +120,22 @@ export class InboxService {
     return this.serializePreferences(preferences);
   }
 
-  async findAll(userId: string) {
+  async findAll(userId: string, includeSnoozed = false) {
     const notifications = await this.em.find(
       Notification,
       { userId },
       { orderBy: { createdAt: 'DESC' } },
     );
+    const now = new Date();
+    const visibleNotifications = notifications.filter(
+      (notification) =>
+        includeSnoozed ||
+        !notification.snoozedUntil ||
+        notification.snoozedUntil.getTime() <= now.getTime(),
+    );
 
     const results = await Promise.all(
-      notifications.map(async (notif) => {
+      visibleNotifications.map(async (notif) => {
         // A deleted issue leaves an old inbox row behind. That row is safe to
         // omit, but any other lookup/authorization failure must remain visible
         // to the caller instead of being silently converted to an empty inbox.
@@ -161,6 +169,10 @@ export class InboxService {
           timestamp: formatTimestamp(notif.createdAt),
           notificationCreatedAt: notif.createdAt.toISOString(),
           read: notif.read,
+          snoozedUntil:
+            notif.snoozedUntil && notif.snoozedUntil.getTime() > now.getTime()
+              ? notif.snoozedUntil.toISOString()
+              : null,
         };
       }),
     );
@@ -178,6 +190,26 @@ export class InboxService {
     notif.read = dto.read;
     await this.em.flush();
     return { success: true, id, read: notif.read };
+  }
+
+  async snooze(userId: string, id: string, dto: SnoozeNotificationDto) {
+    if (dto.until === undefined) {
+      throw new BadRequestException('until is required; use null to unsnooze');
+    }
+    const notif = await this.em.findOne(Notification, { id, userId });
+    if (!notif) throw new NotFoundException(`Notification ${id} not found`);
+
+    const until = dto.until === null ? null : new Date(dto.until);
+    if (until && until.getTime() <= Date.now()) {
+      throw new BadRequestException('Snooze time must be in the future');
+    }
+    notif.snoozedUntil = until ?? undefined;
+    await this.em.flush();
+    return {
+      success: true,
+      id,
+      snoozedUntil: notif.snoozedUntil?.toISOString() ?? null,
+    };
   }
 
   async markAllAsRead(userId: string) {

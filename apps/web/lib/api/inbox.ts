@@ -31,8 +31,9 @@ export type NotificationPreferencesPatch = {
    categories?: Partial<NotificationPreferences['categories']>;
 };
 
-export async function getInboxNotifications(): Promise<InboxItem[]> {
-   return apiClient<InboxItem[]>('/circle/api/inbox');
+export async function getInboxNotifications(includeSnoozed = false): Promise<InboxItem[]> {
+   const query = includeSnoozed ? '?includeSnoozed=true' : '';
+   return apiClient<InboxItem[]>(`/circle/api/inbox${query}`);
 }
 
 export const fetchInbox = getInboxNotifications;
@@ -58,6 +59,19 @@ export async function markNotificationAsRead(
       method: 'PATCH',
       body: JSON.stringify({ read }),
    });
+}
+
+export async function snoozeNotification(
+   id: string,
+   until: string | null
+): Promise<{ success: boolean; id: string; snoozedUntil: string | null }> {
+   return apiClient<{ success: boolean; id: string; snoozedUntil: string | null }>(
+      `/circle/api/inbox/${id}/snooze`,
+      {
+         method: 'PATCH',
+         body: JSON.stringify({ until }),
+      }
+   );
 }
 
 export async function markAllNotificationsAsRead(): Promise<{ success: boolean }> {

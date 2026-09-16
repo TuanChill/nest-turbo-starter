@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsBoolean,
   IsEnum,
+  IsISO8601,
   IsNotEmpty,
   IsObject,
   IsOptional,
@@ -74,6 +75,13 @@ export class MarkReadDto {
   @ApiProperty({ default: true })
   @IsBoolean()
   read: boolean;
+}
+
+export class SnoozeNotificationDto {
+  @ApiProperty({ nullable: true, example: '2026-09-18T09:00:00.000Z' })
+  @IsISO8601()
+  @IsOptional()
+  until?: string | null;
 }
 
 export class NotificationCategoryPreferencesDto {

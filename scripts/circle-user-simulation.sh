@@ -210,8 +210,26 @@ assert_json 'relation persisted' "$detail" --arg related_identifier "$related_id
 assert_json 'comment mention and reaction persisted' "$detail" 'any(.activity[]; any((.body // [])[]; ((.text // "") | contains("Simulation comment")))) and any(.activity[]; ((.reactions // []) | length > 0))'
 project_detail="$(api GET "/projects/$project_id/detail")"
 assert_json 'project update and milestone activity persisted' "$project_detail" '((.updates // []) | length >= 1) and ((.milestones // []) | length >= 1) and ((.activity // []) | length >= 2)'
+notification="$(api POST /inbox "$(jq -nc --arg issueIdentifier "$root_identifier" --arg memberId "$assignee_id" '{issueIdentifier:$issueIdentifier,userId:$memberId,actorId:$memberId,type:"mention",content:"Simulation snooze notification"}')")"
+notification_id="$(jq -er '.id' <<<"$notification")"
 inbox="$(api GET /inbox)"
 assert_json 'inbox returns a persisted collection' "$inbox" 'type == "array"'
+assert_json 'inbox notification persisted' "$inbox" --arg notification_id "$notification_id" 'any(.[]; .id == $notification_id)'
+future_snooze="$(node -e 'process.stdout.write(new Date(Date.now() + 3600000).toISOString())')"
+snoozed_notification="$(api PATCH "/inbox/$notification_id/snooze" "$(jq -nc --arg until "$future_snooze" '{until:$until}')")"
+assert_json 'inbox notification snooze persisted' "$snoozed_notification" \
+  --arg notification_id "$notification_id" --arg until "$future_snooze" \
+  '.id == $notification_id and .snoozedUntil == $until'
+hidden_snoozed="$(api GET /inbox)"
+assert_json 'snoozed notification is hidden by default' "$hidden_snoozed" \
+  --arg notification_id "$notification_id" 'all(.[]; .id != $notification_id)'
+visible_snoozed="$(api GET '/inbox?includeSnoozed=true')"
+assert_json 'snoozed notification is visible when requested' "$visible_snoozed" \
+  --arg notification_id "$notification_id" --arg until "$future_snooze" \
+  'any(.[]; .id == $notification_id and .snoozedUntil == $until)'
+unsnoozed_notification="$(api PATCH "/inbox/$notification_id/snooze" '{"until":null}')"
+assert_json 'inbox notification unsnooze persisted' "$unsnoozed_notification" \
+  --arg notification_id "$notification_id" '.id == $notification_id and .snoozedUntil == null'
 clone_check="$(api GET "/projects/$cloned_project_id")"
 assert_json 'project template clone persisted' "$clone_check" '.id != null and .id != ""'
 cloned_issues="$(api GET "/issues?teamId=$TEAM_ID&projectId=$cloned_project_id")"
