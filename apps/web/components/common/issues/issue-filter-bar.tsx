@@ -10,6 +10,7 @@ import { useProjects } from '@/hooks/queries/use-projects-query';
 import { useCycles } from '@/hooks/queries/use-cycles-query';
 import { useLabels } from '@/hooks/queries/use-labels-query';
 import { buildIssueFilterColumns } from './issue-filter-columns';
+import QueryErrorState from '@/components/common/query-error-state';
 
 /**
  * Linear-style applied-filters row: filter chips (subject / operator /
@@ -23,10 +24,14 @@ import { buildIssueFilterColumns } from './issue-filter-columns';
  */
 export function IssueFilterBar({ issues }: { issues: Issue[] }) {
    const { filters, setFilters } = useFilterStore();
-   const { data: members = [] } = useMembers();
-   const { data: projects = [] } = useProjects();
-   const { data: cycles = [] } = useCycles();
-   const { data: labels = [] } = useLabels('issue');
+   const membersQuery = useMembers();
+   const projectsQuery = useProjects();
+   const cyclesQuery = useCycles();
+   const labelsQuery = useLabels('issue');
+   const { data: members = [] } = membersQuery;
+   const { data: projects = [] } = projectsQuery;
+   const { data: cycles = [] } = cyclesQuery;
+   const { data: labels = [] } = labelsQuery;
 
    const columnsConfig = useMemo(
       () => buildIssueFilterColumns(members, projects, cycles, labels),
@@ -42,6 +47,19 @@ export function IssueFilterBar({ issues }: { issues: Issue[] }) {
    });
 
    if (filters.length === 0) return null;
+
+   const failedQuery = [membersQuery, projectsQuery, cyclesQuery, labelsQuery].find(
+      (query) => query.isError
+   );
+   if (failedQuery) {
+      return (
+         <QueryErrorState
+            subject="issue filter options"
+            error={failedQuery.error}
+            onRetry={() => void failedQuery.refetch()}
+         />
+      );
+   }
 
    return (
       <div className="w-full px-6 py-2 border-b border-border/60 bg-container">
