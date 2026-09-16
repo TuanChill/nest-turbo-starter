@@ -147,6 +147,8 @@ function OutOfViewIndicator({
    monthWidth: number;
    onJump: (contentX: number) => void;
 }) {
+   if (!project.startDate) return null;
+
    const { left, right } = barBounds(project, monthWidth);
    const visibleLeft = viewport.left + listOffset;
    const visibleRight = viewport.left + viewport.width;
@@ -185,6 +187,24 @@ function TimelineBar({
    onSelect: (projectId: string) => void;
 }) {
    const { displayProperties } = useProjectsDisplayStore();
+
+   if (!project.startDate) {
+      return (
+         <div className="absolute inset-0 flex items-center px-2">
+            <button
+               type="button"
+               onClick={() => onSelect(project.id)}
+               className={cn(
+                  'h-7 rounded-md border border-dashed bg-muted/40 px-2.5 text-xs text-muted-foreground hover:bg-accent transition-colors',
+                  selected && 'border-violet-500 bg-accent text-foreground'
+               )}
+            >
+               No dates
+            </button>
+         </div>
+      );
+   }
+
    const left = offsetFor(project.startDate, monthWidth);
    const right = offsetFor(project.targetDate ?? project.startDate, monthWidth);
    const width = Math.max(right - left, 130);
