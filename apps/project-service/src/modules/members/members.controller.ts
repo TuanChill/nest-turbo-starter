@@ -28,7 +28,7 @@ export class MembersController {
     return this.membersService.findOne(id, requesterId);
   }
 
-  @ApiOperation({ summary: 'Create new member' })
+  @ApiOperation({ summary: 'Create a pending workspace invitation' })
   @Post()
   create(@Body() dto: CreateMemberDto, @User('id') actorId: string): Promise<any> {
     return this.membersService.create(dto, actorId);

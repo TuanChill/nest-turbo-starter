@@ -3,7 +3,15 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { v4 as uuidv4 } from 'uuid';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
 import { JoinWorkspaceDto } from './dto/join-workspace.dto';
-import { Member, Team, TeamMember, Workspace, WorkspaceMember } from '../../data-access';
+import { hashInvitationToken } from './invitation-token';
+import {
+  Member,
+  Team,
+  TeamMember,
+  Workspace,
+  WorkspaceInvitation,
+  WorkspaceMember,
+} from '../../data-access';
 import { canAccessWorkspace } from '../access-control';
 
 @Injectable()
@@ -260,26 +268,52 @@ export class WorkspacesService {
   }
 
   async join(dto: JoinWorkspaceDto, currentMemberId: string): Promise<any> {
+    const invitationToken = dto.invitationToken?.trim();
+    let invitation: WorkspaceInvitation | null = null;
+    let workspace: Workspace | null = null;
+
+    if (invitationToken) {
+      const currentMember = await this.em.findOne(Member, { id: currentMemberId });
+      if (!currentMember) {
+        throw new NotFoundException('Authenticated member not found');
+      }
+      invitation = await this.em.findOne(WorkspaceInvitation, {
+        tokenHash: hashInvitationToken(invitationToken),
+        acceptedAt: null,
+      });
+      if (!invitation || invitation.expiresAt.getTime() <= Date.now()) {
+        throw new BadRequestException('This invitation is invalid or has expired');
+      }
+      if (currentMember.email.trim().toLowerCase() !== invitation.email) {
+        throw new BadRequestException(
+          'This invitation was issued for a different email address',
+        );
+      }
+      workspace = await this.em.findOne(Workspace, { id: invitation.workspaceId });
+      if (!workspace) {
+        throw new NotFoundException('The invited workspace no longer exists');
+      }
+    }
+
     const inviteCode = dto.inviteCode?.trim().toUpperCase();
     const slug = dto.slug ? this.slugify(dto.slug) : undefined;
 
-    if (!inviteCode && !slug) {
+    if (!invitation && !inviteCode && !slug) {
       throw new BadRequestException(
-        'Please provide an invite code or workspace URL/slug',
+        'Please provide an invitation token, invite code, or workspace URL/slug',
       );
     }
 
-    const conditions: any[] = [];
-    if (inviteCode) {
-      conditions.push({ inviteCode });
+    if (!workspace) {
+      const conditions: any[] = [];
+      if (inviteCode) {
+        conditions.push({ inviteCode });
+      }
+      if (slug) {
+        conditions.push({ slug });
+      }
+      workspace = await this.em.findOne(Workspace, { $or: conditions });
     }
-    if (slug) {
-      conditions.push({ slug });
-    }
-
-    const workspace = await this.em.findOne(Workspace, {
-      $or: conditions,
-    });
 
     if (!workspace) {
       throw new NotFoundException(
@@ -298,12 +332,44 @@ export class WorkspacesService {
         id: uuidv4(),
         workspaceId: workspace.id,
         memberId: currentMemberId,
-        role: workspace.ownerId === currentMemberId ? 'Owner' : 'Member',
+        role:
+          workspace.ownerId === currentMemberId ? 'Owner' : invitation?.role || 'Member',
         joinedAt: new Date(),
       });
       this.em.persist(membership);
-      await this.em.flush();
     }
+
+    if (invitation) {
+      const invitedTeamIds = [...new Set(invitation.teamIds ?? [])];
+      const teams = invitedTeamIds.length
+        ? await this.em.find(Team, { id: { $in: invitedTeamIds } })
+        : [];
+      const existingTeamMemberships = invitedTeamIds.length
+        ? await this.em.find(TeamMember, {
+            teamId: { $in: invitedTeamIds },
+            memberId: currentMemberId,
+          })
+        : [];
+      const existingTeamIds = new Set(
+        existingTeamMemberships.map((teamMembership) => teamMembership.teamId),
+      );
+      for (const team of teams) {
+        if (team.workspaceId !== workspace.id) continue;
+        if (!existingTeamIds.has(team.id)) {
+          this.em.persist(
+            new TeamMember({
+              teamId: team.id,
+              memberId: currentMemberId,
+              role: 'member',
+              joinedAt: new Date(),
+            }),
+          );
+        }
+      }
+      invitation.acceptedAt = new Date();
+    }
+
+    await this.em.flush();
 
     const members = await this.em.find(WorkspaceMember, { workspaceId: workspace.id });
 

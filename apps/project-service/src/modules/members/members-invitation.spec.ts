@@ -1,0 +1,76 @@
+import type { EntityManager } from '@mikro-orm/core';
+import { MembersService } from './members.service';
+import { Member, Team, Workspace, WorkspaceInvitation } from '../../data-access';
+
+jest.mock('@mikro-orm/core', () => ({ EntityManager: class MockEntityManager {} }));
+jest.mock('../../data-access', () => {
+  class MockMember {}
+  class MockTeam {}
+  class MockWorkspace {}
+  class MockWorkspaceInvitation {
+    id = 'invitation-1';
+
+    constructor(partial?: Record<string, unknown>) {
+      Object.assign(this, partial);
+      this.id = this.id ?? 'invitation-1';
+    }
+  }
+  return {
+    Member: MockMember,
+    Team: MockTeam,
+    TeamMember: class MockTeamMember {},
+    Workspace: MockWorkspace,
+    WorkspaceInvitation: MockWorkspaceInvitation,
+    WorkspaceMember: class MockWorkspaceMember {},
+  };
+});
+
+describe('MembersService invitations', () => {
+  it('stores a pending invitation instead of a placeholder member', async () => {
+    const workspace = { id: 'workspace-1', name: 'Acme', slug: 'acme' };
+    const actor = { id: 'owner-1', name: 'Owner' };
+    const persisted: unknown[] = [];
+    const em = {
+      findOne: jest.fn(async (entity: unknown) => {
+        if (entity === Workspace) return workspace;
+        if (entity === Member) return actor;
+        return null;
+      }),
+      find: jest.fn(async (entity: unknown) =>
+        entity === Team ? [{ id: 'team-1', workspaceId: workspace.id }] : [],
+      ),
+      persist: jest.fn((entity: unknown) => persisted.push(entity)),
+      flush: jest.fn().mockResolvedValue(undefined),
+    } as unknown as EntityManager;
+    const workspacesService = {
+      getAccessibleWorkspaceIds: jest.fn().mockResolvedValue([workspace.id]),
+    };
+    const mailer = { sendMemberInviteEmail: jest.fn().mockResolvedValue(true) };
+    const service = new MembersService(em, mailer as never, workspacesService as never);
+
+    const result = await service.create(
+      {
+        name: 'Invitee',
+        email: 'Invitee@example.com',
+        workspaceId: workspace.id,
+        teamIds: ['team-1'],
+      },
+      actor.id,
+    );
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        email: 'invitee@example.com',
+        invitationId: expect.any(String),
+      }),
+    );
+    expect(persisted).toHaveLength(1);
+    expect(persisted[0]).toBeInstanceOf(WorkspaceInvitation);
+    expect(mailer.sendMemberInviteEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: 'invitee@example.com',
+        inviteToken: expect.any(String),
+      }),
+    );
+  });
+});

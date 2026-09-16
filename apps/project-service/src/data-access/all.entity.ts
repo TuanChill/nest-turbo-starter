@@ -29,6 +29,7 @@ import { Review } from './review/review.entity';
 import { TeamMember } from './team/team-member.entity';
 import { Team } from './team/team.entity';
 import { SavedView } from './view/saved-view.entity';
+import { WorkspaceInvitation } from './workspace/workspace-invitation.entity';
 import { WorkspaceMember } from './workspace/workspace-member.entity';
 import { Workspace } from './workspace/workspace.entity';
 
@@ -49,6 +50,7 @@ export * from './review';
 export const ALL_ENTITIES = [
   Workspace,
   WorkspaceMember,
+  WorkspaceInvitation,
   Member,
   Team,
   TeamMember,

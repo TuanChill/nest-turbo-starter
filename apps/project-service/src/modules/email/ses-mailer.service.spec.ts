@@ -23,6 +23,7 @@ describe('SesMailerService', () => {
         orgName: 'Acme',
         orgSlug: 'acme',
         inviterName: 'Owner',
+        inviteToken: 'invite-token',
       }),
     ).resolves.toBe(false);
   });

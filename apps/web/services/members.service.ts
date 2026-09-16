@@ -14,6 +14,15 @@ export interface Member {
    workspaceId?: string;
 }
 
+export interface MemberInvitation {
+   invitationId: string;
+   email: string;
+   name: string;
+   role: string;
+   teamIds: string[];
+   expiresAt: string;
+}
+
 export const membersService = {
    async getMembers(workspaceId?: string): Promise<Member[]> {
       return apiClient<Member[]>('/circle/api/members', {
@@ -25,8 +34,8 @@ export const membersService = {
       return apiClient<Member>(`/circle/api/members/${id}`);
    },
 
-   async createMember(payload: Partial<Member>): Promise<Member> {
-      return apiClient<Member>('/circle/api/members', {
+   async createMember(payload: Partial<Member>): Promise<MemberInvitation> {
+      return apiClient<MemberInvitation>('/circle/api/members', {
          method: 'POST',
          body: JSON.stringify(payload),
       });

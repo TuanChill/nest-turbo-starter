@@ -1,10 +1,22 @@
 import { EntityManager } from '@mikro-orm/core';
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { v4 as uuidv4, v7 } from 'uuid';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateMemberDto, UpdateMemberDto } from './dto/member.dto';
 import { filterVisibleTeamIds } from './member-scope';
-import { Member, Team, TeamMember, Workspace, WorkspaceMember } from '../../data-access';
+import {
+  Member,
+  Team,
+  TeamMember,
+  Workspace,
+  WorkspaceInvitation,
+  WorkspaceMember,
+} from '../../data-access';
 import { SesMailerService } from '../email/ses-mailer.service';
+import { createInvitationToken } from '../workspaces/invitation-token';
 import { WorkspacesService } from '../workspaces/workspaces.service';
 
 @Injectable()
@@ -126,12 +138,19 @@ export class MembersService {
       throw new BadRequestException('workspaceId is required when creating a member');
     }
     const resolvedWorkspaceId = await this.resolveWorkspaceId(actorId, dto.workspaceId);
-    let id = dto.id || dto.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-    const existing = await this.em.findOne(Member, { id });
-    if (existing) {
-      id = `${id}-${v7()}`;
+    const email = dto.email.trim().toLowerCase();
+    const existingMember = await this.em.findOne(Member, { email });
+    if (existingMember) {
+      const existingMembership = await this.em.findOne(WorkspaceMember, {
+        workspaceId: resolvedWorkspaceId,
+        memberId: existingMember.id,
+      });
+      if (existingMembership) {
+        throw new ConflictException('This member is already in the workspace');
+      }
     }
-    const { teamIds, ...memberData } = dto;
+    const teamIds = [...new Set(dto.teamIds ?? [])];
+    const role = dto.role === 'Admin' || dto.role === 'Guest' ? dto.role : 'Member';
     if (teamIds && Array.isArray(teamIds) && teamIds.length > 0) {
       const teams = await this.em.find(Team, { id: { $in: [...new Set(teamIds)] } });
       const invalidTeamIds = teamIds.filter(
@@ -146,59 +165,54 @@ export class MembersService {
         );
       }
     }
-    const member = new Member({
-      ...memberData,
-      id,
-      joinedDate: new Date(),
+    const { token, tokenHash } = createInvitationToken();
+    const existingInvitation = await this.em.findOne(WorkspaceInvitation, {
+      workspaceId: resolvedWorkspaceId,
+      email,
+      acceptedAt: null,
     });
-    this.em.persist(member);
-
-    if (resolvedWorkspaceId) {
-      const workspaceMember = new WorkspaceMember({
-        id: uuidv4(),
+    const invitation =
+      existingInvitation ??
+      new WorkspaceInvitation({
         workspaceId: resolvedWorkspaceId,
-        memberId: member.id,
-        role: dto.role === 'Admin' ? 'Admin' : dto.role === 'Guest' ? 'Guest' : 'Member',
-        joinedAt: new Date(),
+        inviterMemberId: actorId,
+        email,
+        name: dto.name.trim(),
       });
-      this.em.persist(workspaceMember);
-    }
-
-    if (teamIds && Array.isArray(teamIds)) {
-      for (const teamId of teamIds) {
-        const teamMember = new TeamMember({
-          teamId,
-          memberId: member.id,
-          role: dto.role || 'Member',
-          joinedAt: new Date(),
-        });
-        this.em.persist(teamMember);
-      }
-    }
-
+    invitation.inviterMemberId = actorId;
+    invitation.email = email;
+    invitation.name = dto.name.trim();
+    invitation.role = role;
+    invitation.teamIds = teamIds;
+    invitation.tokenHash = tokenHash;
+    invitation.expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    this.em.persist(invitation);
     await this.em.flush();
 
-    // Dispatch invite email in background (non-blocking)
-    if (member.email) {
-      const workspace = resolvedWorkspaceId
-        ? await this.em.findOne(Workspace, {
-            id: resolvedWorkspaceId,
-          })
-        : null;
-      const inviter = await this.em.findOne(Member, { id: actorId });
+    const workspace = await this.em.findOne(Workspace, { id: resolvedWorkspaceId });
+    const inviter = await this.em.findOne(Member, { id: actorId });
+    if (workspace && inviter) {
       this.sesMailerService
         .sendMemberInviteEmail({
-          to: member.email,
-          name: member.name,
-          role: member.role,
-          orgName: workspace?.name ?? '',
-          orgSlug: workspace?.slug ?? '',
-          inviterName: inviter?.name ?? '',
+          to: invitation.email,
+          name: invitation.name,
+          role: invitation.role,
+          orgName: workspace.name,
+          orgSlug: workspace.slug,
+          inviterName: inviter.name,
+          inviteToken: token,
         })
         .catch((err) => console.error('Failed to send invite email:', err));
     }
 
-    return this.findOne(member.id, actorId);
+    return {
+      invitationId: invitation.id,
+      email: invitation.email,
+      name: invitation.name,
+      role: invitation.role,
+      teamIds: invitation.teamIds,
+      expiresAt: invitation.expiresAt,
+    };
   }
 
   async update(id: string, dto: UpdateMemberDto, actorId: string): Promise<any> {

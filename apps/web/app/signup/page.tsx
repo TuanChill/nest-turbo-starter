@@ -30,6 +30,7 @@ function SignUpForm() {
    const searchParams = useSearchParams();
    const inviteOrgSlug = searchParams.get('org');
    const inviteEmail = searchParams.get('email') || '';
+   const invitationToken = searchParams.get('invite');
    const { signUp, isLoading } = useAuthStore();
    const joinWorkspaceMutation = useJoinWorkspace();
    const [showPassword, setShowPassword] = React.useState(false);
@@ -50,6 +51,12 @@ function SignUpForm() {
    const onSubmit = async (data: SignupFormValues) => {
       try {
          await signUp(data);
+
+         if (invitationToken) {
+            const workspace = await joinWorkspaceMutation.mutateAsync({ invitationToken });
+            router.push(ROUTES.WORKSPACE.MY_ISSUES(workspace.slug));
+            return;
+         }
 
          if (inviteOrgSlug) {
             try {

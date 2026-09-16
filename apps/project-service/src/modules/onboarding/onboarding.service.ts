@@ -7,8 +7,16 @@ import {
 } from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
 import { OnboardingCompleteDto } from './dto/onboarding.dto';
-import { Member, Team, TeamMember, Workspace, WorkspaceMember } from '../../data-access';
+import {
+  Member,
+  Team,
+  TeamMember,
+  Workspace,
+  WorkspaceInvitation,
+  WorkspaceMember,
+} from '../../data-access';
 import { SesMailerService } from '../email/ses-mailer.service';
+import { createInvitationToken } from '../workspaces/invitation-token';
 
 @Injectable()
 export class OnboardingService {
@@ -144,71 +152,64 @@ export class OnboardingService {
     });
     this.em.persist(tm);
 
-    // Process invited teammate emails if any. Onboarding itself must not
-    // synthesize a welcome issue or any other fake production record.
-    if (dto.inviteEmails && dto.inviteEmails.length > 0) {
-      const cleanEmails = dto.inviteEmails
-        .map((email) => email.trim().toLowerCase())
-        .filter((cleanEmail) => cleanEmail && cleanEmail !== member.email);
-
-      await Promise.all(
-        cleanEmails.map(async (cleanEmail) => {
-          const invitedMemberId = cleanEmail.split('@')[0].replace(/[^a-z0-9]/g, '');
-          let invitedMember = await this.em.findOne(Member, { email: cleanEmail });
-          if (!invitedMember) {
-            invitedMember = new Member({
-              id: invitedMemberId,
-              name: cleanEmail.split('@')[0],
-              email: cleanEmail,
-              role: 'Member',
-              status: 'offline',
-              timezone: 'UTC',
-              joinedDate: new Date(),
-            });
-            this.em.persist(invitedMember);
-          }
-
-          const invitedWm = new WorkspaceMember({
-            id: uuidv4(),
-            workspaceId: workspace.id,
-            memberId: invitedMember.id,
-            role: 'Member',
-            joinedAt: new Date(),
-          });
-          this.em.persist(invitedWm);
-
-          const invitedTm = new TeamMember({
-            teamId: team.id,
-            memberId: invitedMember.id,
-            role: 'member',
-            joinedAt: new Date(),
-          });
-          this.em.persist(invitedTm);
-        }),
-      );
+    // Persist invitations without creating placeholder Member or membership
+    // records. The recipient becomes a real member only after accepting.
+    const cleanEmails = [
+      ...new Set(
+        (dto.inviteEmails ?? [])
+          .map((email) => email.trim().toLowerCase())
+          .filter((cleanEmail) => cleanEmail && cleanEmail !== member.email),
+      ),
+    ];
+    const pendingInvites: Array<{ email: string; token: string }> = [];
+    for (const cleanEmail of cleanEmails) {
+      const { token, tokenHash } = createInvitationToken();
+      // oxlint-disable-next-line no-await-in-loop -- each existing invitation is replaced with a new single-use token.
+      const existingInvitation = await this.em.findOne(WorkspaceInvitation, {
+        workspaceId: workspace.id,
+        email: cleanEmail,
+        acceptedAt: null,
+      });
+      const invitation =
+        existingInvitation ??
+        new WorkspaceInvitation({
+          workspaceId: workspace.id,
+          inviterMemberId: member.id,
+          email: cleanEmail,
+          name: cleanEmail.split('@')[0],
+        });
+      invitation.inviterMemberId = member.id;
+      invitation.email = cleanEmail;
+      invitation.name = cleanEmail.split('@')[0];
+      invitation.role = 'Member';
+      invitation.teamIds = [team.id];
+      invitation.tokenHash = tokenHash;
+      invitation.expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      this.em.persist(invitation);
+      pendingInvites.push({ email: cleanEmail, token });
     }
 
     await this.em.flush();
 
     // Dispatch invitation emails after the workspace and memberships are persisted.
-    if (dto.inviteEmails && dto.inviteEmails.length > 0) {
-      const cleanEmails = dto.inviteEmails
-        .map((email) => email.trim().toLowerCase())
-        .filter((cleanEmail) => cleanEmail && cleanEmail !== member.email);
-
-      for (const cleanEmail of cleanEmails) {
-        const invitedName = cleanEmail.split('@')[0];
+    if (pendingInvites.length > 0) {
+      for (const pendingInvite of pendingInvites) {
+        const invitedName = pendingInvite.email.split('@')[0];
         this.sesMailerService
           .sendMemberInviteEmail({
-            to: cleanEmail,
+            to: pendingInvite.email,
             name: invitedName,
             role: 'Member',
             orgName: workspace.name,
             orgSlug: workspace.slug,
             inviterName: member.name,
+            inviteToken: pendingInvite.token,
           })
           .catch((err) =>
-            this.logger.error(`Failed to send invite email to ${cleanEmail}:`, err),
+            this.logger.error(
+              `Failed to send invite email to ${pendingInvite.email}:`,
+              err,
+            ),
           );
       }
     }
@@ -227,7 +228,7 @@ export class OnboardingService {
         ownerId: workspace.ownerId,
         role: 'Owner',
         inviteCode: workspace.inviteCode,
-        memberCount: 1 + (dto.inviteEmails?.length || 0),
+        memberCount: 1,
         createdAt: workspace.createdAt,
       },
       team: {

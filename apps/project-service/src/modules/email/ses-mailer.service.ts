@@ -8,6 +8,7 @@ export interface SendInviteEmailOptions {
   orgName: string;
   orgSlug: string;
   inviterName: string;
+  inviteToken: string;
 }
 
 @Injectable()
@@ -65,7 +66,7 @@ export class SesMailerService {
       );
       return false;
     }
-    const joinUrl = `${frontendUrl}/signup?org=${encodeURIComponent(orgSlug)}&email=${encodeURIComponent(options.to)}`;
+    const joinUrl = `${frontendUrl}/signup?org=${encodeURIComponent(orgSlug)}&email=${encodeURIComponent(options.to)}&invite=${encodeURIComponent(options.inviteToken)}`;
 
     const htmlContent = `
 <!DOCTYPE html>

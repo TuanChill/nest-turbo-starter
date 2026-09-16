@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useGoogleLogin } from '@react-oauth/google';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/store/auth-store';
+import { useJoinWorkspace } from '@/hooks/queries/use-workspaces-query';
 import { Button } from '@/components/ui/button';
 import { ROUTES } from '@/constants/routes';
 import { getActiveWorkspace, saveActiveWorkspace } from '@/lib/utils/workspace-persistence';
@@ -41,6 +42,7 @@ export function GoogleLoginButton({ text = 'Continue with Google' }: GoogleLogin
    const searchParams = useSearchParams();
 
    const { loginWithGoogle, isLoading } = useAuthStore();
+   const joinWorkspaceMutation = useJoinWorkspace();
    const [isGoogleLoading, setIsGoogleLoading] = React.useState(false);
    const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
@@ -74,19 +76,27 @@ export function GoogleLoginButton({ text = 'Continue with Google' }: GoogleLogin
                profile,
             });
 
+            const invitationToken = searchParams.get('invite');
+            const invitedWorkspace = invitationToken
+               ? await joinWorkspaceMutation.mutateAsync({ invitationToken })
+               : undefined;
+
             toast.success(`Welcome, ${profile.name}!`);
             const savedWorkspace = getActiveWorkspace();
-            const destinationSlug = savedWorkspace || res?.workspace?.slug;
+            const destinationSlug =
+               savedWorkspace || invitedWorkspace?.slug || res?.workspace?.slug;
             if (destinationSlug) {
                saveActiveWorkspace(destinationSlug);
             }
             const targetUrl =
                searchParams.get('redirect') ||
-               (res?.isNewUser
-                  ? ROUTES.ONBOARDING
-                  : destinationSlug
-                    ? ROUTES.WORKSPACE.MY_ISSUES(destinationSlug)
-                    : ROUTES.ONBOARDING);
+               (invitedWorkspace?.slug
+                  ? ROUTES.WORKSPACE.MY_ISSUES(invitedWorkspace.slug)
+                  : res?.isNewUser
+                    ? ROUTES.ONBOARDING
+                    : destinationSlug
+                      ? ROUTES.WORKSPACE.MY_ISSUES(destinationSlug)
+                      : ROUTES.ONBOARDING);
             router.push(targetUrl);
          } catch (err: unknown) {
             const message = err instanceof Error ? err.message : 'Google Sign-in failed';
