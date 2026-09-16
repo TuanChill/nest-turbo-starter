@@ -289,7 +289,7 @@ export default function TeamSettings({ teamId }: TeamSettingsProps) {
                         icon={<Zap className="size-4" />}
                         title="Slack notifications"
                         description="Broadcast notifications to Slack"
-                        trailing={<span>Off</span>}
+                        trailing={<span>Unavailable</span>}
                         chevron
                         onClick={() => toast.info('Connect Slack from Integrations settings')}
                      />
@@ -311,7 +311,7 @@ export default function TeamSettings({ teamId }: TeamSettingsProps) {
                         icon={<Repeat className="size-4" />}
                         title="Recurring issues"
                         description="Automatically create issues on a schedule"
-                        trailing={<span>None</span>}
+                        trailing={<span>Unavailable</span>}
                         chevron
                         onClick={() =>
                            toast.error('Recurring issues are not enabled for this team')
@@ -388,7 +388,7 @@ export default function TeamSettings({ teamId }: TeamSettingsProps) {
                         icon={<Sparkles className="size-4" />}
                         title="Agent skills"
                         description="Agent skills shared with this team"
-                        trailing={<span>None</span>}
+                        trailing={<span>Unavailable</span>}
                         chevron
                         onClick={() => toast.info('Configure skills in Workspace Settings > AI')}
                      />
