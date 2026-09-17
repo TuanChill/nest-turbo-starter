@@ -173,6 +173,13 @@ fi
 project_template="$(api POST /project-templates "$(jq -nc --arg workspaceId "$WORKSPACE_ID" --arg teamId "$TEAM_ID" --arg labelId "$label_id" '{name:"Circle simulation project template",scope:"team",workspaceId:$workspaceId,teamId:$teamId,config:{project:{priorityId:"medium",healthId:"on-track",labelIds:[$labelId]},milestones:[{key:"milestone",name:"Simulation milestone"}],issues:[{key:"root",title:"Simulation root issue",labelIds:[$labelId]},{key:"child",title:"Simulation child issue",parentKey:"root",labelIds:[$labelId]}],relations:[{sourceKey:"root",targetKey:"child",relationType:"relates_to"}]}}')")"
 project_template_id="$(jq -er '.id' <<<"$project_template")"
 
+invalid_template_name="Circle simulation invalid template $RUN_ID"
+expect_api_failure 'invalid project template references rejected before persistence' POST /project-templates \
+  "$(jq -nc --arg workspaceId "$WORKSPACE_ID" --arg teamId "$TEAM_ID" --arg name "$invalid_template_name" '{name:$name,scope:"team",workspaceId:$workspaceId,teamId:$teamId,config:{issues:[{key:"root",title:"Invalid root"}],relations:[{sourceKey:"root",targetKey:"missing",relationType:"relates_to"}]}}')"
+project_templates="$(api GET "/project-templates?workspaceId=$WORKSPACE_ID")"
+assert_json 'invalid project template is absent from the catalog' "$project_templates" \
+  --arg invalid_name "$invalid_template_name" 'all(.[]; .name != $invalid_name)'
+
 issue_template="$(api POST /issue-templates "$(jq -nc --arg workspaceId "$WORKSPACE_ID" --arg teamId "$TEAM_ID" --arg labelId "$label_id" '{name:"Circle simulation issue template",scope:"team",workspaceId:$workspaceId,teamId:$teamId,config:{title:"Simulation issue",description:"Created by the authenticated user simulation",statusId:"to-do",priorityId:"medium",labelIds:[$labelId]}}')")"
 issue_template_id="$(jq -er '.id' <<<"$issue_template")"
 issue_template_check="$(api GET "/issue-templates/$issue_template_id")"
