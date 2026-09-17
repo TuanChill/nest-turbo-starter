@@ -50,6 +50,7 @@ import {
 import { usePathname, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import QueryErrorState from '@/components/common/query-error-state';
 
 type PaletteRoute =
    | 'root'
@@ -108,14 +109,29 @@ export function CommandPalette() {
 
    const pathname = usePathname();
    const router = useRouter();
-   const { data: issues = [] } = useIssues();
+   const issuesQuery = useIssues();
+   const { data: issues = [] } = issuesQuery;
    const updateIssueMutation = useUpdateIssue();
    const { openModal } = useCreateIssueStore();
-   const { data: liveProjects = [] } = useProjects();
-   const { data: liveTeams = [] } = useTeams();
-   const { data: liveMembers = [] } = useMembers();
-   const { data: liveCycles = [] } = useCycles();
-   const { data: liveLabels = [] } = useLabels();
+   const projectsQuery = useProjects();
+   const teamsQuery = useTeams();
+   const membersQuery = useMembers();
+   const cyclesQuery = useCycles();
+   const labelsQuery = useLabels();
+   const { data: liveProjects = [] } = projectsQuery;
+   const { data: liveTeams = [] } = teamsQuery;
+   const { data: liveMembers = [] } = membersQuery;
+   const { data: liveCycles = [] } = cyclesQuery;
+   const { data: liveLabels = [] } = labelsQuery;
+   const optionQueries = [
+      issuesQuery,
+      projectsQuery,
+      teamsQuery,
+      membersQuery,
+      cyclesQuery,
+      labelsQuery,
+   ];
+   const optionError = optionQueries.find((query) => query.isError);
 
    const allProjects = liveProjects;
    const teams = liveTeams;
@@ -310,6 +326,18 @@ export function CommandPalette() {
                )}
                {input}
                <CommandList className="max-h-96">
+                  {optionError && (
+                     <QueryErrorState
+                        subject="command palette data"
+                        error={optionError.error}
+                        onRetry={() => {
+                           optionQueries.forEach((query) => {
+                              if (query.isError) void query.refetch();
+                           });
+                        }}
+                        compact
+                     />
+                  )}
                   <CommandEmpty>No results found.</CommandEmpty>
 
                   {route === 'root' && issue && (
