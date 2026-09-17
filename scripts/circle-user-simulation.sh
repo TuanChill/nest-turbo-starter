@@ -172,6 +172,28 @@ initiative_id="$(jq -er '.id' <<<"$initiative")"
 cycle="$(api POST /cycles "$(jq -nc --arg teamId "$TEAM_ID" --argjson number "$((10000 + RANDOM))" '{name:"Circle simulation cycle",teamId:$teamId,number:$number,status:"planned",startDate:"2099-01-01",endDate:"2099-01-14",capacity:20}')")"
 cycle_id="$(jq -er '.id' <<<"$cycle")"
 
+calendar_subscription="$(api POST "/cycles/calendar-subscription?teamId=$TEAM_ID")"
+calendar_feed_path="$(jq -er '.feedPath' <<<"$calendar_subscription")"
+assert_json 'cycle calendar subscription persisted' "$calendar_subscription" \
+  --arg team_id "$TEAM_ID" '.teamId == $team_id and .subscribed == true and (.feedPath | endswith(".ics"))'
+calendar_feed_url="${CIRCLE_API_URL%/circle/api}$calendar_feed_path"
+calendar_feed="$(curl --fail-with-body -sS "$calendar_feed_url")"
+if ! grep -q 'BEGIN:VCALENDAR' <<<"$calendar_feed" || ! grep -q 'Cycle' <<<"$calendar_feed"; then
+  echo 'Simulation assertion failed: cycle calendar feed contains no calendar data' >&2
+  exit 1
+fi
+echo 'PASS cycle calendar feed is accessible with its tokenized URL'
+calendar_subscription="$(api GET "/cycles/calendar-subscription?teamId=$TEAM_ID")"
+assert_json 'cycle calendar subscription is readable' "$calendar_subscription" '.subscribed == true'
+revoked_calendar="$(api DELETE "/cycles/calendar-subscription?teamId=$TEAM_ID")"
+assert_json 'cycle calendar subscription revokes' "$revoked_calendar" '.subscribed == false'
+revoked_feed_status="$(curl -sS -o /dev/null -w '%{http_code}' "$calendar_feed_url")"
+if [[ "$revoked_feed_status" == "200" ]]; then
+  echo 'Simulation assertion failed: revoked cycle calendar feed remained accessible' >&2
+  exit 1
+fi
+echo 'PASS revoked cycle calendar feed is inaccessible'
+
 root="$(api POST /issues "$(jq -nc --arg teamId "$TEAM_ID" --arg projectId "$project_id" --arg cycleId "$cycle_id" --arg assigneeId "$assignee_id" --arg labelId "$label_id" '{title:"Circle simulation root issue",description:"Authenticated simulation",teamId:$teamId,projectId:$projectId,cycleId:$cycleId,assigneeId:$assigneeId,statusId:"to-do",priorityId:"urgent",labelIds:[$labelId]}')")"
 root_identifier="$(jq -er '.identifier' <<<"$root")"
 root_id="$(jq -er '.id' <<<"$root")"
