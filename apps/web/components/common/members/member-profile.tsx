@@ -1,5 +1,6 @@
 'use client';
 
+import QueryErrorState from '@/components/common/query-error-state';
 import { applyIssueFilters } from '@/components/common/issues/issue-filter-columns';
 import { GroupedIssuesView } from '@/components/common/issues/grouped-issues-view';
 import { InsightsPanel } from '@/components/common/issues/insights-panel';
@@ -106,16 +107,22 @@ function useClientTimes(member: Member) {
  * per-label / priority / project / team breakdowns.
  */
 export default function MemberProfile({ member }: { member: Member }) {
-   const { data: issues = [] } = useIssues();
+   const issuesQuery = useIssues();
+   const { data: issues = [] } = issuesQuery;
    const [activeTab] = useQueryState('tab', parseAsString.withDefault('assigned'));
    const { localTime, joinedAgo } = useClientTimes(member);
    const { isSearchOpen, searchQuery } = useSearchStore();
    const { viewType } = useViewStore();
    const { filters } = useFilterStore();
    const { openPanel } = useRightPanelStore();
-   const { data: teams = [] } = useTeams();
-   const { data: projects = [] } = useProjects();
-   const { data: labels = [] } = useLabels('issue');
+   const teamsQuery = useTeams();
+   const projectsQuery = useProjects();
+   const labelsQuery = useLabels('issue');
+   const { data: teams = [] } = teamsQuery;
+   const { data: projects = [] } = projectsQuery;
+   const { data: labels = [] } = labelsQuery;
+   const profileQueries = [issuesQuery, teamsQuery, projectsQuery, labelsQuery];
+   const profileError = profileQueries.find((query) => query.isError);
 
    const isSearching = isSearchOpen && searchQuery.trim() !== '';
    const isViewTypeGrid = viewType === 'grid';
@@ -213,6 +220,20 @@ export default function MemberProfile({ member }: { member: Member }) {
                <SearchIssues />
             </div>
          </div>
+      );
+   }
+
+   if (profileError) {
+      return (
+         <QueryErrorState
+            subject="member profile data"
+            error={profileError.error}
+            onRetry={() => {
+               profileQueries.forEach((query) => {
+                  if (query.isError) void query.refetch();
+               });
+            }}
+         />
       );
    }
 
