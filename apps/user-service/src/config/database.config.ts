@@ -15,6 +15,9 @@ const readDatabaseValue = (name: string, localFallback?: string) => {
   return configured ?? localFallback;
 };
 
+export const readOptionalDatabaseValue = (name: string, fallback: string) =>
+  process.env[name]?.trim() || fallback;
+
 const getDatabaseConfig = () => ({
   metadataProvider: ReflectMetadataProvider,
   driver: PostgreSqlDriver,
@@ -23,7 +26,7 @@ const getDatabaseConfig = () => ({
   port: Number(readDatabaseValue('USER_SERVICE_DB_PORT', '5432')),
   user: readDatabaseValue('USER_SERVICE_DB_USERNAME', ''),
   password: readDatabaseValue('USER_SERVICE_DB_PASSWORD', ''),
-  schema: readDatabaseValue('USER_SERVICE_DB_SCHEMA', 'public'),
+  schema: readOptionalDatabaseValue('USER_SERVICE_DB_SCHEMA', 'public'),
   baseDir: __dirname,
   debug: process.env.USER_SERVICE_NODE_ENV === NodeEnv.Production,
   entities: Object.values(entities),

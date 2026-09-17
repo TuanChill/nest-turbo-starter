@@ -3,17 +3,10 @@ import { NodeEnv } from '@app/common';
 import { ReflectMetadataProvider } from '@mikro-orm/decorators/legacy';
 import { PostgreSqlDriver } from '@mikro-orm/postgresql';
 import { registerAs } from '@nestjs/config';
+import { readDatabaseValue, readOptionalDatabaseValue } from './database-values';
 import { ALL_ENTITIES } from '../data-access/all.entity';
 
 dotenv.config();
-
-const readDatabaseValue = (names: string[], localFallback?: string) => {
-  const configured = names.map((name) => process.env[name]?.trim()).find(Boolean);
-  if (process.env.NODE_ENV === NodeEnv.Production && !configured) {
-    throw new Error(`Database environment variable ${names[0]} is not configured`);
-  }
-  return configured ?? localFallback;
-};
 
 const getDatabaseConfig = () => ({
   metadataProvider: ReflectMetadataProvider,
@@ -29,7 +22,7 @@ const getDatabaseConfig = () => ({
     ['PROJECT_SERVICE_DB_PASSWORD', 'DEFAULT_PG_PASSWORD'],
     'postgres',
   ),
-  schema: readDatabaseValue(['PROJECT_SERVICE_DB_SCHEMA'], 'public'),
+  schema: readOptionalDatabaseValue('PROJECT_SERVICE_DB_SCHEMA', 'public'),
   baseDir: __dirname,
   debug: process.env.NODE_ENV !== NodeEnv.Production,
   entities: ALL_ENTITIES,
