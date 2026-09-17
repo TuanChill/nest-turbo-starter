@@ -70,6 +70,20 @@ assert_json() {
   echo "PASS $label"
 }
 
+expect_api_failure() {
+  local label="$1"
+  local method="$2"
+  local path="$3"
+  local body="${4:-}"
+  local response
+  if response="$(api "$method" "$path" "$body" 2>/dev/null)"; then
+    echo "Simulation assertion failed: $label" >&2
+    echo "$response" >&2
+    exit 1
+  fi
+  echo "PASS $label"
+}
+
 echo "Running authenticated Circle simulation against $CIRCLE_API_URL"
 health="$(api GET /health)"
 assert_json 'API health' "$health" '.status == "ok"'
@@ -202,6 +216,20 @@ child="$(api POST /issues "$(jq -nc --arg teamId "$TEAM_ID" --arg parentIssueId 
 child_identifier="$(jq -er '.identifier' <<<"$child")"
 related="$(api POST /issues "$(jq -nc --arg teamId "$TEAM_ID" '{title:"Circle simulation related issue",teamId:$teamId,statusId:"to-do",priorityId:"low"}')")"
 related_identifier="$(jq -er '.identifier' <<<"$related")"
+
+if [[ -n "${SECONDARY_TEAM_ID:-}" ]]; then
+  secondary_cycle="$(api POST /cycles "$(jq -nc --arg teamId "$SECONDARY_TEAM_ID" --argjson number "$((20000 + RANDOM))" '{name:"Circle simulation secondary cycle",teamId:$teamId,number:$number,status:"planned",startDate:"2099-02-01",endDate:"2099-02-14",capacity:20}')")"
+  secondary_cycle_id="$(jq -er '.id' <<<"$secondary_cycle")"
+  secondary_issue="$(api POST /issues "$(jq -nc --arg teamId "$SECONDARY_TEAM_ID" '{title:"Circle simulation secondary issue",teamId:$teamId,statusId:"to-do",priorityId:"low"}')")"
+  secondary_issue_id="$(jq -er '.id' <<<"$secondary_issue")"
+  secondary_issue_identifier="$(jq -er '.identifier' <<<"$secondary_issue")"
+  expect_api_failure 'cross-team label assignment rejected' PATCH "/issues/$secondary_issue_identifier" \
+    "$(jq -nc --arg labelId "$team_label_id" '{labelIds:[$labelId]}')"
+  expect_api_failure 'cross-team parent issue rejected' POST /issues \
+    "$(jq -nc --arg teamId "$TEAM_ID" --arg parentIssueId "$secondary_issue_id" '{title:"Invalid cross-team child",teamId:$teamId,parentIssueId:$parentIssueId,statusId:"to-do",priorityId:"low"}')"
+  expect_api_failure 'cross-team cycle assignment rejected' POST /issues \
+    "$(jq -nc --arg teamId "$TEAM_ID" --arg cycleId "$secondary_cycle_id" '{title:"Invalid cross-team cycle issue",teamId:$teamId,cycleId:$cycleId,statusId:"to-do",priorityId:"low"}')"
+fi
 
 api POST "/issues/$root_identifier/relations" "$(jq -nc --arg targetIdentifier "$related_identifier" '{targetIdentifier:$targetIdentifier,relationType:"relates_to"}')" >/dev/null
 api POST "/issues/$root_identifier/comments" "$(jq -nc --arg mentionId "$mention_id" '{textContent:("Simulation comment with persisted activity @" + $mentionId)}')" >/dev/null
