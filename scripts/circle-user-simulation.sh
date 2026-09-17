@@ -141,6 +141,21 @@ if [[ -n "${SECONDARY_TEAM_ID:-}" ]]; then
     '(.teamIds | index($primary_team_id)) != null and (.teamIds | index($secondary_team_id)) != null'
 fi
 
+saved_view="$(api POST /views "$(jq -nc --arg workspaceId "$WORKSPACE_ID" --arg teamId "$TEAM_ID" --arg projectId "$project_id" '{name:"Circle simulation project view",workspaceId:$workspaceId,type:"project",teamId:$teamId,projectId:$projectId,layout:"grid",filter:{statusCategories:["started"],priorityIds:["high"]}}')")"
+saved_view_id="$(jq -er '.id' <<<"$saved_view")"
+saved_view_check="$(api GET "/views/$saved_view_id")"
+assert_json 'saved view persists scope, layout and filters' "$saved_view_check" \
+  --arg team_id "$TEAM_ID" --arg project_id "$project_id" \
+  '.teamId == $team_id and .projectId == $project_id and .layout == "grid" and (.filter.statusCategories | index("started")) != null'
+team_views="$(api GET "/views?teamId=$TEAM_ID")"
+assert_json 'saved view is listed for its owning team' "$team_views" \
+  --arg view_id "$saved_view_id" 'any(.[]; .id == $view_id)'
+if [[ -n "${SECONDARY_TEAM_ID:-}" ]]; then
+  secondary_team_views="$(api GET "/views?teamId=$SECONDARY_TEAM_ID")"
+  assert_json 'team-scoped saved view hidden from another team' "$secondary_team_views" \
+    --arg view_id "$saved_view_id" 'all(.[]; .id != $view_id)'
+fi
+
 project_template="$(api POST /project-templates "$(jq -nc --arg workspaceId "$WORKSPACE_ID" --arg teamId "$TEAM_ID" --arg labelId "$label_id" '{name:"Circle simulation project template",scope:"team",workspaceId:$workspaceId,teamId:$teamId,config:{project:{priorityId:"medium",healthId:"on-track",labelIds:[$labelId]},milestones:[{key:"milestone",name:"Simulation milestone"}],issues:[{key:"root",title:"Simulation root issue",labelIds:[$labelId]},{key:"child",title:"Simulation child issue",parentKey:"root",labelIds:[$labelId]}],relations:[{sourceKey:"root",targetKey:"child",relationType:"relates_to"}]}}')")"
 project_template_id="$(jq -er '.id' <<<"$project_template")"
 

@@ -92,11 +92,9 @@ function IssueViewBody({ view }: { view: View }) {
 }
 
 function ProjectViewBody({ view }: { view: View }) {
-   const { data: allProjects = [], isLoading, isError, error, refetch } = useProjects();
+   const { data: allProjects = [], isLoading, isError, error, refetch } = useProjects(view.teamId);
    const groups = useMemo<ProjectGroup[]>(() => {
-      const projects = filterProjectsForView(view, allProjects).filter(
-         (project) => !view.projectId || project.id === view.projectId
-      );
+      const projects = filterProjectsForView(view, allProjects);
       const byStatus = new Map<string, ProjectGroup>();
       for (const project of projects) {
          const key = project.status.id;

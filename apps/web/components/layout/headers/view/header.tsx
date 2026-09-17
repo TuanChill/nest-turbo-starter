@@ -19,10 +19,12 @@ import {
    DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { SidebarTrigger } from '@/components/ui/sidebar';
+import { applyIssueFilters } from '@/components/common/issues/issue-filter-columns';
 import { filterIssuesForView, filterProjectsForView } from '@/lib/view-filters';
 import { useIssues } from '@/hooks/queries/use-issues-query';
 import { useProjects } from '@/hooks/queries/use-projects-query';
 import { useDeleteView, useViews } from '@/hooks/queries/use-views-query';
+import type { CustomViewFilter } from '@/services/views.service';
 import { useAuthStore } from '@/store/auth-store';
 import { useRightPanelStore } from '@/store/right-panel-store';
 import { BarChart3, MoreHorizontal, Pencil, Star, Trash2 } from 'lucide-react';
@@ -36,8 +38,24 @@ export default function Header() {
    const { data: views = [], error: viewsError, refetch: refetchViews } = useViews();
    const view = views.find((v) => v.id === viewId);
    const { openPanel, togglePanel } = useRightPanelStore();
-   const { data: allIssues = [], error: issuesError, refetch: refetchIssues } = useIssues();
-   const { data: allProjects = [], error: projectsError, refetch: refetchProjects } = useProjects();
+   const viewFilter = view?.filter as CustomViewFilter | undefined;
+   const {
+      data: allIssues = [],
+      error: issuesError,
+      refetch: refetchIssues,
+   } = useIssues({
+      teamId: view?.teamId,
+      projectId: view?.projectId,
+      advancedFilters:
+         Array.isArray(viewFilter?.filters) && viewFilter.filters.length > 0
+            ? JSON.stringify(viewFilter.filters)
+            : undefined,
+   });
+   const {
+      data: allProjects = [],
+      error: projectsError,
+      refetch: refetchProjects,
+   } = useProjects(view?.teamId);
    const currentUserId = useAuthStore((s) => s.user?.id);
    const deleteViewMutation = useDeleteView();
 
@@ -76,10 +94,15 @@ export default function Header() {
    }
    if (!view) return null;
 
-   const count =
-      view.type === 'issue'
-         ? filterIssuesForView(view, allIssues, currentUserId).length
-         : filterProjectsForView(view, allProjects).length;
+   const count = (() => {
+      if (view.type === 'issue') {
+         const scoped = filterIssuesForView(view, allIssues, currentUserId);
+         return Array.isArray(viewFilter?.filters)
+            ? applyIssueFilters(scoped, viewFilter.filters).length
+            : scoped.length;
+      }
+      return filterProjectsForView(view, allProjects).length;
+   })();
 
    const handleDelete = async () => {
       await deleteViewMutation.mutateAsync(view.id);

@@ -9,6 +9,7 @@ interface IssueLike {
 }
 
 interface ProjectLike {
+   id: string;
    status: { category: string };
    priority: { id: string };
 }
@@ -43,6 +44,7 @@ export function filterIssuesForView<T extends IssueLike>(
 export function filterProjectsForView<T extends ProjectLike>(view: View, source: T[]): T[] {
    const filter = view.filter || {};
    return source.filter((project) => {
+      if (view.projectId && project.id !== view.projectId) return false;
       if (
          filter.statusCategories?.length &&
          !filter.statusCategories.includes(project.status.category)
