@@ -180,6 +180,7 @@ describe('UploadsService', () => {
     });
     const projectAttachment = new FileAttachment({
       id: 'attachment-1',
+      workspaceId: 'ws-a',
       projectId: 'project-1',
       teamId: 'team-a',
       status: 'completed',
@@ -209,6 +210,99 @@ describe('UploadsService', () => {
       status: 'completed',
       projectId: 'project-1',
     });
+  });
+
+  it('hides project attachments whose team is not a project team', async () => {
+    workspacesService.getAccessibleTeamIds.mockResolvedValue(['team-b']);
+    const project = new Project({ id: 'project-1', teamId: 'team-a' });
+    const visibleAttachment = new FileAttachment({
+      id: 'attachment-visible',
+      workspaceId: 'ws-a',
+      projectId: 'project-1',
+      teamId: 'team-a',
+      status: 'completed',
+    });
+    const corruptAttachment = new FileAttachment({
+      id: 'attachment-corrupt',
+      workspaceId: 'ws-a',
+      projectId: 'project-1',
+      teamId: 'team-outside-project',
+      status: 'completed',
+    });
+    em.findOne.mockImplementation(
+      async (entity: unknown, where?: Record<string, unknown>) => {
+        if (entity === Project) return project;
+        if (entity === Team) {
+          const teamId = where?.id;
+          if (teamId === 'team-outside-project')
+            return new Team({ id: 'team-outside-project', workspaceId: 'ws-a' });
+          if (teamId === 'team-a') return new Team({ id: 'team-a', workspaceId: 'ws-a' });
+          return new Team({ id: 'team-b', workspaceId: 'ws-a' });
+        }
+        return null;
+      },
+    );
+    em.find.mockImplementation(async (entity: unknown) => {
+      if (entity === ProjectTeam)
+        return [new ProjectTeam({ projectId: 'project-1', teamId: 'team-b' })];
+      if (entity === Team)
+        return [
+          new Team({ id: 'team-a', workspaceId: 'ws-a' }),
+          new Team({ id: 'team-b', workspaceId: 'ws-a' }),
+        ];
+      if (entity === FileAttachment) return [visibleAttachment, corruptAttachment];
+      return [];
+    });
+    const service = new UploadsService(
+      em as any,
+      workspacesService as any,
+      s3Service as any,
+    );
+
+    await expect(service.findAll('member-1', undefined, 'project-1')).resolves.toEqual([
+      expect.objectContaining({ id: 'attachment-visible' }),
+    ]);
+  });
+
+  it('rejects a project attachment assigned to a team outside that project', async () => {
+    workspacesService.getAccessibleTeamIds.mockResolvedValue(['team-b']);
+    const attachment = new FileAttachment({
+      id: 'attachment-1',
+      workspaceId: 'ws-a',
+      projectId: 'project-1',
+      teamId: 'team-outside-project',
+      status: 'completed',
+    });
+    em.findOne.mockImplementation(
+      async (entity: unknown, where?: Record<string, unknown>) => {
+        if (entity === Team) {
+          if (where?.id === 'team-outside-project')
+            return new Team({ id: 'team-outside-project', workspaceId: 'ws-a' });
+          return new Team({ id: 'team-b', workspaceId: 'ws-a' });
+        }
+        if (entity === Project) return new Project({ id: 'project-1', teamId: 'team-a' });
+        return null;
+      },
+    );
+    em.find.mockImplementation(async (entity: unknown) => {
+      if (entity === ProjectTeam)
+        return [new ProjectTeam({ projectId: 'project-1', teamId: 'team-b' })];
+      if (entity === Team)
+        return [
+          new Team({ id: 'team-a', workspaceId: 'ws-a' }),
+          new Team({ id: 'team-b', workspaceId: 'ws-a' }),
+        ];
+      return [];
+    });
+    const service = new UploadsService(
+      em as any,
+      workspacesService as any,
+      s3Service as any,
+    );
+
+    await expect(
+      (service as any).assertAttachmentAccess('member-1', attachment),
+    ).rejects.toThrow(NotFoundException);
   });
 
   it('persists a pending issue upload with the workspace-scoped object key', async () => {

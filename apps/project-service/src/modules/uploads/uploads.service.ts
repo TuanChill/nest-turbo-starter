@@ -123,6 +123,7 @@ export class UploadsService {
         projectTeams.length !== projectTeamIds.length ||
         workspaceIds.size !== 1 ||
         !workspaceIds.has(attachment.workspaceId) ||
+        !projectTeamIds.includes(attachmentTeam.id) ||
         !projectTeamIds.some((teamId) => accessibleTeamIds.includes(teamId))
       ) {
         throw new NotFoundException(`Upload ${attachment.id} not found`);
@@ -233,6 +234,14 @@ export class UploadsService {
     if (target.projectId) where.projectId = target.projectId;
 
     const attachments = await this.em.find(FileAttachment, where);
-    return attachments.map((attachment) => this.toResponse(attachment));
+    const accessResults = await Promise.allSettled(
+      attachments.map((attachment) => this.assertAttachmentAccess(memberId, attachment)),
+    );
+    return attachments.flatMap((attachment, index) => {
+      const accessResult = accessResults[index];
+      if (accessResult.status === 'fulfilled') return [this.toResponse(attachment)];
+      if (accessResult.reason instanceof NotFoundException) return [];
+      throw accessResult.reason;
+    });
   }
 }
