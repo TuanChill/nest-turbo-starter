@@ -43,6 +43,7 @@ jobs:
             echo "Disk usage after deployment cleanup:"
             df -h / /opt/circle/be /var/lib/docker || true
             cd /opt/circle/be
+            target_sha="${{ github.event.workflow_run.head_sha }}"
             origin_url="$(git config --get remote.origin.url)"
             if ! git gc --prune=now; then
               # A full host can prevent Git from writing its temporary pack
@@ -52,6 +53,16 @@ jobs:
               git init
               git remote add origin "$origin_url"
               git fetch --depth=1 origin main
-              git reset --hard "${{ github.event.workflow_run.head_sha }}"
             fi
-            bash /opt/circle/be/deploy.sh "${{ github.event.workflow_run.head_sha }}"
+            # Checkout the workflow revision before invoking deploy.sh. The
+            # script is itself versioned, so invoking the previous checkout
+            # would apply the previous revision's deployment policy once.
+            if ! git fetch --prune origin main; then
+              rm -rf .git
+              git init
+              git remote add origin "$origin_url"
+              git fetch --depth=1 origin main
+            fi
+            git rev-parse --verify "${target_sha}^{commit}" >/dev/null
+            git reset --hard "$target_sha"
+            bash /opt/circle/be/deploy.sh "$target_sha"
