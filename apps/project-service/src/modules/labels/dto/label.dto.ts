@@ -21,10 +21,13 @@ export class CreateLabelDto {
   @IsString()
   @IsOptional()
   teamId?: string;
-  @ApiProperty({ example: 'ui' })
+  @ApiPropertyOptional({
+    example: 'ui',
+    description: 'Optional legacy label ID; new labels receive an opaque UUID',
+  })
   @IsString()
-  @IsNotEmpty()
-  id: string;
+  @IsOptional()
+  id?: string;
 
   @ApiProperty({ example: 'UI Enhancement' })
   @IsString()

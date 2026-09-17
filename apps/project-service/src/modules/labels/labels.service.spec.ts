@@ -16,7 +16,11 @@ jest.mock('@mikro-orm/core', () => ({
 
 jest.mock('../../data-access', () => ({
   IssueLabel: class IssueLabel {},
-  Label: class MockLabel {},
+  Label: class MockLabel {
+    constructor(partial?: Record<string, unknown>) {
+      Object.assign(this, partial);
+    }
+  },
   LabelGroup: class MockLabelGroup {},
   ProjectLabel: class ProjectLabel {},
   Team: class MockTeam {},
@@ -131,7 +135,6 @@ describe('LabelsService team scope', () => {
     await expect(
       service.create(
         {
-          id: 'bug',
           name: 'Bug',
           color: 'red',
           workspaceId: 'workspace-a',
@@ -141,6 +144,12 @@ describe('LabelsService team scope', () => {
       ),
     ).resolves.toBeDefined();
     expect(em.persist).toHaveBeenCalledTimes(1);
+    expect(em.persist).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: expect.stringMatching(/^[0-9a-f-]{36}$/i),
+        name: 'Bug',
+      }),
+    );
     expect(em.flush).toHaveBeenCalledTimes(1);
   });
 

@@ -5,6 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { v7 } from 'uuid';
 import {
   CreateLabelDto,
   CreateLabelGroupDto,
@@ -234,7 +235,8 @@ export class LabelsService {
     await this.validateGroup(dto.groupId, workspaceId, scope);
     await this.validateGroupCapacity(dto.groupId, workspaceId);
 
-    const label = new Label({ ...dto, name, scope, workspaceId, teamId });
+    const id = dto.id?.trim() || v7();
+    const label = new Label({ ...dto, id, name, scope, workspaceId, teamId });
     this.em.persist(label);
     await this.em.flush();
     return label;

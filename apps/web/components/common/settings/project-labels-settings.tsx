@@ -43,13 +43,6 @@ const LABEL_COLOR_OPTIONS = [
    'gray',
 ];
 
-const slugify = (value: string) =>
-   value
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '');
-
 /** Workspace project-label settings, mirroring Linear's label inventory view. */
 export default function ProjectLabelsSettings() {
    const [query, setQuery] = useState('');
@@ -104,7 +97,6 @@ export default function ProjectLabelsSettings() {
       const name = newLabelName.trim();
       if (!name) return;
       await createLabel.mutateAsync({
-         id: `project-${slugify(name)}`,
          workspaceId: orgId,
          name,
          color: newLabelColor,

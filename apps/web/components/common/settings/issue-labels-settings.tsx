@@ -44,13 +44,6 @@ const LABEL_COLOR_OPTIONS = [
    'gray',
 ];
 
-const slugify = (value: string) =>
-   value
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '');
-
 const formatDate = (value?: string) => (value ? new Date(value).toLocaleDateString() : '—');
 
 const formatCount = (count: number) =>
@@ -98,7 +91,6 @@ export default function IssueLabelsSettings() {
       const name = newLabelName.trim();
       if (!name) return;
       await createLabel.mutateAsync({
-         id: slugify(name),
          workspaceId: orgId,
          name,
          color: newLabelColor,
