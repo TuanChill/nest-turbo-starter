@@ -46,6 +46,7 @@ import { AddProjectToInitiativePopover } from './add-project-to-initiative-popov
 import { EditInitiativeDialog } from './edit-initiative-dialog';
 import { InitiativeProgressPanel } from './initiative-progress-panel';
 import { InitiativeStatusIcon } from './initiative-status-icon';
+import QueryErrorState from '@/components/common/query-error-state';
 
 const TABS = ['overview', 'activity', 'projects'] as const;
 const UPDATE_REACTIONS = ['👍', '❤️', '🚀'];
@@ -692,8 +693,19 @@ function InitiativeSkeleton() {
 /** Initiative detail page: Overview / Activity / Projects tabs. */
 export default function InitiativeDetails({ initiativeId }: { initiativeId: string }) {
    const [tab] = useQueryState('tab', parseAsStringLiteral(TABS).withDefault('overview'));
-   const { data: fetchedInitiative, isLoading } = useInitiative(initiativeId);
-   const { data: liveProjects = [] } = useProjects();
+   const {
+      data: fetchedInitiative,
+      isLoading,
+      isError: isInitiativeError,
+      error: initiativeError,
+      refetch: refetchInitiative,
+   } = useInitiative(initiativeId);
+   const {
+      data: liveProjects = [],
+      isError: isProjectsError,
+      error: projectsError,
+      refetch: refetchProjects,
+   } = useProjects();
    const { orgId } = useParams<{ orgId: string }>();
 
    const initiative = useMemo(() => fetchedInitiative, [fetchedInitiative]);
@@ -712,6 +724,26 @@ export default function InitiativeDetails({ initiativeId }: { initiativeId: stri
 
    if (isLoading) {
       return <InitiativeSkeleton />;
+   }
+
+   if (isInitiativeError) {
+      return (
+         <QueryErrorState
+            subject="initiative"
+            error={initiativeError}
+            onRetry={refetchInitiative}
+         />
+      );
+   }
+
+   if (isProjectsError) {
+      return (
+         <QueryErrorState
+            subject="initiative projects"
+            error={projectsError}
+            onRetry={refetchProjects}
+         />
+      );
    }
 
    if (!initiative) {
