@@ -238,6 +238,25 @@ describe('ProjectTemplatesService.instantiate', () => {
     expect(em.flush).not.toHaveBeenCalled();
   });
 
+  it('rejects duplicating a legacy template with invalid references', async () => {
+    const { service, em } = buildService(
+      { create: jest.fn(), addRelation: jest.fn() },
+      {
+        issues: [{ key: 'root', title: 'Root issue' }],
+        relations: [
+          { sourceKey: 'root', targetKey: 'missing', relationType: 'relates_to' },
+        ],
+      },
+    );
+
+    await expect(service.duplicate('template-1', 'member-1')).rejects.toThrow(
+      'Template contains invalid references',
+    );
+
+    expect(em.persist).not.toHaveBeenCalled();
+    expect(em.flush).not.toHaveBeenCalled();
+  });
+
   it('remaps parent references to newly created issue IDs', async () => {
     const issuesService = {
       create: jest

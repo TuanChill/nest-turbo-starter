@@ -237,6 +237,10 @@ export class ProjectTemplatesService {
       source.teamId,
       memberId,
     );
+    await this.validateInstantiationReferences(
+      this.normalizeConfig(source.config),
+      source.workspaceId,
+    );
     const copy = new ProjectTemplate({
       workspaceId: source.workspaceId,
       name: `${source.name} copy`,
