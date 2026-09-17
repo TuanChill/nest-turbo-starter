@@ -190,6 +190,7 @@ export class ProjectTemplatesService {
       isDefault: dto.isDefault ?? false,
       config: this.normalizeConfig(dto.config),
     });
+    await this.validateInstantiationReferences(template.config, workspace.id);
     this.em.persist(template);
     await this.em.flush();
     return template;
@@ -209,6 +210,10 @@ export class ProjectTemplatesService {
       deletedAt: null,
     });
     if (duplicate) throw new ConflictException(`Template "${name}" already exists`);
+    const config = dto.config
+      ? this.normalizeConfig(dto.config)
+      : this.normalizeConfig(template.config);
+    await this.validateInstantiationReferences(config, template.workspaceId);
     if (dto.isDefault && teamId)
       await this.clearDefault(teamId, template.workspaceId, id);
     Object.assign(template, {
@@ -218,7 +223,7 @@ export class ProjectTemplatesService {
       scope,
       teamId: scope === 'team' ? teamId : undefined,
       isDefault: dto.isDefault ?? template.isDefault,
-      config: dto.config ? this.normalizeConfig(dto.config) : template.config,
+      config,
     });
     await this.em.flush();
     return template;

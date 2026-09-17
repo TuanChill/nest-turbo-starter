@@ -193,6 +193,51 @@ describe('ProjectTemplatesService.instantiate', () => {
     expect(em.flush).toHaveBeenCalledTimes(1);
   });
 
+  it('rejects invalid template references before persisting a template', async () => {
+    const { service, em } = buildService({ create: jest.fn(), addRelation: jest.fn() });
+
+    await expect(
+      service.create(
+        {
+          workspaceId: 'workspace-1',
+          name: 'Invalid template',
+          scope: 'workspace',
+          config: {
+            issues: [{ key: 'root', title: 'Root issue' }],
+            relations: [
+              { sourceKey: 'root', targetKey: 'missing', relationType: 'relates_to' },
+            ],
+          },
+        },
+        'member-1',
+      ),
+    ).rejects.toThrow('Template contains invalid references');
+
+    expect(em.persist).not.toHaveBeenCalled();
+    expect(em.flush).not.toHaveBeenCalled();
+  });
+
+  it('rejects invalid template updates before flushing the existing template', async () => {
+    const { service, em } = buildService({ create: jest.fn(), addRelation: jest.fn() });
+
+    await expect(
+      service.update(
+        'template-1',
+        {
+          config: {
+            issues: [{ key: 'root', title: 'Root issue' }],
+            relations: [
+              { sourceKey: 'root', targetKey: 'missing', relationType: 'relates_to' },
+            ],
+          },
+        },
+        'member-1',
+      ),
+    ).rejects.toThrow('Template contains invalid references');
+
+    expect(em.flush).not.toHaveBeenCalled();
+  });
+
   it('remaps parent references to newly created issue IDs', async () => {
     const issuesService = {
       create: jest
