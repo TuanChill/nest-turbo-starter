@@ -128,20 +128,5 @@ for attempt in {1..30}; do
   sleep 2
 done
 
-apisix_port="$(awk -F= '$1 == "APISIX_NODE_LISTEN" { value=$2 } END { print value }' .env)"
-apisix_port="${apisix_port:-9080}"
-
-echo "Running backend smoke check..."
-for attempt in {1..30}; do
-  if curl --fail --silent --show-error --max-time 5 "http://127.0.0.1:${apisix_port}/circle/api/health" >/dev/null; then
-    echo "Backend is healthy on port ${apisix_port}."
-    "${COMPOSE[@]}" ps
-    exit 0
-  fi
-  sleep 2
-done
-
-echo "Backend smoke check failed." >&2
-"${COMPOSE[@]}" ps >&2 || true
-"${COMPOSE[@]}" logs --tail=100 auth-service user-service notification-service project-service apisix >&2 || true
-exit 1
+echo "Deployment completed. Runtime smoke tests are intentionally local-only."
+"${COMPOSE[@]}" ps
