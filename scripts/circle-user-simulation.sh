@@ -132,8 +132,14 @@ if [[ "$CREATE_WORKSPACE" == "1" ]]; then
     --arg label_id "$team_label_id" 'all(.[]; .id != $label_id)'
 fi
 
-project="$(api POST /projects "$(jq -nc --arg teamId "$TEAM_ID" --arg labelId "$label_id" '{name:"Circle simulation project",teamId:$teamId,priorityId:"high",healthId:"on-track",labelIds:[$labelId]}')")"
+project_payload="$(jq -nc --arg teamId "$TEAM_ID" --arg labelId "$label_id" --arg secondaryTeamId "${SECONDARY_TEAM_ID:-}" '{name:"Circle simulation project",teamId:$teamId,priorityId:"high",healthId:"on-track",labelIds:[$labelId]} | if $secondaryTeamId == "" then . else .teamIds=[$secondaryTeamId] end')"
+project="$(api POST /projects "$project_payload")"
 project_id="$(jq -er '.id' <<<"$project")"
+if [[ -n "${SECONDARY_TEAM_ID:-}" ]]; then
+  assert_json 'project persists its multi-team membership' "$project" \
+    --arg primary_team_id "$TEAM_ID" --arg secondary_team_id "$SECONDARY_TEAM_ID" \
+    '(.teamIds | index($primary_team_id)) != null and (.teamIds | index($secondary_team_id)) != null'
+fi
 
 project_template="$(api POST /project-templates "$(jq -nc --arg workspaceId "$WORKSPACE_ID" --arg teamId "$TEAM_ID" --arg labelId "$label_id" '{name:"Circle simulation project template",scope:"team",workspaceId:$workspaceId,teamId:$teamId,config:{project:{priorityId:"medium",healthId:"on-track",labelIds:[$labelId]},milestones:[{key:"milestone",name:"Simulation milestone"}],issues:[{key:"root",title:"Simulation root issue",labelIds:[$labelId]},{key:"child",title:"Simulation child issue",parentKey:"root",labelIds:[$labelId]}],relations:[{sourceKey:"root",targetKey:"child",relationType:"relates_to"}]}}')")"
 project_template_id="$(jq -er '.id' <<<"$project_template")"
