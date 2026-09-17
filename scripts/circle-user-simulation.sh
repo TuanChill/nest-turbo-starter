@@ -94,6 +94,16 @@ else
   assert_json 'team is readable' "$team" '.id != null'
 fi
 
+# Team labels must be visible to their owning team and hidden from another
+# team in the same workspace. Keep the second team throwaway and only create it
+# in the self-provisioning simulation path.
+team_label_id=''
+if [[ "$CREATE_WORKSPACE" == "1" ]]; then
+  secondary_team_id="ALT$(printf '%s-secondary' "$RUN_ID" | shasum -a 256 | cut -c1-7 | tr '[:lower:]' '[:upper:]')"
+  secondary_team="$(api POST /teams "$(jq -nc --arg id "$secondary_team_id" --arg workspaceId "$WORKSPACE_ID" '{id:$id,name:"Circle Simulation Secondary Team",workspaceId:$workspaceId,joined:true}')")"
+  SECONDARY_TEAM_ID="$(jq -er '.id // .team.id' <<<"$secondary_team")"
+fi
+
 if api POST /workspaces/join "$(jq -nc --arg slug "$WORKSPACE_ID" '{slug:$slug}')" >/dev/null 2>&1; then
   echo 'Workspace slug join was not rejected' >&2
   exit 1
@@ -110,6 +120,17 @@ label="$(api POST /labels "$(jq -nc --arg workspaceId "$WORKSPACE_ID" --arg id "
 label_id="$(jq -er '.id' <<<"$label")"
 second_label="$(api POST /labels "$(jq -nc --arg workspaceId "$WORKSPACE_ID" --arg id "sim-label-secondary-$RUN_ID" --arg groupId "$group_id" '{workspaceId:$workspaceId,id:$id,name:"Simulation secondary label",color:"#f2c94c",scope:"both",groupId:$groupId}')")"
 second_label_id="$(jq -er '.id' <<<"$second_label")"
+
+if [[ "$CREATE_WORKSPACE" == "1" ]]; then
+  team_label="$(api POST /labels "$(jq -nc --arg workspaceId "$WORKSPACE_ID" --arg teamId "$TEAM_ID" --arg id "sim-team-label-$RUN_ID" '{workspaceId:$workspaceId,teamId:$teamId,id:$id,name:"Simulation team label",color:"#26b5ce",scope:"both"}')")"
+  team_label_id="$(jq -er '.id' <<<"$team_label")"
+  team_labels="$(api GET "/labels?teamId=$TEAM_ID")"
+  assert_json 'team label visible to its owning team' "$team_labels" \
+    --arg label_id "$team_label_id" 'any(.[]; .id == $label_id and .teamId != null)'
+  secondary_team_labels="$(api GET "/labels?teamId=$SECONDARY_TEAM_ID")"
+  assert_json 'team label hidden from another team' "$secondary_team_labels" \
+    --arg label_id "$team_label_id" 'all(.[]; .id != $label_id)'
+fi
 
 project="$(api POST /projects "$(jq -nc --arg teamId "$TEAM_ID" --arg labelId "$label_id" '{name:"Circle simulation project",teamId:$teamId,priorityId:"high",healthId:"on-track",labelIds:[$labelId]}')")"
 project_id="$(jq -er '.id' <<<"$project")"
