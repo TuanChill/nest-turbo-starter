@@ -28,21 +28,52 @@ import { useRightPanelStore } from '@/store/right-panel-store';
 import { BarChart3, MoreHorizontal, Pencil, Star, Trash2 } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
+import QueryErrorState from '@/components/common/query-error-state';
 
 export default function Header() {
    const { orgId, viewId } = useParams<{ orgId: string; viewId: string }>();
    const router = useRouter();
-   const { data: views = [] } = useViews();
+   const { data: views = [], error: viewsError, refetch: refetchViews } = useViews();
    const view = views.find((v) => v.id === viewId);
    const { openPanel, togglePanel } = useRightPanelStore();
-   const { data: allIssues = [] } = useIssues();
-   const { data: allProjects = [] } = useProjects();
+   const { data: allIssues = [], error: issuesError, refetch: refetchIssues } = useIssues();
+   const { data: allProjects = [], error: projectsError, refetch: refetchProjects } = useProjects();
    const currentUserId = useAuthStore((s) => s.user?.id);
    const deleteViewMutation = useDeleteView();
 
    const [editOpen, setEditOpen] = useState(false);
    const [deleteOpen, setDeleteOpen] = useState(false);
 
+   if (viewsError) {
+      return (
+         <QueryErrorState
+            subject="saved view"
+            error={viewsError}
+            onRetry={() => refetchViews()}
+            compact
+         />
+      );
+   }
+   if (issuesError) {
+      return (
+         <QueryErrorState
+            subject="view issues"
+            error={issuesError}
+            onRetry={() => refetchIssues()}
+            compact
+         />
+      );
+   }
+   if (projectsError) {
+      return (
+         <QueryErrorState
+            subject="view projects"
+            error={projectsError}
+            onRetry={() => refetchProjects()}
+            compact
+         />
+      );
+   }
    if (!view) return null;
 
    const count =

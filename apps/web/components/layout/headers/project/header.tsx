@@ -41,6 +41,7 @@ import {
    AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
+import QueryErrorState from '@/components/common/query-error-state';
 
 const BASE_PROJECT_TABS = [
    { label: 'Overview', segment: 'overview' },
@@ -56,8 +57,14 @@ function ProjectTabs({ projectId }: { projectId: string }) {
    const activeViewId = searchParams.get('view');
    const [isAddViewOpen, setIsAddViewOpen] = useState(false);
 
-   const { data: views = [] } = useViews({ projectId });
+   const { data: views = [], error, refetch } = useViews({ projectId });
    const deleteViewMutation = useDeleteView();
+
+   if (error) {
+      return (
+         <QueryErrorState subject="project views" error={error} onRetry={() => refetch()} compact />
+      );
+   }
 
    const isIssuesPath = pathname === `/${orgId}/project/${projectId}/issues`;
 

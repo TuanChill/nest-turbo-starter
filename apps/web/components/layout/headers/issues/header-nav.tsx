@@ -18,6 +18,7 @@ import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigat
 import { useEffect, useRef, useState } from 'react';
 import Notifications from './notifications';
 import { AddViewDialog } from './add-view-dialog';
+import QueryErrorState from '@/components/common/query-error-state';
 
 const ISSUE_VIEW_TABS = [
    { label: 'Active', segment: 'active' },
@@ -33,8 +34,14 @@ function IssueViewTabs() {
    const activeViewId = searchParams.get('view');
    const [isAddViewOpen, setIsAddViewOpen] = useState(false);
 
-   const { data: views = [] } = useViews({ teamId });
+   const { data: views = [], error, refetch } = useViews({ teamId });
    const deleteViewMutation = useDeleteView();
+
+   if (error) {
+      return (
+         <QueryErrorState subject="issue views" error={error} onRetry={() => refetch()} compact />
+      );
+   }
 
    const allIssuesHref = `/${orgId}/team/${teamId}/all`;
 

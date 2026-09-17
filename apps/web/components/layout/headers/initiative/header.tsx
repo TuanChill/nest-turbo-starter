@@ -26,18 +26,24 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { parseAsStringLiteral, useQueryState } from 'nuqs';
+import QueryErrorState from '@/components/common/query-error-state';
 
 const TABS = ['overview', 'activity', 'projects'] as const;
 
 export default function Header() {
    const { orgId, initiativeId } = useParams<{ orgId: string; initiativeId: string }>();
-   const { data: initiatives = [] } = useInitiatives();
+   const { data: initiatives = [], error, refetch } = useInitiatives();
    const initiative = initiatives.find((i) => i.id === initiativeId);
    const deleteInitiativeMutation = useDeleteInitiative();
    const router = useRouter();
    const [isEditOpen, setIsEditOpen] = useState(false);
    const [tab, setTab] = useQueryState('tab', parseAsStringLiteral(TABS).withDefault('overview'));
 
+   if (error) {
+      return (
+         <QueryErrorState subject="initiative" error={error} onRetry={() => refetch()} compact />
+      );
+   }
    if (!initiative) return null;
 
    return (
