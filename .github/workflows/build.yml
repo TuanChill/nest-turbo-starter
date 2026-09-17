@@ -23,6 +23,15 @@ jobs:
             exit 1
           fi
 
+      - name: Enforce local-only runtime smoke policy
+        shell: bash
+        run: |
+          bash -n deploy.sh
+          if grep -Eq '(^|[[:space:]])curl([[:space:]]|$)|backend smoke check' deploy.sh; then
+            echo 'Production deploy scripts must not run runtime smoke checks; use the local smoke harness instead.' >&2
+            exit 1
+          fi
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
