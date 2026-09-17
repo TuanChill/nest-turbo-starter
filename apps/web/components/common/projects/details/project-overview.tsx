@@ -85,7 +85,12 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
       [allIssues, project?.id]
    );
 
-   const { data: teams = [] } = useTeams();
+   const {
+      data: teams = [],
+      isError: isTeamsError,
+      error: teamsError,
+      refetch: refetchTeams,
+   } = useTeams();
    const team = teams.find((candidate) => candidate.id === project?.teamId);
    const scrollRef = useRef<HTMLDivElement>(null);
    const outlineItems = useMemo(
@@ -185,6 +190,10 @@ export default function ProjectOverview({ projectId }: ProjectOverviewProps) {
       return (
          <QueryErrorState subject="project issues" error={issuesError} onRetry={refetchIssues} />
       );
+   }
+
+   if (isTeamsError) {
+      return <QueryErrorState subject="project teams" error={teamsError} onRetry={refetchTeams} />;
    }
 
    if (isLoading) {
