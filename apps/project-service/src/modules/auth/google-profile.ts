@@ -4,14 +4,15 @@ export interface GoogleIdentityPayload {
   email?: string;
   name?: string;
   picture?: string;
-  email_verified?: boolean;
+  email_verified?: boolean | string;
 }
 
 export interface GoogleTokenInfo {
   aud?: string;
   azp?: string;
   email?: string;
-  verified_email?: boolean;
+  email_verified?: boolean | string;
+  verified_email?: boolean | string;
 }
 
 export interface VerifiedGoogleProfile {
@@ -20,12 +21,18 @@ export interface VerifiedGoogleProfile {
   picture: string;
 }
 
+function isGoogleEmailVerified(value: unknown): boolean {
+  return (
+    value === true || (typeof value === 'string' && value.trim().toLowerCase() === 'true')
+  );
+}
+
 export function parseVerifiedGoogleProfile(
   payload: GoogleIdentityPayload | null | undefined,
 ): VerifiedGoogleProfile {
   const email = payload?.email?.trim().toLowerCase();
   const name = payload?.name?.trim();
-  if (!email || payload?.email_verified !== true) {
+  if (!email || !isGoogleEmailVerified(payload?.email_verified)) {
     throw new UnauthorizedException('Google account email is not verified');
   }
   if (!name) {
@@ -42,7 +49,8 @@ export function parseVerifiedGoogleTokenInfo(
     throw new UnauthorizedException('Google token client ID mismatch');
   }
   const email = tokenInfo.email?.trim().toLowerCase();
-  if (!email || tokenInfo.verified_email !== true) {
+  const emailVerified = tokenInfo.email_verified ?? tokenInfo.verified_email;
+  if (!email || !isGoogleEmailVerified(emailVerified)) {
     throw new UnauthorizedException('Google account email is not verified');
   }
   return { email };

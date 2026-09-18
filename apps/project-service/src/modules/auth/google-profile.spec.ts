@@ -28,12 +28,26 @@ describe('Google profile validation', () => {
         email_verified: true,
       }),
     ).toThrow('Google profile name is missing');
+
+    expect(
+      parseVerifiedGoogleProfile({
+        email: 'user@example.com',
+        email_verified: 'true',
+        name: 'User',
+      }),
+    ).toEqual({ email: 'user@example.com', name: 'User', picture: '' });
   });
 
   it('rejects unverified or incorrectly-audienced access tokens', () => {
     expect(
       parseVerifiedGoogleTokenInfo(
         { aud: 'client-1', email: 'user@example.com', verified_email: true },
+        'client-1',
+      ),
+    ).toEqual({ email: 'user@example.com' });
+    expect(
+      parseVerifiedGoogleTokenInfo(
+        { aud: 'client-1', email: 'user@example.com', email_verified: 'true' },
         'client-1',
       ),
     ).toEqual({ email: 'user@example.com' });
@@ -58,6 +72,12 @@ describe('Google profile validation', () => {
     expect(() =>
       parseVerifiedGoogleTokenInfo(
         { aud: 'client-1', email: 'user@example.com', verified_email: false },
+        'client-1',
+      ),
+    ).toThrow('Google account email is not verified');
+    expect(() =>
+      parseVerifiedGoogleTokenInfo(
+        { aud: 'client-1', email: 'user@example.com', email_verified: 'false' },
         'client-1',
       ),
     ).toThrow('Google account email is not verified');

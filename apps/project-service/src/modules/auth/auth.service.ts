@@ -224,6 +224,7 @@ export class AuthService {
           aud?: string;
           azp?: string;
           email?: string;
+          email_verified?: boolean | string;
           verified_email?: boolean;
         };
         email = parseVerifiedGoogleTokenInfo(tokenInfo, googleClientId).email;
@@ -238,12 +239,11 @@ export class AuthService {
           email?: string;
           name?: string;
           picture?: string;
-          email_verified?: boolean;
+          email_verified?: boolean | string;
         };
         const profile = parseVerifiedGoogleProfile({
           ...userInfo,
-          email: userInfo.email || email,
-          email_verified: userInfo.email_verified ?? true,
+          email: userInfo.email,
         });
         if (profile.email !== email) {
           throw new UnauthorizedException('Google profile email mismatch');
